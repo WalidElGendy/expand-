@@ -1,0 +1,13 @@
+{
+  "name": "expand-crm",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Expand CRM — capacity-aware delivery scheduling for the proposal pipeline.",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node test/scheduler.test.mjs && node test/asana.test.mjs",
+    "dev": "node scripts/build.mjs && node -e \"console.log('open public/index.html')\""
+  },
+  "devDependencies": { "esbuild": "^0.28.1" }
+}
