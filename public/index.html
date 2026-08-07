@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Delivery estimator · expand</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Brand Arabic face, per guideline 5.6–5.8. Latin falls back to Arial,
+     which the guideline names as the system font when Helvetica Now is absent. -->
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ==========================================================================
+   expand — delivery estimator
+   Brand tokens taken from Brand Guidelines 2025 v1, section 4.5.
+   ========================================================================== */
+:root {
+  color-scheme: dark;
+
+  /* --- brand, verbatim from the guideline --- */
+  --black:    #000000;
+  --midnight: #5230bf;   /* Midnight Purple */
+  --brand:    #915bf5;   /* Purple Heart    */
+  --selago:   #e8d9fa;
+  --biloba:   #bd96f2;
+  --lilac:    #f2ebfa;
+
+  /* --- surfaces --- */
+  --bg:   #000000;
+  --s-1:  #101014;       /* panel — the surface the palette was validated on */
+  --s-2:  #17171d;
+  --s-3:  #1f1f28;
+
+  /* --- ink --- */
+  --ink1: #ffffff;
+  --ink2: #b9b6c6;
+  --ink3: #7d7a8c;
+  --ink4: #4e4b5c;
+
+  --line:  #232330;
+  --line2: #30303f;
+
+  /* --- categorical series ---
+     node scripts/validate_palette.js "#915bf5,#d95926,#199e70,#c98500" \
+       --mode dark --surface "#101014"   ->  ALL CHECKS PASS
+     Brand purple takes slot 1 so the primary team reads as the brand. */
+  --s1: #915bf5;   /* 3D      */
+  --s2: #d95926;   /* 2D      */
+  --s3: #199e70;   /* content */
+  --s4: #c98500;
+
+  --ok:       #0ca30c;
+  --warn:     #fab219;
+  --critical: #d03b3b;
+
+  --sans: "Helvetica Now Display", "Helvetica Neue", Arial, Helvetica, sans-serif;
+  --ar: "IBM Plex Sans Arabic", var(--sans);
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+
+  --r: 10px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { min-height: 100%; }
+body {
+  background: var(--bg); color: var(--ink1);
+  font-family: var(--sans); font-size: 14px; line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  padding: 20px;
+}
+html[lang="ar"] body { font-family: var(--ar); }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; border: 0; background: none; }
+:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 6px; }
+
+#root { max-width: 1440px; margin: 0 auto; }
+
+/* ------------------------------- header ---------------------------------- */
+.head {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding: 0 4px 20px; position: relative;
+}
+/* Echo of the brand "Lines System" (guideline 7.0) */
+.head::after {
+  content: ""; position: absolute; inset-inline-end: 0; top: 0; bottom: 20px; width: 180px;
+  background: repeating-linear-gradient(90deg,
+    var(--midnight) 0 2px, transparent 2px 9px);
+  opacity: .35; mask-image: linear-gradient(90deg, transparent, #000);
+  pointer-events: none;
+}
+html[dir="rtl"] .head::after { transform: scaleX(-1); }
+.brand { display: flex; align-items: center; gap: 12px; }
+.wordmark {
+  font-size: 20px; font-weight: 700; letter-spacing: -.03em; color: var(--ink1);
+}
+.sep { width: 1px; height: 26px; background: var(--line2); }
+.h1 { font-size: 17px; font-weight: 600; letter-spacing: -.01em; }
+.sub { font-size: 12.5px; color: var(--ink3); }
+.head__actions { margin-inline-start: auto; display: flex; gap: 8px; z-index: 1; }
+
+.btn {
+  height: 34px; padding: 0 14px; border-radius: 8px; font-size: 13px; font-weight: 500;
+  background: var(--s-2); border: 1px solid var(--line2); color: var(--ink1);
+}
+.btn:hover { background: var(--s-3); }
+.btn--primary { background: var(--brand); border-color: var(--brand); color: #10041f; font-weight: 600; }
+.btn--primary:hover { background: var(--biloba); }
+.btn--ghost { background: none; color: var(--ink3); }
+.btn--ghost:hover { color: var(--ink1); }
+.btn--lang { font-family: var(--ar); }
+
+/* -------------------------------- layout --------------------------------- */
+.grid { display: grid; grid-template-columns: 280px minmax(0,1fr) 300px; gap: 14px; align-items: start; }
+.col { display: grid; gap: 14px; }
+@media (max-width: 1180px) { .grid { grid-template-columns: 260px minmax(0,1fr); } }
+@media (max-width: 860px)  { .grid { grid-template-columns: 1fr; } }
+
+.card { background: var(--s-1); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.card--wide { margin-top: 14px; }
+.card__h {
+  display: flex; align-items: center; gap: 8px;
+  padding: 11px 14px; border-bottom: 1px solid var(--line);
+  font-size: 12.5px; font-weight: 600; letter-spacing: .01em;
+}
+.card__sub, .badge { margin-inline-start: auto; font-size: 11px; color: var(--ink3); font-family: var(--mono); }
+.badge { background: var(--s-3); border-radius: 20px; padding: 1px 8px; }
+.card__b { padding: 14px; }
+.stack { display: grid; gap: 10px; }
+.hint { font-size: 11.5px; color: var(--ink3); line-height: 1.5; }
+
+/* --------------------------------- rows ---------------------------------- */
+.row { display: flex; align-items: center; gap: 9px; }
+.row__label { font-size: 13px; }
+.row__meta { margin-inline-start: auto; font-family: var(--mono); font-size: 11px; color: var(--ink3); }
+.row--proj { padding: 7px 9px; background: var(--s-2); border-radius: 8px; }
+.row--proj .row__meta { margin-inline-start: 0; }
+.dot { width: 9px; height: 9px; border-radius: 3px; flex: none; display: inline-block; }
+.tag {
+  font-size: 10.5px; padding: 1px 6px; border-radius: 4px;
+  background: var(--s-3); color: var(--ink2); margin-inline-start: auto;
+}
+.x { color: var(--ink4); font-size: 16px; line-height: 1; padding: 0 2px; }
+.x:hover { color: var(--critical); }
+
+.stepper { margin-inline-start: auto; display: flex; align-items: center; gap: 2px; }
+.stepper button {
+  width: 24px; height: 24px; border-radius: 6px; background: var(--s-2);
+  border: 1px solid var(--line2); color: var(--ink2); font-size: 14px; line-height: 1;
+}
+.stepper button:hover { background: var(--brand); color: #10041f; border-color: var(--brand); }
+.stepper b { min-width: 22px; text-align: center; font-family: var(--mono); font-size: 13px; }
+
+/* --------------------------------- form ---------------------------------- */
+.fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.f { display: grid; gap: 5px; }
+.f--wide { grid-column: 1 / -1; }
+.f span { font-size: 11.5px; color: var(--ink3); }
+.f input, .f select {
+  height: 36px; padding: 0 10px; border-radius: 8px;
+  background: var(--bg); border: 1px solid var(--line2); outline: 0;
+}
+.f input:focus, .f select:focus { border-color: var(--brand); }
+.actions { display: flex; gap: 8px; margin-top: 12px; }
+
+/* ------------------------------- the result ------------------------------ */
+.card--result { border-color: var(--line2); }
+.card--empty .empty { display: grid; gap: 12px; justify-items: center; text-align: center; padding: 34px 24px; }
+.card--empty p { color: var(--ink3); font-size: 12.5px; max-width: 44ch; }
+
+.compare { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center; }
+.compare__side { padding: 14px; border-radius: 10px; background: var(--s-2); border: 1px solid var(--line); }
+.compare__side--real { border-color: var(--brand); background: linear-gradient(180deg, rgba(145,91,245,.13), transparent); }
+.compare__k { font-size: 11px; color: var(--ink3); text-transform: uppercase; letter-spacing: .06em; }
+.compare__v { font-size: 22px; font-weight: 700; letter-spacing: -.02em; margin: 4px 0 2px; }
+.compare__side--naive .compare__v { color: var(--ink3); text-decoration: line-through; text-decoration-color: var(--ink4); }
+.compare__n { font-size: 11.5px; color: var(--ink3); }
+.compare__arrow { text-align: center; display: grid; gap: 2px; padding: 0 4px; }
+.compare__arrow b { font-size: 15px; color: var(--warn); font-weight: 700; }
+.compare__arrow span { font-size: 10.5px; color: var(--ink3); max-width: 12ch; display: block; }
+
+.deadline { margin-top: 12px; padding: 9px 12px; border-radius: 8px; font-size: 12.5px; font-weight: 500; }
+.deadline.ok  { background: rgba(12,163,12,.12); color: #6ee36e; }
+.deadline.bad { background: rgba(208,59,59,.12); color: #ff8f8f; }
+
+.split { margin-top: 16px; }
+.split__bar { display: flex; height: 9px; border-radius: 20px; overflow: hidden; background: var(--s-3); }
+.split__q { background: repeating-linear-gradient(45deg, var(--ink4) 0 4px, var(--s-3) 4px 8px); }
+.split__w { background: var(--brand); }
+.split__legend { display: flex; gap: 16px; margin-top: 7px; font-size: 11.5px; color: var(--ink2); }
+.sw { width: 9px; height: 9px; border-radius: 2px; display: inline-block; margin-inline-end: 6px; }
+.sw--q { background: repeating-linear-gradient(45deg, var(--ink4) 0 3px, var(--s-3) 3px 6px); }
+.sw--w { background: var(--brand); }
+
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 1px; background: var(--line); margin-top: 16px; border-radius: 8px; overflow: hidden; }
+.fact { background: var(--s-1); padding: 11px 12px; display: grid; gap: 3px; }
+.fact__k { font-size: 10.5px; color: var(--ink3); text-transform: uppercase; letter-spacing: .05em; }
+.fact__v { font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 7px; }
+.fact__n { font-size: 11px; color: var(--ink3); line-height: 1.4; }
+.conf { text-transform: capitalize; }
+.conf--high { color: #6ee36e; } .conf--medium { color: var(--warn); } .conf--low { color: #ff8f8f; }
+
+.sec { font-size: 11px; color: var(--ink3); text-transform: uppercase; letter-spacing: .06em; margin: 18px 0 8px; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.tbl th { text-align: start; font-size: 10.5px; color: var(--ink3); text-transform: uppercase; letter-spacing: .04em; padding: 0 8px 7px; font-weight: 600; }
+.tbl td { padding: 8px; border-top: 1px solid var(--line); }
+.tbl .n { text-align: end; }
+.tbl tr.drive td { background: rgba(145,91,245,.08); }
+.tbl tr.err td { color: #ff8f8f; }
+.who { color: var(--ink3); font-size: 11.5px; }
+
+/* ------------------------------ utilisation ------------------------------ */
+.util { display: grid; gap: 6px; }
+.util__h { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+.util__n { margin-inline-start: auto; font-size: 11px; color: var(--ink3); }
+.util__h b { font-family: var(--mono); font-size: 12px; }
+.util__h b.warm { color: var(--warn); } .util__h b.hot { color: var(--critical); }
+.util__bar { height: 7px; border-radius: 20px; background: var(--s-3); overflow: hidden; }
+.util__bar span { display: block; height: 100%; border-radius: 20px; }
+
+.lever { padding: 10px 11px; background: var(--s-2); border-radius: 8px; border: 1px solid var(--line); }
+.lever__t { font-size: 12.5px; margin-bottom: 3px; }
+.lever__v { font-size: 13px; font-weight: 600; display: flex; gap: 8px; align-items: baseline; }
+.lever__s { font-size: 11px; color: #6ee36e; font-weight: 500; }
+
+/* --------------------------------- gantt --------------------------------- */
+.gantt { display: grid; gap: 5px; overflow-x: auto; }
+.gantt__axis {
+  display: grid; grid-template-columns: 120px repeat(var(--cols), minmax(16px, 1fr));
+  font-family: var(--mono); font-size: 9.5px; color: var(--ink4); padding-inline-start: 120px;
+}
+.gantt__axis span { grid-row: 1; }
+.gantt__row { display: grid; grid-template-columns: 120px 1fr; gap: 10px; align-items: center; }
+.gantt__name { font-size: 11.5px; color: var(--ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gantt__track {
+  display: grid; grid-template-columns: repeat(var(--cols), minmax(16px, 1fr));
+  gap: 2px; background: var(--s-2); border-radius: 6px; min-height: 22px; padding: 2px;
+}
+.bar {
+  grid-row: 1; height: 18px; border-radius: 4px; font-size: 10px; color: #10041f;
+  display: flex; align-items: center; padding: 0 6px; overflow: hidden;
+  white-space: nowrap; text-overflow: ellipsis; font-weight: 600;
+}
+.bar--new { outline: 2px solid var(--ink1); outline-offset: -2px; }
+
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="module">
+// engine/calendar.js
+var DEFAULT_WEEKEND = [5, 6];
+var DEFAULT_HOLIDAYS = [
+  // 2026 — Saudi national holidays. Eid dates are announced by moon sighting
+  // and shift by a day or two; confirm each year before relying on them.
+  "2026-02-22",
+  // Founding Day
+  "2026-03-19",
+  "2026-03-20",
+  "2026-03-21",
+  "2026-03-22",
+  // Eid al-Fitr (approx)
+  "2026-05-26",
+  "2026-05-27",
+  "2026-05-28",
+  "2026-05-29",
+  // Eid al-Adha (approx)
+  "2026-09-23"
+  // National Day
+];
+var DAY_MS = 864e5;
+var iso = (d) => {
+  const x = d instanceof Date ? d : new Date(d);
+  return `${x.getUTCFullYear()}-${String(x.getUTCMonth() + 1).padStart(2, "0")}-${String(x.getUTCDate()).padStart(2, "0")}`;
+};
+var parse = (s) => s instanceof Date ? s : /* @__PURE__ */ new Date(String(s) + "T00:00:00Z");
+var WorkCalendar = class {
+  /**
+   * @param {number[]} weekend  day indices, 0 = Sunday
+   * @param {string[]} holidays ISO dates
+   */
+  constructor({ weekend = DEFAULT_WEEKEND, holidays = DEFAULT_HOLIDAYS } = {}) {
+    this.weekend = new Set(weekend);
+    this.holidays = new Set(holidays);
+    this._cache = /* @__PURE__ */ new Map();
+  }
+  isWorking(date) {
+    const s = iso(date);
+    if (this._cache.has(s)) return this._cache.get(s);
+    const d = parse(s);
+    const ok = !this.weekend.has(d.getUTCDay()) && !this.holidays.has(s);
+    this._cache.set(s, ok);
+    return ok;
+  }
+  /** The first working day on or after `date`. */
+  nextWorking(date) {
+    let d = parse(iso(date));
+    let guard = 0;
+    while (!this.isWorking(d)) {
+      d = new Date(d.getTime() + DAY_MS);
+      if (++guard > 400) throw new Error("no working day found within a year \u2014 check the holiday list");
+    }
+    return d;
+  }
+  /** Add N working days to a date. addWorkingDays(d, 0) === nextWorking(d). */
+  addWorkingDays(date, n) {
+    let d = this.nextWorking(date);
+    let left = Math.max(0, Math.round(n));
+    while (left > 0) {
+      d = this.nextWorking(new Date(d.getTime() + DAY_MS));
+      left--;
+    }
+    return d;
+  }
+  /** Working days between two dates, inclusive of `from`, exclusive of `to`. */
+  countWorkingDays(from, to) {
+    let d = parse(iso(from));
+    const end = parse(iso(to));
+    let n = 0, guard = 0;
+    while (d < end) {
+      if (this.isWorking(d)) n++;
+      d = new Date(d.getTime() + DAY_MS);
+      if (++guard > 3650) break;
+    }
+    return n;
+  }
+  /** Every working date in [from, to], as ISO strings. */
+  workingDaysBetween(from, to) {
+    const out = [];
+    let d = parse(iso(from));
+    const end = parse(iso(to));
+    let guard = 0;
+    while (d <= end) {
+      if (this.isWorking(d)) out.push(iso(d));
+      d = new Date(d.getTime() + DAY_MS);
+      if (++guard > 3650) break;
+    }
+    return out;
+  }
+  /** Calendar days a working-day span actually consumes — what the client sees. */
+  calendarSpan(from, to) {
+    return Math.round((parse(iso(to)) - parse(iso(from))) / DAY_MS) + 1;
+  }
+  /** Warn when the holiday table has gone stale rather than silently drifting. */
+  holidayCoverageEndsBefore(date) {
+    const last = [...this.holidays].sort().pop();
+    return last ? parse(last) < parse(iso(date)) : true;
+  }
+};
+
+// engine/scheduler.js
+var DEFAULT_STAGES = {
+  "3d": { label: "3D design", team: "3d", baseDays: 5 },
+  "2d": { label: "2D technical", team: "2d", baseDays: 2 },
+  "content": { label: "Content creation", team: "content", baseDays: 3 }
+};
+var DEFAULT_SIZE_FACTORS = { S: 0.6, M: 1, L: 1.8, XL: 2.6 };
+var DEFAULT_FOCUS = 1;
+var round1 = (n) => Math.round(n * 10) / 10;
+var DAY_MS2 = 864e5;
+var MemberLedger = class {
+  constructor(member, focus) {
+    this.id = member.id;
+    this.name = member.name;
+    this.team = member.team;
+    this.role = member.role || "member";
+    this.availability = member.availability ?? 1;
+    this.focus = member.focus ?? focus;
+    this.leave = new Set(member.leave || []);
+    this.booked = /* @__PURE__ */ new Map();
+  }
+  capacityOn(day) {
+    if (this.leave.has(day)) return 0;
+    return this.availability * this.focus;
+  }
+  freeOn(day) {
+    return Math.max(0, this.capacityOn(day) - (this.booked.get(day) || 0));
+  }
+  book(day, amount) {
+    this.booked.set(day, (this.booked.get(day) || 0) + amount);
+  }
+  /** Person-days committed across a window — used for utilisation reporting. */
+  loadBetween(cal, from, to) {
+    let committed = 0, capacity = 0;
+    for (const d of cal.workingDaysBetween(from, to)) {
+      committed += this.booked.get(d) || 0;
+      capacity += this.capacityOn(d);
+    }
+    return { committed, capacity, utilisation: capacity ? committed / capacity : 0 };
+  }
+};
+var Scheduler = class _Scheduler {
+  /**
+   * @param {object} cfg
+   * @param {Array}  cfg.members    [{id, name, team, availability?, focus?, leave?[]}]
+   * @param {object} cfg.stages     stage definitions, defaults to DEFAULT_STAGES
+   * @param {object} cfg.sizeFactors
+   * @param {object} cfg.calibration per-team learned multipliers (see calibrate())
+   * @param {WorkCalendar} cfg.calendar
+   */
+  constructor({
+    members: members2 = [],
+    stages = DEFAULT_STAGES,
+    sizeFactors = DEFAULT_SIZE_FACTORS,
+    calibration = {},
+    focus = DEFAULT_FOCUS,
+    calendar = new WorkCalendar()
+  } = {}) {
+    this.cal = calendar;
+    this.stages = stages;
+    this.sizeFactors = sizeFactors;
+    this.calibration = calibration;
+    this.members = members2.map((m) => new MemberLedger(m, focus));
+    this.byTeam = /* @__PURE__ */ new Map();
+    for (const m of this.members) {
+      if (!this.byTeam.has(m.team)) this.byTeam.set(m.team, []);
+      this.byTeam.get(m.team).push(m);
+    }
+    this.assignments = [];
+  }
+  teamOf(team) {
+    return this.byTeam.get(team) || [];
+  }
+  /** Effort in person-days for one stage of one project. */
+  effortFor(stageKey, size) {
+    const stage = this.stages[stageKey];
+    if (!stage) throw new Error(`unknown stage: ${stageKey}`);
+    const sizeFactor = this.sizeFactors[size] ?? 1;
+    const cal = this.calibration[stage.team] ?? 1;
+    return stage.baseDays * sizeFactor * cal;
+  }
+  /**
+   * Earliest finish for `effort` person-days by one member, starting no earlier
+   * than `from`. Returns null if the horizon is exhausted.
+   */
+  _earliestFinish(member, effort, from, horizonDays = 400) {
+    let remaining = effort;
+    let day = this.cal.nextWorking(from);
+    let start = null;
+    const slices = [];
+    let guard = 0;
+    while (remaining > 1e-9) {
+      if (++guard > horizonDays) return null;
+      const key = iso(day);
+      const free = member.freeOn(key);
+      if (free > 1e-9) {
+        const take = Math.min(free, remaining);
+        if (!start) start = key;
+        slices.push([key, take]);
+        remaining -= take;
+      }
+      if (remaining > 1e-9) day = this.cal.nextWorking(new Date(parse(key).getTime() + DAY_MS2));
+    }
+    return { start, finish: slices[slices.length - 1][0], slices };
+  }
+  /**
+   * Schedule one stage. Picks the member who finishes soonest; ties break to
+   * the least-loaded member so work spreads instead of piling on one person.
+   */
+  scheduleStage({ projectId, projectName, stageKey, size, earliestStart, commit = true }) {
+    const stage = this.stages[stageKey];
+    const effort = this.effortFor(stageKey, size);
+    const pool = this.teamOf(stage.team).filter((m) => m.availability > 0);
+    if (!pool.length) {
+      return {
+        stage: stageKey,
+        team: stage.team,
+        label: stage.label,
+        effort,
+        error: "no_members",
+        message: `No one is assigned to the ${stage.team} team.`
+      };
+    }
+    let best = null;
+    for (const m of pool) {
+      const fit = this._earliestFinish(m, effort, earliestStart);
+      if (!fit) continue;
+      const load = m.loadBetween(this.cal, earliestStart, fit.finish).committed;
+      if (!best || fit.finish < best.fit.finish || fit.finish === best.fit.finish && load < best.load) {
+        best = { member: m, fit, load };
+      }
+    }
+    if (!best) {
+      return {
+        stage: stageKey,
+        team: stage.team,
+        label: stage.label,
+        effort,
+        error: "no_capacity",
+        message: `The ${stage.team} team has no free capacity within the horizon.`
+      };
+    }
+    if (commit) {
+      for (const [day, amount] of best.fit.slices) best.member.book(day, amount);
+    }
+    const firstPossible = iso(this.cal.nextWorking(earliestStart));
+    const queueDays = this.cal.countWorkingDays(firstPossible, best.fit.start);
+    const spanDays = this.cal.countWorkingDays(best.fit.start, best.fit.finish) + 1;
+    const record = {
+      projectId,
+      projectName,
+      stage: stageKey,
+      label: stage.label,
+      team: stage.team,
+      memberId: best.member.id,
+      memberName: best.member.name,
+      effortDays: round1(effort),
+      start: best.fit.start,
+      finish: best.fit.finish,
+      queueDays,
+      spanDays,
+      // Work stretched over more days than it needs means the person is
+      // splitting attention across projects.
+      fragmentation: round1(spanDays - effort),
+      slices: best.fit.slices
+    };
+    if (commit) this.assignments.push(record);
+    return record;
+  }
+  /**
+   * Schedule a whole proposal. Stages run in parallel, so they all start from
+   * the same earliest date and the delivery date is the latest finish.
+   */
+  scheduleProject({
+    id,
+    name,
+    size = "M",
+    earliestStart = iso(/* @__PURE__ */ new Date()),
+    stages = Object.keys(this.stages),
+    deadline = null,
+    commit = true
+  }) {
+    const scheduled = stages.map((stageKey) => this.scheduleStage({
+      projectId: id,
+      projectName: name,
+      stageKey,
+      size,
+      earliestStart,
+      commit
+    }));
+    const ok = scheduled.filter((s) => !s.error);
+    const failed = scheduled.filter((s) => s.error);
+    if (!ok.length) {
+      return { id, name, size, error: "unschedulable", stages: scheduled, failed };
+    }
+    const delivery = ok.reduce((a, s) => s.finish > a ? s.finish : a, ok[0].finish);
+    const driver = ok.find((s) => s.finish === delivery);
+    const totalEffort = ok.reduce((a, s) => a + s.effortDays, 0);
+    const totalQueue = driver.queueDays;
+    const leadWorkingDays = this.cal.countWorkingDays(
+      iso(this.cal.nextWorking(earliestStart)),
+      delivery
+    ) + 1;
+    const queueShare = leadWorkingDays ? totalQueue / leadWorkingDays : 0;
+    const result = {
+      id,
+      name,
+      size,
+      earliestStart: iso(this.cal.nextWorking(earliestStart)),
+      delivery,
+      deliveryCalendarDays: this.cal.calendarSpan(earliestStart, delivery),
+      leadWorkingDays,
+      totalEffortDays: round1(totalEffort),
+      // The team that sets the date. Adding people anywhere else changes nothing.
+      bottleneck: {
+        team: driver.team,
+        stage: driver.stage,
+        label: driver.label,
+        member: driver.memberName,
+        queueDays: driver.queueDays
+      },
+      queueDays: totalQueue,
+      queueShare: round1(queueShare * 100) / 100,
+      confidence: confidenceFrom(queueShare, ok.length),
+      stages: scheduled,
+      failed
+    };
+    if (deadline) {
+      result.deadline = deadline;
+      result.meetsDeadline = delivery <= deadline;
+      result.slackWorkingDays = this.cal.countWorkingDays(delivery, deadline);
+      if (!result.meetsDeadline) {
+        result.overrunWorkingDays = this.cal.countWorkingDays(deadline, delivery);
+      }
+    }
+    return result;
+  }
+  /** Utilisation per team over a window — the "how busy are we" answer. */
+  utilisation(from, to) {
+    const out = {};
+    for (const [team, members2] of this.byTeam) {
+      let committed = 0, capacity = 0;
+      const per = [];
+      for (const m of members2) {
+        const l = m.loadBetween(this.cal, from, to);
+        committed += l.committed;
+        capacity += l.capacity;
+        per.push({ id: m.id, name: m.name, ...l, utilisation: round1(l.utilisation * 100) / 100 });
+      }
+      out[team] = {
+        committed: round1(committed),
+        capacity: round1(capacity),
+        utilisation: capacity ? round1(committed / capacity * 100) / 100 : 0,
+        headcount: members2.length,
+        members: per.sort((a, b) => b.utilisation - a.utilisation)
+      };
+    }
+    return out;
+  }
+  /** A member's assignments, for their personal dashboard. */
+  workloadFor(memberId) {
+    return this.assignments.filter((a) => a.memberId === memberId).sort((a, b) => a.start.localeCompare(b.start));
+  }
+  /** Deep copy, so what-if analysis never mutates the live plan. */
+  fork(extraMembers = []) {
+    const clone = new _Scheduler({
+      members: [],
+      stages: this.stages,
+      sizeFactors: this.sizeFactors,
+      calibration: this.calibration,
+      calendar: this.cal
+    });
+    clone.members = this.members.map((m) => {
+      const c = new MemberLedger(
+        {
+          id: m.id,
+          name: m.name,
+          team: m.team,
+          role: m.role,
+          availability: m.availability,
+          focus: m.focus,
+          leave: [...m.leave]
+        },
+        m.focus
+      );
+      c.booked = new Map(m.booked);
+      return c;
+    });
+    for (const m of extraMembers) clone.members.push(new MemberLedger(m, DEFAULT_FOCUS));
+    clone.byTeam = /* @__PURE__ */ new Map();
+    for (const m of clone.members) {
+      if (!clone.byTeam.has(m.team)) clone.byTeam.set(m.team, []);
+      clone.byTeam.get(m.team).push(m);
+    }
+    clone.assignments = [...this.assignments];
+    return clone;
+  }
+  /**
+   * What would actually move this date?
+   *
+   * Answers the question a PM asks next: "can we do better?" Each option is
+   * simulated on a fork, so the numbers are real rather than rules of thumb.
+   */
+  whatIf(project) {
+    const base = this.fork().scheduleProject({ ...project, commit: false });
+    if (base.error) return { base, options: [] };
+    const options = [];
+    const bteam = base.bottleneck.team;
+    const withHire = this.fork([{
+      id: "__hire__",
+      name: `New ${bteam} designer`,
+      team: bteam,
+      availability: 1
+    }]).scheduleProject({ ...project, commit: false });
+    if (!withHire.error && withHire.delivery < base.delivery) {
+      options.push({
+        action: "add_person",
+        label: `Add one person to the ${bteam} team`,
+        delivery: withHire.delivery,
+        savedWorkingDays: this.cal.countWorkingDays(withHire.delivery, base.delivery)
+      });
+    }
+    const order = ["S", "M", "L", "XL"];
+    const idx = order.indexOf(project.size || "M");
+    if (idx > 0) {
+      const smaller = this.fork().scheduleProject({ ...project, size: order[idx - 1], commit: false });
+      if (!smaller.error && smaller.delivery < base.delivery) {
+        options.push({
+          action: "reduce_scope",
+          label: `Scope down from ${order[idx]} to ${order[idx - 1]}`,
+          delivery: smaller.delivery,
+          savedWorkingDays: this.cal.countWorkingDays(smaller.delivery, base.delivery)
+        });
+      }
+    }
+    const without = this.fork().scheduleProject({
+      ...project,
+      commit: false,
+      stages: Object.keys(this.stages).filter((s) => s !== base.bottleneck.stage)
+    });
+    if (!without.error && without.delivery < base.delivery) {
+      options.push({
+        action: "defer_stage",
+        label: `Deliver without ${base.bottleneck.label} and follow up`,
+        delivery: without.delivery,
+        savedWorkingDays: this.cal.countWorkingDays(without.delivery, base.delivery)
+      });
+    }
+    return { base, options: options.sort((a, b) => b.savedWorkingDays - a.savedWorkingDays) };
+  }
+};
+function confidenceFrom(queueShare, stageCount) {
+  let level, note;
+  if (queueShare < 0.2) {
+    level = "high";
+    note = "Mostly hands-on work, little waiting. This date holds unless scope changes.";
+  } else if (queueShare < 0.5) {
+    level = "medium";
+    note = "A meaningful part of this is waiting for the team to free up. Slips upstream will move it.";
+  } else {
+    level = "low";
+    note = "Most of this date is queue, not work. It is a forecast about other projects finishing on time.";
+  }
+  if (stageCount < 2) note += " Based on a single stage.";
+  return { level, queueShare: round1(queueShare * 100) / 100, note };
+}
+
+// web/app.js
+var STR = {
+  en: {
+    title: "Delivery estimator",
+    sub: "When can we actually deliver this proposal?",
+    teams: "Your teams",
+    pipeline: "Current pipeline",
+    newProposal: "New proposal",
+    name: "Project name",
+    size: "Size",
+    start: "Earliest start",
+    deadline: "Submission deadline",
+    estimate: "Estimate delivery",
+    addPipeline: "Add to pipeline",
+    reset: "Reset demo",
+    naive: "Naive answer",
+    naiveNote: "longest stage, empty team",
+    real: "With current workload",
+    realNote: "what the team can actually do",
+    later: "later than the naive answer",
+    bottleneck: "Bottleneck",
+    queue: "waiting for the team",
+    work: "doing the work",
+    breakdown: "Stage breakdown",
+    timeline: "Who is doing what",
+    utilisation: "Team load",
+    levers: "What would move this date",
+    confidence: "Confidence",
+    meets: "Meets the deadline",
+    misses: "Misses the deadline by",
+    days: "working days",
+    day: "working day",
+    slack: "days of slack",
+    person: "person",
+    people: "people",
+    noProjects: "Nothing in the pipeline yet.",
+    stage3d: "3D design",
+    stage2d: "2D technical",
+    stagecontent: "Content creation",
+    saves: "saves",
+    addPerson: "Add one person to",
+    sizes: { S: "Small", M: "Medium", L: "Large", XL: "Very large" },
+    effortNote: "person-days of work",
+    stages: "stages",
+    next20: "next 20 working days",
+    confHigh: "Mostly hands-on work, little waiting. This date holds unless scope changes.",
+    confMedium: "A meaningful part of this is waiting for the team to free up. Slips upstream will move it.",
+    confLow: "Most of this date is queue, not work. It is a forecast about other projects finishing on time.",
+    confLevel: { high: "High", medium: "Medium", low: "Low" },
+    leverAdd: "Add one person to",
+    leverScope: "Scope down from",
+    leverTo: "to",
+    leverDefer: "Deliver without",
+    leverDeferTail: "and follow up"
+  },
+  ar: {
+    title: "\u062A\u0642\u062F\u064A\u0631 \u0645\u0648\u0639\u062F \u0627\u0644\u062A\u0633\u0644\u064A\u0645",
+    sub: "\u0645\u062A\u0649 \u064A\u0645\u0643\u0646\u0646\u0627 \u0641\u0639\u0644\u064A\u0627\u064B \u062A\u0633\u0644\u064A\u0645 \u0647\u0630\u0627 \u0627\u0644\u0639\u0631\u0636\u061F",
+    teams: "\u0627\u0644\u0641\u0631\u0642",
+    pipeline: "\u0627\u0644\u0645\u0634\u0627\u0631\u064A\u0639 \u0627\u0644\u062C\u0627\u0631\u064A\u0629",
+    newProposal: "\u0639\u0631\u0636 \u062C\u062F\u064A\u062F",
+    name: "\u0627\u0633\u0645 \u0627\u0644\u0645\u0634\u0631\u0648\u0639",
+    size: "\u0627\u0644\u062D\u062C\u0645",
+    start: "\u0623\u0642\u0631\u0628 \u0628\u062F\u0627\u064A\u0629",
+    deadline: "\u0645\u0648\u0639\u062F \u0627\u0644\u062A\u0642\u062F\u064A\u0645",
+    estimate: "\u0627\u062D\u0633\u0628 \u0645\u0648\u0639\u062F \u0627\u0644\u062A\u0633\u0644\u064A\u0645",
+    addPipeline: "\u0623\u0636\u0641 \u0625\u0644\u0649 \u0627\u0644\u0645\u0634\u0627\u0631\u064A\u0639",
+    reset: "\u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u0636\u0628\u0637",
+    naive: "\u0627\u0644\u062D\u0633\u0627\u0628 \u0627\u0644\u0645\u0628\u0633\u0651\u0637",
+    naiveNote: "\u0623\u0637\u0648\u0644 \u0645\u0631\u062D\u0644\u0629\u060C \u0641\u0631\u064A\u0642 \u0641\u0627\u0631\u063A",
+    real: "\u0645\u0639 \u062D\u0650\u0645\u0644 \u0627\u0644\u0639\u0645\u0644 \u0627\u0644\u062D\u0627\u0644\u064A",
+    realNote: "\u0645\u0627 \u064A\u0633\u062A\u0637\u064A\u0639 \u0627\u0644\u0641\u0631\u064A\u0642 \u0641\u0639\u0644\u0647",
+    later: "\u0623\u0637\u0648\u0644 \u0645\u0646 \u0627\u0644\u062D\u0633\u0627\u0628 \u0627\u0644\u0645\u0628\u0633\u0651\u0637",
+    bottleneck: "\u0627\u0644\u0627\u062E\u062A\u0646\u0627\u0642",
+    queue: "\u0627\u0646\u062A\u0638\u0627\u0631 \u062A\u0648\u0641\u0631 \u0627\u0644\u0641\u0631\u064A\u0642",
+    work: "\u062A\u0646\u0641\u064A\u0630 \u0627\u0644\u0639\u0645\u0644",
+    breakdown: "\u062A\u0641\u0635\u064A\u0644 \u0627\u0644\u0645\u0631\u0627\u062D\u0644",
+    timeline: "\u0645\u0646 \u064A\u0639\u0645\u0644 \u0639\u0644\u0649 \u0645\u0627\u0630\u0627",
+    utilisation: "\u062D\u0650\u0645\u0644 \u0627\u0644\u0641\u0631\u0642",
+    levers: "\u0645\u0627 \u0627\u0644\u0630\u064A \u064A\u0642\u0631\u0651\u0628 \u0647\u0630\u0627 \u0627\u0644\u0645\u0648\u0639\u062F",
+    confidence: "\u062F\u0631\u062C\u0629 \u0627\u0644\u062B\u0642\u0629",
+    meets: "\u064A\u0644\u062A\u0632\u0645 \u0628\u0627\u0644\u0645\u0648\u0639\u062F",
+    misses: "\u064A\u062A\u062C\u0627\u0648\u0632 \u0627\u0644\u0645\u0648\u0639\u062F \u0628\u0640",
+    days: "\u0623\u064A\u0627\u0645 \u0639\u0645\u0644",
+    day: "\u064A\u0648\u0645 \u0639\u0645\u0644",
+    slack: "\u0623\u064A\u0627\u0645 \u0641\u0627\u0626\u0636\u0629",
+    person: "\u0634\u062E\u0635",
+    people: "\u0623\u0634\u062E\u0627\u0635",
+    noProjects: "\u0644\u0627 \u062A\u0648\u062C\u062F \u0645\u0634\u0627\u0631\u064A\u0639 \u0628\u0639\u062F.",
+    stage3d: "\u062A\u0635\u0645\u064A\u0645 \u062B\u0644\u0627\u062B\u064A \u0627\u0644\u0623\u0628\u0639\u0627\u062F",
+    stage2d: "\u0627\u0644\u0631\u0633\u0648\u0645\u0627\u062A \u0627\u0644\u0641\u0646\u064A\u0629",
+    stagecontent: "\u0625\u0646\u062A\u0627\u062C \u0627\u0644\u0645\u062D\u062A\u0648\u0649",
+    saves: "\u064A\u0648\u0641\u0651\u0631",
+    addPerson: "\u0625\u0636\u0627\u0641\u0629 \u0634\u062E\u0635 \u0625\u0644\u0649",
+    sizes: { S: "\u0635\u063A\u064A\u0631", M: "\u0645\u062A\u0648\u0633\u0637", L: "\u0643\u0628\u064A\u0631", XL: "\u0643\u0628\u064A\u0631 \u062C\u062F\u0627\u064B" },
+    effortNote: "\u0623\u064A\u0627\u0645 \u0639\u0645\u0644 \u0644\u0644\u0641\u0631\u062F",
+    stages: "\u0645\u0631\u0627\u062D\u0644",
+    next20: "\u0623\u0642\u0631\u0628 \u0662\u0660 \u064A\u0648\u0645 \u0639\u0645\u0644",
+    confHigh: "\u0627\u0644\u0639\u0645\u0644 \u062A\u0646\u0641\u064A\u0630 \u0641\u064A \u0645\u0639\u0638\u0645\u0647\u060C \u0648\u0627\u0644\u0627\u0646\u062A\u0638\u0627\u0631 \u0642\u0644\u064A\u0644. \u0647\u0630\u0627 \u0627\u0644\u0645\u0648\u0639\u062F \u062B\u0627\u0628\u062A \u0645\u0627 \u0644\u0645 \u064A\u062A\u063A\u064A\u0651\u0631 \u0627\u0644\u0646\u0637\u0627\u0642.",
+    confMedium: "\u062C\u0632\u0621 \u0645\u0639\u062A\u0628\u0631 \u0645\u0646 \u0647\u0630\u0627 \u0627\u0646\u062A\u0638\u0627\u0631 \u0644\u062A\u0648\u0641\u0651\u0631 \u0627\u0644\u0641\u0631\u064A\u0642. \u0623\u064A \u062A\u0623\u062E\u064A\u0631 \u0633\u0627\u0628\u0642 \u0633\u064A\u062D\u0631\u0651\u0643 \u0627\u0644\u0645\u0648\u0639\u062F.",
+    confLow: "\u0645\u0639\u0638\u0645 \u0647\u0630\u0627 \u0627\u0644\u0645\u0648\u0639\u062F \u0627\u0646\u062A\u0638\u0627\u0631 \u0648\u0644\u064A\u0633 \u062A\u0646\u0641\u064A\u0630\u0627\u064B. \u0625\u0646\u0647 \u062A\u0648\u0642\u0651\u0639 \u0628\u0623\u0646 \u0627\u0644\u0645\u0634\u0627\u0631\u064A\u0639 \u0627\u0644\u0623\u062E\u0631\u0649 \u0633\u062A\u0646\u062A\u0647\u064A \u0641\u064A \u0648\u0642\u062A\u0647\u0627.",
+    confLevel: { high: "\u0639\u0627\u0644\u064A\u0629", medium: "\u0645\u062A\u0648\u0633\u0637\u0629", low: "\u0645\u0646\u062E\u0641\u0636\u0629" },
+    leverAdd: "\u0625\u0636\u0627\u0641\u0629 \u0634\u062E\u0635 \u0625\u0644\u0649 \u0641\u0631\u064A\u0642",
+    leverScope: "\u062A\u0635\u063A\u064A\u0631 \u0627\u0644\u062D\u062C\u0645 \u0645\u0646",
+    leverTo: "\u0625\u0644\u0649",
+    leverDefer: "\u0627\u0644\u062A\u0633\u0644\u064A\u0645 \u0628\u062F\u0648\u0646",
+    leverDeferTail: "\u062B\u0645 \u0627\u0633\u062A\u0643\u0645\u0627\u0644\u0647 \u0644\u0627\u062D\u0642\u0627\u064B"
+  }
+};
+var TEAM_LABEL = {
+  en: { "3d": "3D design", "2d": "2D technical", content: "Content" },
+  ar: { "3d": "\u062B\u0644\u0627\u062B\u064A \u0627\u0644\u0623\u0628\u0639\u0627\u062F", "2d": "\u0627\u0644\u0631\u0633\u0648\u0645\u0627\u062A \u0627\u0644\u0641\u0646\u064A\u0629", content: "\u0627\u0644\u0645\u062D\u062A\u0648\u0649" }
+};
+var TEAM_COLOR = { "3d": "var(--s1)", "2d": "var(--s2)", content: "var(--s3)" };
+var S = {
+  lang: "en",
+  headcount: { "3d": 2, "2d": 2, content: 1 },
+  pipeline: [],
+  seq: 0,
+  result: null,
+  whatIf: null
+};
+var T = () => STR[S.lang];
+var $ = (s, r = document) => r.querySelector(s);
+var esc = (x) => String(x ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+var CAL = new WorkCalendar();
+var today = () => iso(CAL.nextWorking(/* @__PURE__ */ new Date()));
+function members() {
+  const out = [];
+  for (const [team, n] of Object.entries(S.headcount)) {
+    for (let i = 0; i < n; i++) {
+      out.push({ id: `${team}-${i + 1}`, name: `${TEAM_LABEL[S.lang][team]} ${i + 1}`, team });
+    }
+  }
+  return out;
+}
+function loaded() {
+  const s = new Scheduler({ members: members(), calendar: CAL });
+  for (const p of S.pipeline) {
+    s.scheduleProject({ id: p.id, name: p.name, size: p.size, earliestStart: p.start });
+  }
+  return s;
+}
+var fmtDate = (d) => {
+  const x = parse(d);
+  return x.toLocaleDateString(
+    S.lang === "ar" ? "ar-SA-u-ca-gregory" : "en-GB",
+    { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }
+  );
+};
+var plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+var confNote = (level) => ({ high: T().confHigh, medium: T().confMedium, low: T().confLow })[level] || "";
+function leverLabel(o) {
+  const t = T();
+  const team = (k) => TEAM_LABEL[S.lang][k] || k;
+  const sizeName = (k) => t.sizes[k] || k;
+  if (o.action === "add_person") return `${t.leverAdd} ${team(S.result?.bottleneck?.team)}`;
+  if (o.action === "reduce_scope") {
+    const m = /from (\w+) to (\w+)/.exec(o.label);
+    return m ? `${t.leverScope} ${sizeName(m[1])} ${t.leverTo} ${sizeName(m[2])}` : o.label;
+  }
+  if (o.action === "defer_stage") return `${t.leverDefer} ${team(S.result?.bottleneck?.team)} ${t.leverDeferTail}`;
+  return o.label;
+}
+function render() {
+  document.documentElement.lang = S.lang;
+  document.documentElement.dir = S.lang === "ar" ? "rtl" : "ltr";
+  $("#root").innerHTML = `
+    ${header()}
+    <div class="grid">
+      <aside class="col">${teamsCard()}${pipelineCard()}</aside>
+      <main class="col">${formCard()}${S.result ? resultCard() : emptyResult()}</main>
+      <aside class="col">${utilCard()}${S.whatIf ? leversCard() : ""}</aside>
+    </div>
+    ${S.result ? timelineCard() : ""}`;
+  wire();
+}
+var header = () => `
+  <header class="head">
+    <div class="brand">
+      <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="7" cy="12" r="5.4" fill="none" stroke="var(--brand)" stroke-width="2.4"/>
+        <rect x="4.4" y="10.6" width="5.2" height="2.8" fill="var(--bg)"/>
+        <circle cx="7" cy="12" r="1.6" fill="var(--brand)"/>
+      </svg>
+      <span class="wordmark">expand</span>
+      <span class="sep"></span>
+      <div><div class="h1">${esc(T().title)}</div><div class="sub">${esc(T().sub)}</div></div>
+    </div>
+    <div class="head__actions">
+      <button class="btn btn--ghost" data-act="reset">${esc(T().reset)}</button>
+      <button class="btn btn--lang" data-act="lang">${S.lang === "en" ? "\u0627\u0644\u0639\u0631\u0628\u064A\u0629" : "English"}</button>
+    </div>
+  </header>`;
+function teamsCard() {
+  return `
+  <section class="card">
+    <div class="card__h">${esc(T().teams)}</div>
+    <div class="card__b stack">
+      ${Object.keys(S.headcount).map((t) => `
+        <div class="row">
+          <span class="dot" style="background:${TEAM_COLOR[t]}"></span>
+          <span class="row__label">${esc(TEAM_LABEL[S.lang][t])}</span>
+          <span class="row__meta">${DEFAULT_STAGES[t].baseDays}d</span>
+          <div class="stepper">
+            <button data-hc="${t}" data-d="-1" aria-label="minus">\u2212</button>
+            <b>${S.headcount[t]}</b>
+            <button data-hc="${t}" data-d="1" aria-label="plus">+</button>
+          </div>
+        </div>`).join("")}
+      <p class="hint">${S.lang === "en" ? "Base effort per stage at Medium size. Headcount is what turns effort into a date." : "\u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0623\u0633\u0627\u0633\u064A \u0644\u0643\u0644 \u0645\u0631\u062D\u0644\u0629 \u0628\u062D\u062C\u0645 \u0645\u062A\u0648\u0633\u0637. \u0639\u062F\u062F \u0627\u0644\u0623\u0641\u0631\u0627\u062F \u0647\u0648 \u0645\u0627 \u064A\u062D\u0648\u0651\u0644 \u0627\u0644\u062C\u0647\u062F \u0625\u0644\u0649 \u062A\u0627\u0631\u064A\u062E."}</p>
+    </div>
+  </section>`;
+}
+function pipelineCard() {
+  return `
+  <section class="card">
+    <div class="card__h">${esc(T().pipeline)}<span class="badge">${S.pipeline.length}</span></div>
+    <div class="card__b stack">
+      ${S.pipeline.length ? S.pipeline.map((p) => `
+        <div class="row row--proj">
+          <span class="row__label">${esc(p.name)}</span>
+          <span class="tag">${esc(T().sizes[p.size])}</span>
+          <span class="row__meta">${fmtDate(p.start)}</span>
+          <button class="x" data-del="${esc(p.id)}" aria-label="remove">\xD7</button>
+        </div>`).join("") : `<p class="hint">${esc(T().noProjects)}</p>`}
+    </div>
+  </section>`;
+}
+function formCard() {
+  return `
+  <section class="card card--form">
+    <div class="card__h">${esc(T().newProposal)}</div>
+    <div class="card__b">
+      <div class="fields">
+        <label class="f f--wide"><span>${esc(T().name)}</span>
+          <input id="pName" value="Riyadh Expo pavilion" /></label>
+        <label class="f"><span>${esc(T().size)}</span>
+          <select id="pSize">${Object.keys(DEFAULT_SIZE_FACTORS).map((k) => `<option value="${k}"${k === "M" ? " selected" : ""}>${esc(T().sizes[k])} \xD7${DEFAULT_SIZE_FACTORS[k]}</option>`).join("")}</select></label>
+        <label class="f"><span>${esc(T().start)}</span>
+          <input id="pStart" type="date" value="${today()}" /></label>
+        <label class="f"><span>${esc(T().deadline)}</span>
+          <input id="pDeadline" type="date" /></label>
+      </div>
+      <div class="actions">
+        <button class="btn btn--primary" data-act="estimate">${esc(T().estimate)}</button>
+        <button class="btn" data-act="add">${esc(T().addPipeline)}</button>
+      </div>
+    </div>
+  </section>`;
+}
+var emptyResult = () => `
+  <section class="card card--empty">
+    <div class="card__b empty">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="var(--ink3)" stroke-width="1.4">
+        <rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>
+      </svg>
+      <p>${S.lang === "en" ? "Set your headcount, add a few live projects, then estimate. The more the team is committed, the further the two answers drift apart." : "\u062D\u062F\u0651\u062F \u0639\u062F\u062F \u0623\u0641\u0631\u0627\u062F \u0627\u0644\u0641\u0631\u0642\u060C \u0623\u0636\u0641 \u0628\u0639\u0636 \u0627\u0644\u0645\u0634\u0627\u0631\u064A\u0639 \u0627\u0644\u062C\u0627\u0631\u064A\u0629\u060C \u062B\u0645 \u0627\u062D\u0633\u0628. \u0643\u0644\u0645\u0627 \u0632\u0627\u062F \u0627\u0646\u0634\u063A\u0627\u0644 \u0627\u0644\u0641\u0631\u064A\u0642\u060C \u0627\u062A\u0633\u0639\u062A \u0627\u0644\u0641\u062C\u0648\u0629 \u0628\u064A\u0646 \u0627\u0644\u0625\u062C\u0627\u0628\u062A\u064A\u0646."}</p>
+    </div>
+  </section>`;
+function resultCard() {
+  const r = S.result;
+  const naive = r._naive;
+  const gap = r.leadWorkingDays - naive.leadWorkingDays;
+  const workDays = r.leadWorkingDays - r.queueDays;
+  const qPct = Math.round(r.queueShare * 100);
+  return `
+  <section class="card card--result">
+    <div class="card__b">
+      <div class="compare">
+        <div class="compare__side compare__side--naive">
+          <div class="compare__k">${esc(T().naive)}</div>
+          <div class="compare__v">${fmtDate(naive.delivery)}</div>
+          <div class="compare__n">${plural(naive.leadWorkingDays, T().day, T().days)} \xB7 ${esc(T().naiveNote)}</div>
+        </div>
+        <div class="compare__arrow">${gap > 0 ? `<b>+${plural(gap, T().day, T().days)}</b><span>${esc(T().later)}</span>` : "\u2014"}</div>
+        <div class="compare__side compare__side--real">
+          <div class="compare__k">${esc(T().real)}</div>
+          <div class="compare__v">${fmtDate(r.delivery)}</div>
+          <div class="compare__n">${plural(r.leadWorkingDays, T().day, T().days)} \xB7 ${esc(T().realNote)}</div>
+        </div>
+      </div>
+
+      ${r.deadline ? `
+        <div class="deadline ${r.meetsDeadline ? "ok" : "bad"}">
+          ${r.meetsDeadline ? `\u2713 ${esc(T().meets)} \u2014 ${plural(r.slackWorkingDays, T().day, T().days)} ${esc(T().slack)}` : `\u2715 ${esc(T().misses)} ${plural(r.overrunWorkingDays, T().day, T().days)}`}
+        </div>` : ""}
+
+      <div class="split" role="img" aria-label="queue versus work">
+        <div class="split__bar">
+          <span style="width:${qPct}%" class="split__q"></span>
+          <span style="width:${100 - qPct}%" class="split__w"></span>
+        </div>
+        <div class="split__legend">
+          <span><i class="sw sw--q"></i>${plural(r.queueDays, T().day, T().days)} ${esc(T().queue)}</span>
+          <span><i class="sw sw--w"></i>${plural(workDays, T().day, T().days)} ${esc(T().work)}</span>
+        </div>
+      </div>
+
+      <div class="facts">
+        <div class="fact">
+          <span class="fact__k">${esc(T().bottleneck)}</span>
+          <span class="fact__v"><i class="dot" style="background:${TEAM_COLOR[r.bottleneck.team]}"></i>${esc(TEAM_LABEL[S.lang][r.bottleneck.team])}</span>
+          <span class="fact__n">${esc(r.bottleneck.member)}</span>
+        </div>
+        <div class="fact">
+          <span class="fact__k">${esc(T().confidence)}</span>
+          <span class="fact__v conf conf--${r.confidence.level}">${esc(T().confLevel[r.confidence.level])}</span>
+          <span class="fact__n">${esc(confNote(r.confidence.level))}</span>
+        </div>
+        <div class="fact">
+          <span class="fact__k">${esc(T().effortNote)}</span>
+          <span class="fact__v">${r.totalEffortDays}</span>
+          <span class="fact__n">${r.stages.filter((x) => !x.error).length} ${esc(T().stages)}</span>
+        </div>
+      </div>
+
+      <div class="sec">${esc(T().breakdown)}</div>
+      <table class="tbl">
+        <thead><tr><th></th><th>${esc(T().name)}</th><th class="n">${esc(T().queue)}</th><th class="n">${esc(T().work)}</th><th class="n">${esc(T().start)}</th><th class="n">\u2192</th></tr></thead>
+        <tbody>${r.stages.map((s) => s.error ? `
+          <tr class="err"><td colspan="6">${esc(s.message)}</td></tr>` : `
+          <tr${s.finish === r.delivery ? ' class="drive"' : ""}>
+            <td><i class="dot" style="background:${TEAM_COLOR[s.team]}"></i></td>
+            <td>${esc(TEAM_LABEL[S.lang][s.team])} <span class="who">${esc(s.memberName)}</span></td>
+            <td class="n">${s.queueDays}</td>
+            <td class="n">${s.effortDays}</td>
+            <td class="n">${fmtDate(s.start)}</td>
+            <td class="n">${fmtDate(s.finish)}</td>
+          </tr>`).join("")}</tbody>
+      </table>
+    </div>
+  </section>`;
+}
+function utilCard() {
+  const s = loaded();
+  const from = today();
+  const to = iso(CAL.addWorkingDays(from, 20));
+  const u = s.utilisation(from, to);
+  return `
+  <section class="card">
+    <div class="card__h">${esc(T().utilisation)}<span class="card__sub">${esc(T().next20)}</span></div>
+    <div class="card__b stack">
+      ${Object.entries(u).map(([team, v]) => {
+    const pct = Math.round(v.utilisation * 100);
+    const hot = pct >= 95, warm = pct >= 75;
+    return `
+        <div class="util">
+          <div class="util__h">
+            <i class="dot" style="background:${TEAM_COLOR[team]}"></i>
+            <span>${esc(TEAM_LABEL[S.lang][team])}</span>
+            <span class="util__n">${plural(v.headcount, T().person, T().people)}</span>
+            <b class="${hot ? "hot" : warm ? "warm" : ""}">${pct}%</b>
+          </div>
+          <div class="util__bar"><span style="width:${Math.min(pct, 100)}%;background:${hot ? "var(--critical)" : warm ? "var(--warn)" : TEAM_COLOR[team]}"></span></div>
+        </div>`;
+  }).join("")}
+      <p class="hint">${S.lang === "en" ? "Above 95% a team has no absorption left \u2014 the next project queues behind everything." : "\u0641\u0648\u0642 \u0669\u0665\u066A \u0644\u0627 \u064A\u0628\u0642\u0649 \u0644\u0644\u0641\u0631\u064A\u0642 \u0623\u064A \u0641\u0627\u0626\u0636 \u2014 \u0627\u0644\u0645\u0634\u0631\u0648\u0639 \u0627\u0644\u062A\u0627\u0644\u064A \u064A\u0646\u062A\u0638\u0631 \u062E\u0644\u0641 \u0627\u0644\u062C\u0645\u064A\u0639."}</p>
+    </div>
+  </section>`;
+}
+function leversCard() {
+  const { options } = S.whatIf;
+  if (!options.length) return "";
+  return `
+  <section class="card">
+    <div class="card__h">${esc(T().levers)}</div>
+    <div class="card__b stack">
+      ${options.map((o) => `
+        <div class="lever">
+          <div class="lever__t">${esc(leverLabel(o))}</div>
+          <div class="lever__v">${fmtDate(o.delivery)}
+            <span class="lever__s">${esc(T().saves)} ${plural(o.savedWorkingDays, T().day, T().days)}</span></div>
+        </div>`).join("")}
+    </div>
+  </section>`;
+}
+function timelineCard() {
+  const s = S.result._sched;
+  const rows = [...s.assignments].sort((a, b) => a.memberName.localeCompare(b.memberName));
+  if (!rows.length) return "";
+  const all = rows.flatMap((r) => [r.start, r.finish]);
+  const min = all.reduce((a, b) => a < b ? a : b);
+  const max = all.reduce((a, b) => a > b ? a : b);
+  const days = CAL.workingDaysBetween(min, max);
+  const idx = new Map(days.map((d, i) => [d, i]));
+  const W = Math.max(days.length, 1);
+  const byMember = /* @__PURE__ */ new Map();
+  for (const r of rows) {
+    if (!byMember.has(r.memberName)) byMember.set(r.memberName, []);
+    byMember.get(r.memberName).push(r);
+  }
+  return `
+  <section class="card card--wide">
+    <div class="card__h">${esc(T().timeline)}<span class="card__sub">${days.length} ${esc(T().days)}</span></div>
+    <div class="card__b">
+      <div class="gantt" style="--cols:${W}">
+        <div class="gantt__axis">
+          ${days.map((d, i) => i % Math.ceil(W / 12) === 0 ? `<span style="grid-column:${i + 1}">${parse(d).getUTCDate()}/${parse(d).getUTCMonth() + 1}</span>` : "").join("")}
+        </div>
+        ${[...byMember].map(([name, items]) => `
+          <div class="gantt__row">
+            <div class="gantt__name">${esc(name)}</div>
+            <div class="gantt__track">
+              ${items.map((it) => {
+    const a = idx.get(it.start) ?? 0;
+    const b = idx.get(it.finish) ?? a;
+    const isNew = it.projectId === S.result.id;
+    return `<span class="bar${isNew ? " bar--new" : ""}"
+                  style="grid-column:${a + 1} / ${b + 2};background:${TEAM_COLOR[it.team]}"
+                  title="${esc(it.projectName)} \u2014 ${esc(it.label)}">${esc(it.projectName)}</span>`;
+  }).join("")}
+            </div>
+          </div>`).join("")}
+      </div>
+      <p class="hint">${S.lang === "en" ? "The outlined bar is the proposal you just estimated. Everything else is what the team is already committed to." : "\u0627\u0644\u0634\u0631\u064A\u0637 \u0627\u0644\u0645\u062D\u062F\u0651\u062F \u0647\u0648 \u0627\u0644\u0639\u0631\u0636 \u0627\u0644\u0630\u064A \u0642\u062F\u0651\u0631\u062A\u0647 \u0644\u0644\u062A\u0648. \u0627\u0644\u0628\u0627\u0642\u064A \u0647\u0648 \u0645\u0627 \u0627\u0644\u062A\u0632\u0645 \u0628\u0647 \u0627\u0644\u0641\u0631\u064A\u0642 \u0628\u0627\u0644\u0641\u0639\u0644."}</p>
+    </div>
+  </section>`;
+}
+function wire() {
+  document.querySelectorAll("[data-hc]").forEach((b) => b.onclick = () => {
+    const t = b.dataset.hc;
+    S.headcount[t] = Math.max(0, Math.min(12, S.headcount[t] + Number(b.dataset.d)));
+    if (S.result) estimate(false);
+    render();
+  });
+  document.querySelectorAll("[data-del]").forEach((b) => b.onclick = () => {
+    S.pipeline = S.pipeline.filter((p) => p.id !== b.dataset.del);
+    if (S.result) estimate(false);
+    else render();
+  });
+  const act = (name, fn) => {
+    const el = document.querySelector(`[data-act="${name}"]`);
+    if (el) el.onclick = fn;
+  };
+  act("lang", () => {
+    S.lang = S.lang === "en" ? "ar" : "en";
+    render();
+  });
+  act("reset", () => {
+    S.pipeline = [];
+    S.result = null;
+    S.whatIf = null;
+    S.seq = 0;
+    render();
+  });
+  act("estimate", () => estimate(true));
+  act("add", () => {
+    const f = readForm();
+    S.pipeline.push({ id: `p${++S.seq}`, ...f });
+    if (S.result) estimate(false);
+    else render();
+  });
+}
+var readForm = () => ({
+  name: ($("#pName")?.value || "Untitled").trim(),
+  size: $("#pSize")?.value || "M",
+  start: $("#pStart")?.value || today(),
+  deadline: $("#pDeadline")?.value || null
+});
+function estimate(fromForm) {
+  const f = fromForm ? readForm() : S.result?._form || readForm();
+  const sched = loaded();
+  const r = sched.scheduleProject({
+    id: "__new__",
+    name: f.name,
+    size: f.size,
+    earliestStart: f.start,
+    deadline: f.deadline || null
+  });
+  const naive = new Scheduler({ members: members(), calendar: CAL }).scheduleProject({ id: "n", name: f.name, size: f.size, earliestStart: f.start, commit: false });
+  r._naive = naive;
+  r._sched = sched;
+  r._form = f;
+  S.result = r;
+  S.whatIf = loaded().whatIf({ id: "__new__", name: f.name, size: f.size, earliestStart: f.start });
+  render();
+}
+(function seed() {
+  const start = today();
+  const demo = [
+    ["Jeddah Season stand", "L"],
+    ["LEAP tech booth", "M"],
+    ["Ministry pavilion", "XL"],
+    ["Retail activation", "S"]
+  ];
+  for (const [name, size] of demo) S.pipeline.push({ id: `p${++S.seq}`, name, size, start });
+  render();
+})();
+export {
+  S,
+  estimate
+};
+
+</script>
+</body>
+</html>
