@@ -242,6 +242,155 @@ html[dir="rtl"] .head::after { transform: scaleX(-1); }
 }
 .bar--new { outline: 2px solid var(--ink1); outline-offset: -2px; }
 
+/* ==========================================================================
+   Landing, roster, profiles, pipeline.
+   ========================================================================== */
+
+.headtext { min-width: 0; }
+.brand { border: 0; background: none; padding: 0; }
+.nav { display: flex; gap: 4px; margin-inline-start: 20px; flex-wrap: wrap; }
+.navbtn {
+  height: 30px; padding: 0 11px; border-radius: 7px; font-size: 12.5px;
+  color: var(--ink3); border: 1px solid transparent;
+}
+.navbtn:hover { color: var(--ink1); background: var(--s-2); }
+.navbtn.is-on { color: var(--ink1); background: var(--s-2); border-color: var(--line2); }
+
+.card + .card, .hero + .card { margin-top: 14px; }
+.card__head {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  padding: 13px 16px; border-bottom: 1px solid var(--line);
+}
+.card__head h2 { font-size: 13px; font-weight: 600; letter-spacing: .01em; }
+.card > :not(.card__head):not(.board):not(.loadlist):not(.deptblock) { padding: 0 16px; }
+.card > :not(.card__head):first-child { padding-top: 14px; }
+.card > :last-child:not(.board):not(.stats):not(.loadlist) { padding-bottom: 14px; }
+.muted { color: var(--ink3); }
+.small { font-size: 11.5px; }
+.block { display: block; }
+.bad { color: #ff8f8f; }
+.link { color: var(--brand); font-size: 12.5px; }
+.crumb { padding: 0 0 12px; }
+.note {
+  font-size: 12px; color: var(--ink3); line-height: 1.65;
+  border-inline-start: 2px solid var(--line2); padding-inline-start: 11px !important;
+  margin: 14px 16px;
+}
+.note--lead { color: var(--ink2); border-inline-start-color: var(--brand); }
+.tbl .num { text-align: end; }
+.tbl--tight td { padding: 6px 8px; }
+.chip {
+  font-size: 10.5px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase;
+  padding: 4px 9px; border-radius: 999px; border: 1px solid var(--line2); color: var(--ink3);
+}
+.chip--warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 40%, transparent); }
+
+/* ---------------------------------- hero --------------------------------- */
+.hero { padding: 46px 4px 34px; max-width: 720px; }
+.hero__eyebrow {
+  font-size: 12px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--brand); font-weight: 600; margin-bottom: 16px;
+}
+.hero__title {
+  font-size: clamp(30px, 5.2vw, 52px); line-height: 1.08; letter-spacing: -.035em;
+  font-weight: 700; margin-bottom: 16px;
+}
+.hero__body { font-size: 16px; line-height: 1.6; color: var(--ink2); }
+.hero__cta { display: flex; gap: 10px; margin-top: 26px; flex-wrap: wrap; }
+html[lang="ar"] .hero__title { letter-spacing: 0; line-height: 1.25; }
+
+/* -------------------------------- load list ------------------------------ */
+.loadlist { display: grid; }
+.loadlist__row {
+  display: grid; grid-template-columns: 190px minmax(90px,1fr) 96px 128px;
+  gap: 16px; align-items: center; padding: 12px 16px; border-top: 1px solid var(--line);
+}
+.loadlist__row:first-child { border-top: 0; }
+.loadlist__who { display: grid; min-width: 0; }
+.loadlist__who strong { font-size: 13px; font-weight: 600; }
+.loadlist__num { display: grid; text-align: end; }
+.loadlist__num strong { font-size: 14px; font-variant-numeric: tabular-nums; }
+.loadbar { height: 8px; border-radius: 999px; background: var(--s-3); overflow: hidden; }
+.loadbar i { display: block; height: 100%; border-radius: 999px; }
+.loadrow { display: grid; gap: 7px; margin-top: 4px; }
+@media (max-width: 780px) {
+  .loadlist__row { grid-template-columns: 1fr 1fr; }
+  .loadlist__who, .loadbar { grid-column: 1 / -1; }
+  .loadlist__num { text-align: start; }
+}
+
+/* ------------------------------ role picker ------------------------------ */
+.deptblock { padding: 16px; border-top: 1px solid var(--line); }
+.deptblock:first-of-type { border-top: 0; }
+.deptblock__title {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--ink3); margin-bottom: 11px;
+}
+.deptblock__title i { width: 8px; height: 8px; border-radius: 3px; }
+.whogrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 9px; }
+.whocard {
+  display: grid; gap: 3px; text-align: start; padding: 13px 14px;
+  background: var(--s-2); border: 1px solid var(--line2); border-radius: var(--r);
+  transition: border-color .14s, transform .14s;
+}
+.whocard:hover { border-color: var(--brand); transform: translateY(-1px); }
+.whocard__name { font-size: 14px; font-weight: 600; }
+.whocard__load { color: var(--ink3); margin-top: 4px; }
+.whocard--vacant { opacity: .5; cursor: default; }
+.whocard--vacant:hover { border-color: var(--line2); transform: none; }
+
+/* -------------------------------- profile -------------------------------- */
+.profile__head { display: flex; align-items: center; gap: 14px; padding: 18px 16px; flex-wrap: wrap; }
+.avatar {
+  width: 46px; height: 46px; border-radius: 12px; flex: none;
+  display: grid; place-items: center; font-size: 19px; font-weight: 700; color: #10041f;
+  background: var(--c, var(--brand));
+}
+.profile__name { font-size: 21px; font-weight: 700; letter-spacing: -.02em; }
+.profile__head .chip { margin-inline-start: auto; }
+
+.stats {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+  gap: 1px; background: var(--line); border-block: 1px solid var(--line);
+  padding: 0 !important; margin-top: 4px;
+}
+.stat { background: var(--s-1); padding: 13px 16px; display: grid; gap: 3px; }
+.stat__n { font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.stat__l { font-size: 11px; color: var(--ink3); line-height: 1.35; }
+.stat--bad .stat__n { color: #ff8f8f; }
+.stat--wide { grid-column: span 2; }
+.stat--wide .stat__n { font-size: 15px; }
+
+/* -------------------------------- pipeline ------------------------------- */
+.board {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 1px; background: var(--line);
+}
+.bcol { background: var(--s-1); padding: 14px; display: grid; gap: 9px; align-content: start; }
+.bcol__title {
+  display: flex; justify-content: space-between; font-size: 11px; font-weight: 600;
+  letter-spacing: .05em; text-transform: uppercase; color: var(--ink3); margin-bottom: 2px;
+}
+.deal {
+  background: var(--s-2); border: 1px solid var(--line2); border-radius: 8px; padding: 11px 12px;
+  display: grid; gap: 3px;
+}
+.deal__name { font-size: 13px; font-weight: 600; }
+.deal__ar { direction: rtl; text-align: start; }
+html[dir="rtl"] .deal__ar { direction: rtl; }
+.deal__meta { display: flex; justify-content: space-between; gap: 8px; margin-top: 5px; }
+.deal__cost { color: var(--ink2); border-top: 1px solid var(--line); padding-top: 7px; margin-top: 5px; }
+
+.unpriced { padding: 14px 16px 2px; border-top: 1px solid var(--line); }
+.unpriced__head { color: var(--ink3); line-height: 1.6; }
+.batches { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+.batch {
+  display: grid; gap: 2px; padding: 9px 12px; border-radius: 8px;
+  background: var(--s-2); border: 1px solid var(--line2); min-width: 128px;
+}
+.batch__n { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 </style>
 </head>
@@ -715,6 +864,713 @@ function confidenceFrom(queueShare, stageCount) {
   return { level, queueShare: round1(queueShare * 100) / 100, note };
 }
 
+// data/snapshot.js
+var capturedAt = "2026-08-08";
+var workspace = "Expand Expo \xB7 Asana 1205332497357182";
+var DEPARTMENTS = {
+  pm: { id: "pm", en: "Project management", ar: "\u0625\u062F\u0627\u0631\u0629 \u0627\u0644\u0645\u0634\u0627\u0631\u064A\u0639", colour: "var(--s4)" },
+  "3d": { id: "3d", en: "3D design", ar: "\u0627\u0644\u062A\u0635\u0645\u064A\u0645 \u062B\u0644\u0627\u062B\u064A \u0627\u0644\u0623\u0628\u0639\u0627\u062F", colour: "var(--s1)" },
+  "2d": { id: "2d", en: "2D technical", ar: "\u0627\u0644\u0631\u0633\u0648\u0645\u0627\u062A \u0627\u0644\u0641\u0646\u064A\u0629", colour: "var(--s2)" },
+  content: { id: "content", en: "Content creation", ar: "\u0625\u0646\u062A\u0627\u062C \u0627\u0644\u0645\u062D\u062A\u0648\u0649", colour: "var(--s3)" },
+  pricing: { id: "pricing", en: "Pricing & financial", ar: "\u0627\u0644\u062A\u0633\u0639\u064A\u0631 \u0648\u0627\u0644\u0645\u0627\u0644\u064A\u0629", colour: "var(--s4)" },
+  bd: { id: "bd", en: "Business development", ar: "\u062A\u0637\u0648\u064A\u0631 \u0627\u0644\u0623\u0639\u0645\u0627\u0644", colour: "var(--brand)" },
+  production: { id: "production", en: "Production", ar: "\u0627\u0644\u062A\u0646\u0641\u064A\u0630", colour: "var(--ink3)" }
+};
+var PEOPLE = [
+  {
+    id: "1211783184896369",
+    name: "Mahmoud Abdelghny",
+    email: "mahmoud.ashraf@expandexpo.com",
+    dept: "3d",
+    role: { en: "3D designer", ar: "\u0645\u0635\u0645\u0645 \u062B\u0644\u0627\u062B\u064A \u0627\u0644\u0623\u0628\u0639\u0627\u062F" },
+    openTasks: 17,
+    projects: 8,
+    note: {
+      en: "Every 3D Design task in the workspace is assigned to him.",
+      ar: "\u0643\u0644 \u0645\u0647\u0627\u0645 \u0627\u0644\u062A\u0635\u0645\u064A\u0645 \u062B\u0644\u0627\u062B\u064A \u0627\u0644\u0623\u0628\u0639\u0627\u062F \u0641\u064A \u0627\u0644\u0645\u0633\u0627\u062D\u0629 \u0645\u0633\u0646\u062F\u0629 \u0625\u0644\u064A\u0647."
+    }
+  },
+  {
+    id: "1211755244109291",
+    name: "AMEEN EYAD",
+    email: "ameen@expandexpo.com",
+    dept: "2d",
+    role: { en: "2D technical designer", ar: "\u0645\u0635\u0645\u0645 \u0641\u0646\u064A" },
+    openTasks: 61,
+    projects: 34,
+    note: {
+      en: "Every 2D Design task in the workspace is assigned to him, across 34 projects.",
+      ar: "\u0643\u0644 \u0645\u0647\u0627\u0645 \u0627\u0644\u062A\u0635\u0645\u064A\u0645 \u0627\u0644\u0641\u0646\u064A \u0645\u0633\u0646\u062F\u0629 \u0625\u0644\u064A\u0647\u060C \u0639\u0628\u0631 \u0663\u0664 \u0645\u0634\u0631\u0648\u0639\u0627\u064B."
+    }
+  },
+  {
+    id: "1211418760238119",
+    name: "Omar Khaled",
+    email: "omer@expandexpo.com",
+    dept: "pricing",
+    role: { en: "Pricing review & approval", ar: "\u0645\u0631\u0627\u062C\u0639\u0629 \u0648\u0627\u0639\u062A\u0645\u0627\u062F \u0627\u0644\u0623\u0633\u0639\u0627\u0631" },
+    openTasks: 21,
+    projects: 17,
+    note: {
+      en: 'Holds "price review and approval" on 17 separate projects. Nothing prices without him.',
+      ar: '\u064A\u0645\u0644\u0643 "\u0645\u0631\u0627\u062C\u0639\u0629 \u0627\u0644\u0623\u0633\u0639\u0627\u0631 \u0648\u0627\u0644\u0627\u0639\u062A\u0645\u0627\u062F" \u0641\u064A \u0661\u0667 \u0645\u0634\u0631\u0648\u0639\u0627\u064B. \u0644\u0627 \u064A\u064F\u0633\u0639\u064E\u0651\u0631 \u0634\u064A\u0621 \u0628\u062F\u0648\u0646\u0647.'
+    }
+  },
+  {
+    id: "1211453668435803",
+    name: "Wejdan Alkhubayzi",
+    email: "wejdan@expandexpo.com",
+    dept: "pricing",
+    role: { en: "Financial offers", ar: "\u0627\u0644\u0639\u0631\u0648\u0636 \u0627\u0644\u0645\u0627\u0644\u064A\u0629" },
+    openTasks: 1,
+    projects: 1
+  },
+  {
+    id: "1212071112749783",
+    name: "Fahad Sultan Alshaibani",
+    email: "f.alshaibani@expandexpo.com",
+    dept: "pricing",
+    role: { en: "Cost structure", ar: "\u0647\u064A\u0643\u0644\u0629 \u0627\u0644\u062A\u0643\u0627\u0644\u064A\u0641" },
+    openTasks: 1,
+    projects: 1
+  },
+  {
+    id: "1211554705221607",
+    name: "Lidia Vieira Garcia",
+    email: "lidia@expandexpo.com",
+    dept: "bd",
+    role: { en: "Lead qualification", ar: "\u062A\u0623\u0647\u064A\u0644 \u0627\u0644\u0639\u0645\u0644\u0627\u0621 \u0627\u0644\u0645\u062D\u062A\u0645\u0644\u064A\u0646" },
+    openTasks: 1,
+    projects: 1,
+    note: {
+      en: "The only person assigned any lead in Sales Leads.",
+      ar: "\u0627\u0644\u0634\u062E\u0635 \u0627\u0644\u0648\u062D\u064A\u062F \u0627\u0644\u0645\u0633\u0646\u062F \u0625\u0644\u064A\u0647 \u0623\u064A \u0639\u0645\u064A\u0644 \u0645\u062D\u062A\u0645\u0644 \u0641\u064A \u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0639\u0645\u0644\u0627\u0621."
+    }
+  },
+  {
+    id: "1211453758101341",
+    name: "Khalid AlJibrin",
+    email: "khalid@expandexpo.com",
+    dept: "bd",
+    role: { en: "Business development", ar: "\u062A\u0637\u0648\u064A\u0631 \u0627\u0644\u0623\u0639\u0645\u0627\u0644" },
+    openTasks: 1,
+    projects: 1
+  },
+  {
+    id: "1211465426979965",
+    name: "Rania",
+    email: "rania@expandexpo.com",
+    dept: "pm",
+    role: { en: "Project manager", ar: "\u0645\u062F\u064A\u0631\u0629 \u0645\u0634\u0627\u0631\u064A\u0639" },
+    openTasks: 0,
+    projects: 0
+  },
+  {
+    id: "1211453774754859",
+    name: "Taif Alharthi",
+    email: "taif@expandexpo.com",
+    dept: "pm",
+    role: { en: "Project manager", ar: "\u0645\u062F\u064A\u0631\u0629 \u0645\u0634\u0627\u0631\u064A\u0639" },
+    openTasks: 0,
+    projects: 0
+  },
+  {
+    id: "1211453767486638",
+    name: "Ebrahim Ahmed",
+    email: "ebrahim@expandexpo.com",
+    dept: "pm",
+    role: { en: "Project manager", ar: "\u0645\u062F\u064A\u0631 \u0645\u0634\u0627\u0631\u064A\u0639" },
+    openTasks: 0,
+    projects: 0
+  },
+  {
+    id: "1211453771942010",
+    name: "Mohammed Alhaymi",
+    email: "mohammedsaleh@expandexpo.com",
+    dept: "pm",
+    role: { en: "Project manager", ar: "\u0645\u062F\u064A\u0631 \u0645\u0634\u0627\u0631\u064A\u0639" },
+    openTasks: 0,
+    projects: 0
+  },
+  {
+    id: "content-unassigned",
+    name: "\u2014",
+    email: null,
+    dept: "content",
+    role: { en: "Content creation", ar: "\u0625\u0646\u062A\u0627\u062C \u0627\u0644\u0645\u062D\u062A\u0648\u0649" },
+    openTasks: 0,
+    projects: 0,
+    vacant: true,
+    note: {
+      en: "No one in Asana is assigned content tasks. Either the role is vacant or the work is unrecorded.",
+      ar: "\u0644\u0627 \u064A\u0648\u062C\u062F \u0634\u062E\u0635 \u0645\u0633\u0646\u062F \u0625\u0644\u064A\u0647 \u0645\u0647\u0627\u0645 \u0627\u0644\u0645\u062D\u062A\u0648\u0649 \u0641\u064A \u0623\u0633\u0627\u0646\u0627. \u0625\u0645\u0627 \u0623\u0646 \u0627\u0644\u062F\u0648\u0631 \u0634\u0627\u063A\u0631 \u0623\u0648 \u0623\u0646 \u0627\u0644\u0639\u0645\u0644 \u063A\u064A\u0631 \u0645\u0633\u062C\u0651\u0644."
+    }
+  }
+];
+var CAPACITY = {
+  "3d": { people: 1, confirmed: false },
+  "2d": { people: 1, confirmed: false },
+  content: { people: 0, confirmed: false },
+  pricing: { people: 3, confirmed: false, gate: "Omar Khaled" }
+};
+var PIPELINE_STAGES = [
+  { id: "new", en: "New opportunities", ar: "\u0641\u0631\u0635 \u062C\u062F\u064A\u062F\u0629" },
+  { id: "late", en: "Late stage opportunities", ar: "\u0641\u0631\u0635 \u0645\u062A\u0642\u062F\u0645\u0629" },
+  { id: "won", en: "Closed won", ar: "\u0635\u0641\u0642\u0627\u062A \u0645\u0643\u0633\u0648\u0628\u0629" }
+];
+var DEALS = [
+  { id: "1211552337996506", name: "\u0647\u064A\u0626\u0629 \u0627\u0644\u062A\u062E\u0635\u0635\u0627\u062A \u0627\u0644\u0635\u062D\u064A\u0647", latin: "Saudi Commission for Health Specialties", stage: "new", owner: "Omar Khaled", due: "2026-01-09", open: true, size: "L" },
+  { id: "1211552337996511", name: "\u0647\u064A\u0626\u0629 \u0627\u0644\u0635\u062D\u0647 \u0627\u0644\u0639\u0627\u0645\u0647", latin: "Public Health Authority", stage: "new", owner: "Omar Khaled", due: "2026-01-09", open: true, size: "L" },
+  { id: "1211552337996477", name: "STC channel", latin: "STC channel", stage: "new", owner: "Omar Khaled", due: "2025-12-09", open: true, size: "M" },
+  { id: "1211552337996486", name: "KAFD Annual", latin: "KAFD Annual", stage: "new", owner: "Omar Khaled", due: "2026-01-09", open: true, size: "L" },
+  { id: "1211552337996470", name: "\u062D\u0641\u0644 \u062A\u062F\u0634\u064A\u0646 \u0645\u0624\u0633\u0633\u0629 \u0627\u0644\u0627\u0645\u064A\u0631", latin: "Prince Foundation launch ceremony", stage: "new", owner: "Khalid AlJibrin", due: "2025-12-11", open: true, size: "M" },
+  { id: "1211649037112480", name: "City Scape", latin: "City Scape", stage: "late", owner: "Omar Khaled", due: "2025-11-15", open: false, size: "XL" },
+  { id: "1211552337996534", name: "\u0627\u0644\u0636\u0645\u0627\u0646 \u0627\u0644\u0635\u062D\u064A", latin: "Council of Health Insurance", stage: "won", owner: "ayman", due: "2025-10-24", open: true, size: "L" },
+  { id: "1211552337996529", name: "\u0641\u064A\u062F\u0643\u0648", latin: "FIDCO", stage: "won", owner: "Omar Khaled", due: "2025-10-17", open: false, size: "M" },
+  { id: "1211552337996521", name: "NCW", latin: "NCW", stage: "won", owner: "Omar Khaled", due: "2025-10-17", open: false, size: "M" },
+  { id: "1211552337996515", name: "NHC Innovation", latin: "NHC Innovation", stage: "won", owner: "Omar Khaled", due: "2025-10-17", open: false, size: "L" },
+  { id: "1211552337996492", name: "Solar Energy Event", latin: "Solar Energy Event (2 booths)", stage: "won", owner: "Taif Alharthi", due: "2025-10-16", open: false, size: "L" },
+  { id: "1211552337996454", name: "\u0645\u0648\u0627\u0643\u0628 \u0627\u0644\u062E\u064A\u0631", latin: "Mawakib Al Khair", stage: "won", owner: "Ebrahim Ahmed", due: "2025-11-12", open: false, size: "S" },
+  { id: "1211552337996324", name: "\u0646\u064A\u0648 \u0645\u064A\u062A\u0631\u0643\u0633", latin: "New Metrics", stage: "won", owner: "Omar Khaled", due: "2025-10-19", open: false, size: "M" },
+  { id: "1211552337996341", name: "\u0645\u0646\u062A\u062F\u064A \u0627\u0644\u062D\u0631\u0641 \u0627\u0644\u064A\u062F\u0648\u064A\u0647", latin: "Handicrafts Forum", stage: "won", owner: "Rania", due: "2025-12-02", open: false, size: "L" },
+  { id: "1211552337996343", name: "\u0645\u0631\u0643\u0632 \u0645\u0643\u0647 \u0627\u0644\u0637\u0628\u064A", latin: "Makkah Medical Center", stage: "won", owner: "Mohammed Alhaymi", due: "2025-11-12", open: false, size: "M" }
+];
+var LEADS = {
+  total: 70,
+  open: 48,
+  unassigned: 48,
+  assignedTo: "Lidia Vieira Garcia",
+  oldestDue: "2025-10-16",
+  newestDue: "2025-11-10",
+  batches: [
+    { label: "Leads 15/10/2025", total: 10, open: 1 },
+    { label: "Leads 23/10/2025", total: 14, open: 8 },
+    { label: "Leads 26/10/2025", total: 10, open: 7 },
+    { label: "Leads 27/10/2025", total: 11, open: 11 },
+    { label: "Leads 28/10/2025", total: 11, open: 8 },
+    { label: "Leads 29/10/2025", total: 10, open: 10 },
+    { label: "Leads 30/10/2025", total: 6, open: 5 }
+  ],
+  otherLists: [
+    { name: "World Defense Show Prospects", total: 251, open: 150 },
+    { name: "Potential Clients", total: 14, open: 0 },
+    { name: "Business Development", total: 10, open: 3 }
+  ]
+};
+var MEASURED = [
+  { stage: "3d", stated: 5, medianElapsed: 11.5, min: 3, max: 37, n: 6 },
+  { stage: "2d", stated: 2, medianElapsed: 5.5, min: 3, max: 30, n: 6 },
+  { stage: "pricing", stated: null, medianElapsed: 13, min: 3, max: 32, n: 6 },
+  { stage: "content", stated: 3, medianElapsed: 25, min: 25, max: 25, n: 1 },
+  { stage: "production", stated: null, medianElapsed: 4, min: 4, max: 4, n: 1 }
+];
+var ASSIGNMENTS = [
+  { project: "TAWAL | Event Management & Branding Services", stage: "2d", who: "1211755244109291", due: "2026-08-10" },
+  { project: "TAWAL | Event Management & Branding Services", stage: "3d", who: "1211783184896369", due: "2026-08-10" },
+  { project: "TAWAL | Event Management & Branding Services", stage: "pricing", who: "1211418760238119", due: "2026-08-09" },
+  { project: "\u0627\u0644\u0645\u0624\u062A\u0645\u0631 \u0627\u0644\u0633\u0646\u0648\u064A \u0644\u0645\u062C\u0645\u0639 \u0627\u0644\u0645\u0644\u0643 \u0633\u0644\u0645\u0627\u0646 2026", stage: "3d", who: "1211783184896369", due: "2026-08-11" },
+  { project: "\u062D\u0641\u0644 \u0627\u0644\u0627\u062D\u062A\u0641\u0627\u0621 \u0628\u0640300 \u0639\u0627\u0645 \u0644\u0644\u062A\u0623\u0633\u064A\u0633 \u2014 \u0627\u0644\u0647\u064A\u0626\u0629 \u0627\u0644\u0639\u0627\u0645\u0629 \u0644\u0644\u0637\u0631\u0642", stage: "3d", who: "1211783184896369", due: "2026-08-06" },
+  { project: "\u0645\u0634\u0631\u0648\u0639 \u062A\u0635\u0645\u064A\u0645 \u0634\u0631\u0643\u0629 \u0641\u064A\u062F\u0643\u0648 \u0641\u064A \u0627\u0644\u0645\u0639\u0631\u0636 \u0627\u0644\u0632\u0631\u0627\u0639\u064A", stage: "3d", who: "1211783184896369", due: "2026-08-16" },
+  { project: "\u062A\u0635\u0645\u064A\u0645 \u0645\u0639\u0631\u0636 \u0645\u0624\u0633\u0633\u0629 \u0633\u0643\u0646 \u0648\u062C\u0648\u062F \u0627\u0644\u0625\u0633\u0643\u0627\u0646 \u0641\u064A \u0633\u062A\u064A \u0633\u0643\u064A\u0628", stage: "2d", who: "1211755244109291", due: "2026-08-01" },
+  // Recorded in Asana as a 3D task but assigned to the 2D designer. Left as
+  // found — a routing error the tool should surface, not quietly correct.
+  { project: "\u062A\u0635\u0645\u064A\u0645 \u0645\u0639\u0631\u0636 \u0645\u0624\u0633\u0633\u0629 \u0633\u0643\u0646 \u0648\u062C\u0648\u062F \u0627\u0644\u0625\u0633\u0643\u0627\u0646 \u0641\u064A \u0633\u062A\u064A \u0633\u0643\u064A\u0628", stage: "3d", who: "1211755244109291", due: "2026-08-02", misrouted: true },
+  { project: "\u0645\u0634\u0627\u0631\u0643\u0629 \u0645\u0648\u0646\u064A \u0647\u0627\u0634 \u0641\u064A \u0645\u0648\u0646\u064A 2020", stage: "2d", who: "1211755244109291", due: "2026-07-28" },
+  { project: "SAR \u2014 Framework agreement 2026", stage: "2d", who: "1211755244109291", due: "2026-07-27" },
+  { project: "SAR \u2014 Framework agreement 2026", stage: "pricing", who: "1211418760238119", due: "2026-07-27" },
+  { project: "\u0647\u064A\u0626\u0629 \u062D\u0642\u0648\u0642 \u0627\u0644\u0627\u0646\u0633\u0627\u0646 \u2014 \u0627\u062A\u0641\u0627\u0642\u064A\u0629 \u062E\u062F\u0645\u0627\u062A \u0627\u0644\u0633\u0641\u0631", stage: "2d", who: "1211755244109291", due: "2026-07-27" },
+  { project: "\u0647\u064A\u0626\u0629 \u062D\u0642\u0648\u0642 \u0627\u0644\u0627\u0646\u0633\u0627\u0646 \u2014 \u0627\u062A\u0641\u0627\u0642\u064A\u0629 \u062E\u062F\u0645\u0627\u062A \u0627\u0644\u0633\u0641\u0631", stage: "pricing", who: "1211418760238119", due: null },
+  { project: "\u0647\u064A\u0626\u0629 \u062D\u0642\u0648\u0642 \u0627\u0644\u0627\u0646\u0633\u0627\u0646 \u2014 \u0627\u062A\u0641\u0627\u0642\u064A\u0629 \u062E\u062F\u0645\u0627\u062A \u0627\u0644\u0633\u0641\u0631", stage: "pricing", who: "1212071112749783", due: null },
+  { project: "\u0627\u0644\u062A\u0639\u0644\u064A\u0645\u064A\u0629 \u2014 \u0648\u0631\u0634 \u0639\u0645\u0644", stage: "pricing", who: "1211418760238119", due: "2026-07-28" },
+  { project: "Takaful Alrajhi | Money20/20", stage: "pricing", who: "1211418760238119", due: "2026-06-28" },
+  { project: "\u0645\u0646\u062A\u062F\u0649 \u0627\u0644\u0627\u0648\u0646\u0643\u062A\u0627\u062F \u2014 \u0645\u0648\u0627\u0646\u064A", stage: "2d", who: "1211755244109291", due: "2026-06-14" },
+  { project: "\u0645\u0646\u062A\u062F\u0649 \u0627\u0644\u0627\u0648\u0646\u0643\u062A\u0627\u062F \u2014 \u0645\u0648\u0627\u0646\u064A", stage: "pricing", who: "1211418760238119", due: "2026-06-15" },
+  { project: "\u0627\u0644\u0645\u0639\u0627\u0631\u0636 \u0627\u0644\u062F\u0627\u0626\u0645\u0629 \u2014 \u0645\u062C\u0645\u0639 \u0627\u0644\u0645\u0644\u0643 \u0633\u0644\u0645\u0627\u0646 \u0644\u0644\u063A\u0629 \u0627\u0644\u0639\u0631\u0628\u064A\u0629", stage: "pricing", who: "1211418760238119", due: "2026-06-16" },
+  { project: "\u0627\u0644\u0645\u0646\u062A\u062F\u0649 \u0627\u0644\u062F\u0648\u0644\u064A \u0644\u0644\u0623\u0645\u0646 \u0627\u0644\u0633\u064A\u0628\u0631\u0627\u0646\u064A \u2014 \u0627\u0644\u0647\u064A\u0626\u0629 \u0627\u0644\u0648\u0637\u0646\u064A\u0629", stage: "2d", who: "1211755244109291", due: "2026-07-07" },
+  { project: "\u0627\u0644\u0645\u0646\u062A\u062F\u0649 \u0627\u0644\u062F\u0648\u0644\u064A \u0644\u0644\u0623\u0645\u0646 \u0627\u0644\u0633\u064A\u0628\u0631\u0627\u0646\u064A \u2014 \u0627\u0644\u0647\u064A\u0626\u0629 \u0627\u0644\u0648\u0637\u0646\u064A\u0629", stage: "3d", who: "1211783184896369", due: null },
+  { project: "Emakn \u2014 Money20/20", stage: "2d", who: "1211755244109291", due: null },
+  { project: "Emakn \u2014 Money20/20", stage: "3d", who: "1211783184896369", due: null },
+  { project: "Emakn \u2014 Money20/20", stage: "pricing", who: "1211418760238119", due: null },
+  { project: "Safqah Capital \u2014 Money20/20", stage: "2d", who: "1211755244109291", due: null },
+  { project: "Safqah Capital \u2014 Money20/20", stage: "3d", who: "1211783184896369", due: null },
+  { project: "Safqah Capital \u2014 Money20/20", stage: "pricing", who: "1211418760238119", due: null },
+  { project: "\u0645\u0634\u0627\u0631\u0643\u0629 \u0648\u0632\u0627\u0631\u0629 \u0627\u0644\u0635\u0646\u0627\u0639\u0629 \u0641\u064A \u0634\u064A\u0643\u0627\u063A\u0648", stage: "3d", who: "1211783184896369", due: null },
+  { project: "\u0645\u0634\u0627\u0631\u0643\u0629 \u0648\u0632\u0627\u0631\u0629 \u0627\u0644\u0635\u0646\u0627\u0639\u0629 \u0641\u064A \u0634\u064A\u0643\u0627\u063A\u0648", stage: "pricing", who: "1211418760238119", due: null },
+  { project: "NETWORK \u2014 Money20/20", stage: "2d", who: "1211755244109291", due: null },
+  { project: "NETWORK \u2014 Money20/20", stage: "pricing", who: "1211453668435803", due: null },
+  { project: "\u062D\u0641\u0644 30 \u0639\u0627\u0645\u0627\u064B \u2014 \u0627\u0644\u0633\u062C\u0644 \u0627\u0644\u0633\u0639\u0648\u062F\u064A \u0644\u0644\u0633\u0631\u0637\u0627\u0646", stage: "2d", who: "1211755244109291", due: null },
+  { project: "\u062D\u0641\u0644 30 \u0639\u0627\u0645\u0627\u064B \u2014 \u0627\u0644\u0633\u062C\u0644 \u0627\u0644\u0633\u0639\u0648\u062F\u064A \u0644\u0644\u0633\u0631\u0637\u0627\u0646", stage: "pricing", who: "1211418760238119", due: null },
+  { project: "Sales Leads \u2014 batch of 15/10/2025", stage: "bd", who: "1211554705221607", due: "2025-10-16" },
+  { project: "\u062D\u0641\u0644 \u062A\u062F\u0634\u064A\u0646 \u0645\u0624\u0633\u0633\u0629 \u0627\u0644\u0623\u0645\u064A\u0631", stage: "bd", who: "1211453758101341", due: "2025-12-11" }
+];
+var assignmentsFor = (personId) => ASSIGNMENTS.filter((a) => a.who === personId);
+var byId = (id) => PEOPLE.find((p) => p.id === id) || null;
+
+// web/views.js
+var CAL = new WorkCalendar();
+var esc = (x) => String(x ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+var VSTR = {
+  en: {
+    brandLine: "Delivery, priced in capacity.",
+    heroTitle: "Know the delivery date before you promise it.",
+    heroBody: "Your teams are the constraint, not the calendar. Expand reads what each designer is already committed to and answers the only question a client actually asks: when.",
+    signIn: "Sign in",
+    seeHow: "See how it works",
+    openEstimator: "Open the estimator",
+    proofTitle: "What your workspace says today",
+    proofNote: "Read from Asana on",
+    people: "people",
+    peopleOne: "person",
+    openProposals: "open proposals",
+    committed: "working days committed",
+    freeFrom: "first free slot",
+    notBefore: "not before",
+    whoTitle: "Who are you?",
+    whoBody: "Pick your name. There is no password yet \u2014 this is the shape of the product, not the security model.",
+    back: "Back",
+    backToTeam: "Back to the team",
+    vacant: "No one assigned",
+    workload: "Workload",
+    tasks: "Open work",
+    pipeline: "Sales pipeline",
+    utilisation: "Committed load",
+    overdue: "overdue",
+    onePersonStage: "Single-person stage",
+    blocking: "What you are holding up",
+    blockingNone: "Nothing is waiting on you.",
+    nextDue: "Next due",
+    noDue: "no due date set",
+    projects: "projects",
+    project: "project",
+    stageOf: "Stage",
+    measured: "Measured on delivered work",
+    stated: "stated",
+    actual: "median actual",
+    elapsedNote: "Elapsed time \u2014 effort plus waiting. Not the effort figure.",
+    leadsTitle: "Leads",
+    dealsTitle: "Deals",
+    wonTitle: "Closed won",
+    leadGapTitle: "The lead list stopped",
+    capacityCheck: "What a win would cost",
+    capacityBody: "Every deal below is sized, so closing it can be priced in design days before anyone promises a date.",
+    ifWon: "if won",
+    addsTo: "adds to",
+    wouldPush: "would push the queue to",
+    owner: "Owner",
+    due: "Due",
+    daysLate: "days late",
+    today: "today",
+    noOne: "unassigned",
+    noStatedEffort: "Carrying work with no stated effort figure, so no date can be honestly computed. Ask each of these teams for their equivalent of 5 / 2 / 3.",
+    misrouted: "Filed in Asana as a 3D task but assigned to 2D \u2014 left as found.",
+    roleTitles: {
+      pm: "Project manager",
+      "3d": "3D designer",
+      "2d": "2D technical designer",
+      content: "Content creator",
+      pricing: "Pricing",
+      bd: "Business developer",
+      production: "Production"
+    },
+    capacityUnconfirmed: "Capacity is what Asana shows, not what anyone has confirmed. If more people do this work without being assigned in Asana, these dates are wrong in your favour \u2014 and worth correcting.",
+    contentVacantNote: "No Asana task in the workspace is assigned to content. Either the role is vacant or the work happens without a record \u2014 those look identical in the data and call for opposite responses."
+  },
+  ar: {
+    brandLine: "\u0627\u0644\u062A\u0633\u0644\u064A\u0645\u060C \u0645\u064F\u0642\u062F\u064E\u0651\u0631\u0627\u064B \u0628\u0627\u0644\u0637\u0627\u0642\u0629 \u0627\u0644\u0641\u0639\u0644\u064A\u0629.",
+    heroTitle: "\u0627\u0639\u0631\u0641 \u0645\u0648\u0639\u062F \u0627\u0644\u062A\u0633\u0644\u064A\u0645 \u0642\u0628\u0644 \u0623\u0646 \u062A\u064E\u0639\u0650\u062F \u0628\u0647.",
+    heroBody: "\u0627\u0644\u0641\u0631\u064A\u0642 \u0647\u0648 \u0627\u0644\u0642\u064A\u062F\u060C \u0644\u0627 \u0627\u0644\u062A\u0642\u0648\u064A\u0645. \u064A\u0642\u0631\u0623 \u0625\u0643\u0633\u0628\u0627\u0646\u062F \u0645\u0627 \u0627\u0644\u062A\u0632\u0645 \u0628\u0647 \u0643\u0644 \u0645\u0635\u0645\u0645 \u0641\u0639\u0644\u064A\u0627\u064B \u0648\u064A\u062C\u064A\u0628 \u0639\u0644\u0649 \u0627\u0644\u0633\u0624\u0627\u0644 \u0627\u0644\u0648\u062D\u064A\u062F \u0627\u0644\u0630\u064A \u064A\u0633\u0623\u0644\u0647 \u0627\u0644\u0639\u0645\u064A\u0644: \u0645\u062A\u0649\u061F",
+    signIn: "\u062A\u0633\u062C\u064A\u0644 \u0627\u0644\u062F\u062E\u0648\u0644",
+    seeHow: "\u0643\u064A\u0641 \u064A\u0639\u0645\u0644",
+    openEstimator: "\u0627\u0641\u062A\u062D \u062D\u0627\u0633\u0628\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u0645",
+    proofTitle: "\u0645\u0627 \u062A\u0642\u0648\u0644\u0647 \u0645\u0633\u0627\u062D\u0629 \u0627\u0644\u0639\u0645\u0644 \u0627\u0644\u064A\u0648\u0645",
+    proofNote: "\u0642\u064F\u0631\u0626\u062A \u0645\u0646 \u0623\u0633\u0627\u0646\u0627 \u0641\u064A",
+    people: "\u0623\u0634\u062E\u0627\u0635",
+    peopleOne: "\u0634\u062E\u0635",
+    openProposals: "\u0639\u0631\u0636\u0627\u064B \u0645\u0641\u062A\u0648\u062D\u0627\u064B",
+    committed: "\u064A\u0648\u0645 \u0639\u0645\u0644 \u0645\u0644\u062A\u0632\u0645 \u0628\u0647",
+    freeFrom: "\u0623\u0648\u0644 \u0645\u0648\u0639\u062F \u0645\u062A\u0627\u062D",
+    notBefore: "\u0644\u064A\u0633 \u0642\u0628\u0644",
+    whoTitle: "\u0645\u0646 \u0623\u0646\u062A\u061F",
+    whoBody: "\u0627\u062E\u062A\u0631 \u0627\u0633\u0645\u0643. \u0644\u0627 \u062A\u0648\u062C\u062F \u0643\u0644\u0645\u0629 \u0645\u0631\u0648\u0631 \u0628\u0639\u062F \u2014 \u0647\u0630\u0647 \u0634\u0643\u0644 \u0627\u0644\u0645\u0646\u062A\u062C\u060C \u0648\u0644\u064A\u0633\u062A \u0646\u0645\u0648\u0630\u062C \u0627\u0644\u062D\u0645\u0627\u064A\u0629.",
+    back: "\u0631\u062C\u0648\u0639",
+    backToTeam: "\u0631\u062C\u0648\u0639 \u0625\u0644\u0649 \u0627\u0644\u0641\u0631\u064A\u0642",
+    vacant: "\u0644\u0627 \u0623\u062D\u062F \u0645\u0633\u0646\u062F",
+    workload: "\u062D\u0650\u0645\u0644 \u0627\u0644\u0639\u0645\u0644",
+    tasks: "\u0627\u0644\u0639\u0645\u0644 \u0627\u0644\u0645\u0641\u062A\u0648\u062D",
+    pipeline: "\u062E\u0637 \u0627\u0644\u0645\u0628\u064A\u0639\u0627\u062A",
+    utilisation: "\u0627\u0644\u062D\u0650\u0645\u0644 \u0627\u0644\u0645\u0644\u062A\u0632\u0645 \u0628\u0647",
+    overdue: "\u0645\u062A\u0623\u062E\u0631\u0629",
+    onePersonStage: "\u0645\u0631\u062D\u0644\u0629 \u0628\u0634\u062E\u0635 \u0648\u0627\u062D\u062F",
+    blocking: "\u0645\u0627 \u0627\u0644\u0630\u064A \u062A\u0624\u062E\u0651\u0631\u0647",
+    blockingNone: "\u0644\u0627 \u0634\u064A\u0621 \u064A\u0646\u062A\u0638\u0631\u0643.",
+    nextDue: "\u0627\u0644\u0627\u0633\u062A\u062D\u0642\u0627\u0642 \u0627\u0644\u0642\u0627\u062F\u0645",
+    noDue: "\u0628\u0644\u0627 \u0645\u0648\u0639\u062F",
+    projects: "\u0645\u0634\u0627\u0631\u064A\u0639",
+    project: "\u0645\u0634\u0631\u0648\u0639",
+    stageOf: "\u0627\u0644\u0645\u0631\u062D\u0644\u0629",
+    measured: "\u0645\u0642\u064A\u0633 \u0639\u0644\u0649 \u0623\u0639\u0645\u0627\u0644 \u0645\u064F\u0633\u0644\u064E\u0651\u0645\u0629",
+    stated: "\u0627\u0644\u0645\u064F\u0639\u0644\u0646",
+    actual: "\u0627\u0644\u0648\u0633\u064A\u0637 \u0627\u0644\u0641\u0639\u0644\u064A",
+    elapsedNote: "\u0632\u0645\u0646 \u0645\u0646\u0642\u0636\u064D \u2014 \u062C\u0647\u062F \u0632\u0627\u0626\u062F \u0627\u0646\u062A\u0638\u0627\u0631. \u0644\u064A\u0633 \u0631\u0642\u0645 \u0627\u0644\u062C\u0647\u062F.",
+    leadsTitle: "\u0627\u0644\u0639\u0645\u0644\u0627\u0621 \u0627\u0644\u0645\u062D\u062A\u0645\u0644\u0648\u0646",
+    dealsTitle: "\u0627\u0644\u0635\u0641\u0642\u0627\u062A",
+    wonTitle: "\u0635\u0641\u0642\u0627\u062A \u0645\u0643\u0633\u0648\u0628\u0629",
+    leadGapTitle: "\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0639\u0645\u0644\u0627\u0621 \u0627\u0644\u0645\u062D\u062A\u0645\u0644\u064A\u0646 \u062A\u0648\u0642\u0641\u062A",
+    capacityCheck: "\u0645\u0627\u0630\u0627 \u064A\u0643\u0644\u0651\u0641 \u0627\u0644\u0641\u0648\u0632",
+    capacityBody: "\u0643\u0644 \u0635\u0641\u0642\u0629 \u0623\u062F\u0646\u0627\u0647 \u0644\u0647\u0627 \u062D\u062C\u0645\u060C \u0641\u064A\u0645\u0643\u0646 \u062A\u0633\u0639\u064A\u0631 \u0625\u063A\u0644\u0627\u0642\u0647\u0627 \u0628\u0623\u064A\u0627\u0645 \u0627\u0644\u062A\u0635\u0645\u064A\u0645 \u0642\u0628\u0644 \u0623\u0646 \u064A\u064E\u0639\u0650\u062F \u0623\u062D\u062F \u0628\u0645\u0648\u0639\u062F.",
+    ifWon: "\u0639\u0646\u062F \u0627\u0644\u0641\u0648\u0632",
+    addsTo: "\u064A\u0636\u064A\u0641 \u0625\u0644\u0649",
+    wouldPush: "\u064A\u062F\u0641\u0639 \u0627\u0644\u0637\u0627\u0628\u0648\u0631 \u0625\u0644\u0649",
+    owner: "\u0627\u0644\u0645\u0633\u0624\u0648\u0644",
+    due: "\u0627\u0644\u0627\u0633\u062A\u062D\u0642\u0627\u0642",
+    daysLate: "\u064A\u0648\u0645\u0627\u064B \u062A\u0623\u062E\u064A\u0631\u0627\u064B",
+    today: "\u0627\u0644\u064A\u0648\u0645",
+    noOne: "\u063A\u064A\u0631 \u0645\u0633\u0646\u062F",
+    noStatedEffort: "\u064A\u062D\u0645\u0644\u0648\u0646 \u0639\u0645\u0644\u0627\u064B \u0628\u0644\u0627 \u0631\u0642\u0645 \u062C\u0647\u062F \u0645\u0639\u0644\u0646\u060C \u0641\u0644\u0627 \u064A\u0645\u0643\u0646 \u062D\u0633\u0627\u0628 \u0645\u0648\u0639\u062F \u0628\u0635\u062F\u0642. \u0627\u0637\u0644\u0628 \u0645\u0646 \u0643\u0644 \u0641\u0631\u064A\u0642 \u0645\u0627 \u064A\u0639\u0627\u062F\u0644 \u0665 / \u0662 / \u0663.",
+    misrouted: "\u0645\u0633\u062C\u064E\u0651\u0644\u0629 \u0641\u064A \u0623\u0633\u0627\u0646\u0627 \u0643\u0645\u0647\u0645\u0629 \u062B\u0644\u0627\u062B\u064A\u0629 \u0627\u0644\u0623\u0628\u0639\u0627\u062F \u0644\u0643\u0646\u0647\u0627 \u0645\u0633\u0646\u062F\u0629 \u0644\u0641\u0631\u064A\u0642 2D \u2014 \u062A\u064F\u0631\u0643\u062A \u0643\u0645\u0627 \u0647\u064A.",
+    roleTitles: {
+      pm: "\u0645\u062F\u064A\u0631 \u0645\u0634\u0627\u0631\u064A\u0639",
+      "3d": "\u0645\u0635\u0645\u0645 \u062B\u0644\u0627\u062B\u064A \u0627\u0644\u0623\u0628\u0639\u0627\u062F",
+      "2d": "\u0645\u0635\u0645\u0645 \u0641\u0646\u064A",
+      content: "\u0645\u0646\u062A\u062C \u0645\u062D\u062A\u0648\u0649",
+      pricing: "\u0627\u0644\u062A\u0633\u0639\u064A\u0631",
+      bd: "\u0645\u0637\u0648\u0631 \u0623\u0639\u0645\u0627\u0644",
+      production: "\u0627\u0644\u062A\u0646\u0641\u064A\u0630"
+    },
+    capacityUnconfirmed: "\u0627\u0644\u0637\u0627\u0642\u0629 \u0647\u0646\u0627 \u0647\u064A \u0645\u0627 \u064A\u064F\u0638\u0647\u0631\u0647 \u0623\u0633\u0627\u0646\u0627\u060C \u0644\u0627 \u0645\u0627 \u0623\u0643\u0651\u062F\u0647 \u0623\u062D\u062F. \u0625\u0646 \u0643\u0627\u0646 \u0622\u062E\u0631\u0648\u0646 \u064A\u0646\u0641\u0630\u0648\u0646 \u0647\u0630\u0627 \u0627\u0644\u0639\u0645\u0644 \u062F\u0648\u0646 \u0625\u0633\u0646\u0627\u062F \u0641\u064A \u0623\u0633\u0627\u0646\u0627\u060C \u0641\u0647\u0630\u0647 \u0627\u0644\u0645\u0648\u0627\u0639\u064A\u062F \u062E\u0627\u0637\u0626\u0629 \u0644\u0635\u0627\u0644\u062D\u0643 \u2014 \u0648\u064A\u0633\u062A\u062D\u0642 \u062A\u0635\u062D\u064A\u062D\u0647\u0627.",
+    contentVacantNote: "\u0644\u0627 \u062A\u0648\u062C\u062F \u0645\u0647\u0645\u0629 \u0641\u064A \u0623\u0633\u0627\u0646\u0627 \u0645\u0633\u0646\u062F\u0629 \u0644\u0644\u0645\u062D\u062A\u0648\u0649. \u0625\u0645\u0627 \u0623\u0646 \u0627\u0644\u062F\u0648\u0631 \u0634\u0627\u063A\u0631 \u0623\u0648 \u0623\u0646 \u0627\u0644\u0639\u0645\u0644 \u064A\u062A\u0645 \u062F\u0648\u0646 \u062A\u0633\u062C\u064A\u0644 \u2014 \u0648\u0647\u0645\u0627 \u064A\u0628\u062F\u0648\u0627\u0646 \u0645\u062A\u0637\u0627\u0628\u0642\u064A\u0646 \u0641\u064A \u0627\u0644\u0628\u064A\u0627\u0646\u0627\u062A \u0648\u064A\u0633\u062A\u062F\u0639\u064A\u0627\u0646 \u0631\u062F\u0651\u064A\u0646 \u0645\u062A\u0639\u0627\u0643\u0633\u064A\u0646."
+  }
+};
+function commitment(person, from = /* @__PURE__ */ new Date()) {
+  const stage = DEFAULT_STAGES[person.dept];
+  if (!stage || !person.projects) {
+    return { days: null, free: null, weeks: null, stage: stage || null };
+  }
+  const days = Math.round(person.projects * stage.baseDays);
+  const free = CAL.addWorkingDays(from, days);
+  return { days, free: iso(free), weeks: +(days / 5).toFixed(1), stage };
+}
+function lateness(dueIso, from = /* @__PURE__ */ new Date()) {
+  if (!dueIso) return null;
+  const due = parse(dueIso);
+  const now = CAL.nextWorking(from);
+  const sign = due < now ? -1 : 1;
+  const [a, b] = sign < 0 ? [due, now] : [now, due];
+  return sign * CAL.countWorkingDays(a, b);
+}
+var fmtDate = (isoStr, lang) => {
+  if (!isoStr) return "\u2014";
+  const d = parse(isoStr);
+  return d.toLocaleDateString(
+    lang === "ar" ? "ar-SA-u-ca-gregory" : "en-GB",
+    { day: "numeric", month: "short", year: "numeric" }
+  );
+};
+var overdueFor = (personId) => assignmentsFor(personId).filter((a) => {
+  const l = lateness(a.due);
+  return l !== null && l < 0;
+}).length;
+var nextDueFor = (personId) => assignmentsFor(personId).map((a) => a.due).filter(Boolean).sort()[0] || null;
+var deptName = (id, lang) => DEPARTMENTS[id] ? DEPARTMENTS[id][lang] : id;
+var personName = (p, lang) => p.vacant ? VSTR[lang].vacant : p.name;
+function loadBar(days, max, colour) {
+  const pct = max ? Math.max(2, Math.round(days / max * 100)) : 0;
+  return `<div class="loadbar"><i style="width:${pct}%;background:${colour}"></i></div>`;
+}
+function landingView(lang) {
+  const t = VSTR[lang];
+  const all = PEOPLE.filter((p) => !p.vacant && p.projects > 0).map((p) => ({ p, c: commitment(p) }));
+  const loads = all.filter((x) => x.c.days).sort((a, b) => b.c.days - a.c.days);
+  const unpriced = all.filter((x) => !x.c.days).sort((a, b) => b.p.projects - a.p.projects);
+  const max = Math.max(...loads.map((x) => x.c.days), 1);
+  return `
+<section class="hero">
+  <p class="hero__eyebrow">${esc(t.brandLine)}</p>
+  <h1 class="hero__title">${esc(t.heroTitle)}</h1>
+  <p class="hero__body">${esc(t.heroBody)}</p>
+  <div class="hero__cta">
+    <button class="btn btn--primary" data-act="go" data-route="#/who">${esc(t.signIn)}</button>
+    <button class="btn" data-act="go" data-route="#/estimate">${esc(t.openEstimator)}</button>
+  </div>
+</section>
+
+<section class="card">
+  <div class="card__head">
+    <h2>${esc(t.proofTitle)}</h2>
+    <span class="muted small">${esc(t.proofNote)} ${esc(fmtDate(capturedAt, lang))} \xB7 ${esc(workspace)}</span>
+  </div>
+
+  <div class="loadlist">
+    ${loads.map(({ p, c }) => `
+      <div class="loadlist__row">
+        <div class="loadlist__who">
+          <strong>${esc(p.name)}</strong>
+          <span class="muted small">${esc(deptName(p.dept, lang))} \xB7 ${p.projects} ${esc(p.projects === 1 ? t.project : t.projects)}</span>
+        </div>
+        ${loadBar(c.days, max, DEPARTMENTS[p.dept].colour)}
+        <div class="loadlist__num">
+          <strong>${c.days}</strong>
+          <span class="muted small">${esc(t.committed)}</span>
+        </div>
+        <div class="loadlist__num">
+          <strong>${esc(fmtDate(c.free, lang))}</strong>
+          <span class="muted small">${esc(t.freeFrom)}</span>
+        </div>
+      </div>`).join("")}
+  </div>
+
+  ${unpriced.length ? `
+  <div class="unpriced">
+    <p class="unpriced__head small">${esc(t.noStatedEffort)}</p>
+    <div class="batches">
+      ${unpriced.map(({ p }) => `
+        <div class="batch">
+          <span class="batch__l muted small">${esc(p.name)}</span>
+          <span class="batch__n">${p.projects}<span class="muted small"> ${esc(p.projects === 1 ? t.project : t.projects)}</span></span>
+        </div>`).join("")}
+    </div>
+  </div>` : ""}
+
+  <p class="note">${esc(t.capacityUnconfirmed)}</p>
+</section>
+
+<section class="card">
+  <div class="card__head"><h2>${esc(t.measured)}</h2></div>
+  <table class="tbl">
+    <thead><tr>
+      <th>${esc(t.stageOf)}</th><th class="num">${esc(t.stated)}</th>
+      <th class="num">${esc(t.actual)}</th><th class="num">n</th>
+    </tr></thead>
+    <tbody>
+      ${MEASURED.map((m) => `<tr>
+        <td>${esc(deptName(m.stage, lang))}</td>
+        <td class="num">${m.stated ?? "\u2014"}</td>
+        <td class="num"><strong>${m.medianElapsed}</strong></td>
+        <td class="num muted">${m.n}</td>
+      </tr>`).join("")}
+    </tbody>
+  </table>
+  <p class="note">${esc(t.elapsedNote)}</p>
+</section>`;
+}
+function whoView(lang) {
+  const t = VSTR[lang];
+  const order = ["pm", "3d", "2d", "content", "pricing", "bd"];
+  return `
+<section class="card">
+  <div class="card__head">
+    <h2>${esc(t.whoTitle)}</h2>
+    <span class="muted small">${esc(t.whoBody)}</span>
+  </div>
+
+  ${order.map((d) => {
+    const dept = DEPARTMENTS[d];
+    const members2 = PEOPLE.filter((p) => p.dept === d);
+    return `
+    <div class="deptblock">
+      <h3 class="deptblock__title"><i style="background:${dept.colour}"></i>${esc(dept[lang])}</h3>
+      <div class="whogrid">
+        ${members2.map((p) => {
+      const c = commitment(p);
+      return `
+          <button class="whocard${p.vacant ? " whocard--vacant" : ""}"
+                  ${p.vacant ? "disabled" : `data-act="go" data-route="#/me/${esc(p.id)}"`}>
+            <span class="whocard__name">${esc(personName(p, lang))}</span>
+            <span class="whocard__role muted small">${esc(p.role[lang])}</span>
+            ${p.vacant ? "" : `<span class="whocard__load small">
+              ${p.projects} ${esc(p.projects === 1 ? t.project : t.projects)}
+              ${c.days ? ` \xB7 ${c.days} ${esc(lang === "ar" ? "\u064A\u0648\u0645" : "d")}` : ""}
+              ${overdueFor(p.id) ? ` \xB7 <b class="bad">${overdueFor(p.id)} ${esc(t.overdue)}</b>` : ""}
+            </span>`}
+          </button>`;
+    }).join("")}
+      </div>
+      ${d === "content" ? `<p class="note">${esc(t.contentVacantNote)}</p>` : ""}
+    </div>`;
+  }).join("")}
+</section>`;
+}
+function profileView(lang, id) {
+  const t = VSTR[lang];
+  const p = byId(id);
+  if (!p) return `<section class="card"><p>Unknown person.</p></section>`;
+  const dept = DEPARTMENTS[p.dept];
+  const c = commitment(p);
+  const cap = CAPACITY[p.dept];
+  const staff = PEOPLE.filter((x) => !x.vacant);
+  const max = Math.max(...staff.map((x) => commitment(x).days || 0), 1);
+  const blocking = assignmentsFor(p.id).slice().sort((a, b) => (a.due ? 0 : 1) - (b.due ? 0 : 1) || String(a.due).localeCompare(String(b.due)));
+  const overdue = overdueFor(p.id);
+  const nextDue = nextDueFor(p.id);
+  const late = lateness(nextDue);
+  return `
+<nav class="crumb"><button class="link" data-act="go" data-route="#/who">\u2190 ${esc(t.backToTeam)}</button></nav>
+
+<section class="card profile">
+  <div class="profile__head">
+    <div class="avatar" style="--c:${dept.colour}">${esc(p.name.slice(0, 1))}</div>
+    <div>
+      <h1 class="profile__name">${esc(p.name)}</h1>
+      <p class="muted">${esc(p.role[lang])} \xB7 ${esc(dept[lang])}</p>
+    </div>
+    ${cap && cap.people === 1 ? `<span class="chip chip--warn">${esc(t.onePersonStage)}</span>` : ""}
+  </div>
+
+  ${p.note ? `<p class="note note--lead">${esc(p.note[lang])}</p>` : ""}
+
+  <div class="stats">
+    <div class="stat">
+      <span class="stat__n">${p.projects}</span>
+      <span class="stat__l">${esc(t.openProposals)}</span>
+    </div>
+    <div class="stat">
+      <span class="stat__n">${p.openTasks}</span>
+      <span class="stat__l">${esc(t.tasks)}</span>
+    </div>
+    <div class="stat${overdue ? " stat--bad" : ""}">
+      <span class="stat__n">${overdue}</span>
+      <span class="stat__l">${esc(t.overdue)}</span>
+    </div>
+    <div class="stat">
+      <span class="stat__n">${c.days ?? "\u2014"}</span>
+      <span class="stat__l">${esc(t.committed)}</span>
+    </div>
+    <div class="stat stat--wide">
+      <span class="stat__n">${esc(fmtDate(c.free, lang))}</span>
+      <span class="stat__l">${esc(t.freeFrom)}</span>
+    </div>
+  </div>
+
+  ${c.days ? `
+  <div class="loadrow">
+    ${loadBar(c.days, max, dept.colour)}
+    <span class="muted small">${c.days} ${esc(t.committed)} \xB7 ${c.weeks} ${esc(lang === "ar" ? "\u0623\u0633\u0628\u0648\u0639 \u0639\u0645\u0644" : "working weeks")}</span>
+  </div>` : ""}
+
+  ${nextDue ? `
+  <p class="${late !== null && late < 0 ? "bad" : "muted"}">
+    ${esc(t.nextDue)}: ${esc(fmtDate(nextDue, lang))}
+    ${late !== null && late < 0 ? ` \u2014 ${Math.abs(late)} ${esc(t.daysLate)}` : ""}
+  </p>` : `<p class="muted">${esc(t.nextDue)}: ${esc(t.noDue)}</p>`}
+</section>
+
+${p.dept === "bd" ? pipelineView(lang, true) : `
+<section class="card">
+  <div class="card__head"><h2>${esc(t.blocking)}</h2></div>
+  ${blocking.length ? `
+  <table class="tbl">
+    <thead><tr>
+      <th>${esc(lang === "ar" ? "\u0627\u0644\u0645\u0634\u0631\u0648\u0639" : "Project")}</th>
+      <th>${esc(t.stageOf)}</th>
+      <th class="num">${esc(t.due)}</th>
+    </tr></thead>
+    <tbody>
+      ${blocking.map((a) => {
+    const l = lateness(a.due);
+    return `<tr>
+          <td>${esc(a.project)}${a.misrouted ? `<span class="muted small block">${esc(t.misrouted)}</span>` : ""}</td>
+          <td class="muted">${esc(deptName(a.stage, lang))}</td>
+          <td class="num ${l !== null && l < 0 ? "bad" : "muted"}">
+            ${a.due ? esc(fmtDate(a.due, lang)) : esc(t.noDue)}
+            ${l !== null && l < 0 ? `<span class="block small">${Math.abs(l)} ${esc(t.daysLate)}</span>` : ""}
+          </td>
+        </tr>`;
+  }).join("")}
+    </tbody>
+  </table>
+  <p class="note">${esc(lang === "ar" ? `\u062A\u0639\u0631\u0636 ${blocking.length} \u0628\u0646\u062F\u0627\u064B \u0645\u0646 ${p.openTasks} \u0645\u0647\u0645\u0629 \u0645\u0641\u062A\u0648\u062D\u0629 \u0641\u064A \u0623\u0633\u0627\u0646\u0627. \u0627\u0644\u0628\u0627\u0642\u064A \u0644\u0645 \u064A\u064F\u0644\u062A\u0642\u0637 \u0641\u064A \u0647\u0630\u0647 \u0627\u0644\u0644\u0642\u0637\u0629 \u2014 \u0633\u064A\u0638\u0647\u0631 \u0643\u0627\u0645\u0644\u0627\u064B \u0639\u0646\u062F \u0648\u062C\u0648\u062F \u0627\u062A\u0635\u0627\u0644 \u0645\u0628\u0627\u0634\u0631.` : `Showing ${blocking.length} of the ${p.openTasks} tasks open in Asana. The rest were not captured in this snapshot and appear in full once the connection is live.`)}</p>` : `<p class="muted">${esc(t.blockingNone)}</p>`}
+</section>`}`;
+}
+function pipelineView(lang, embedded = false) {
+  const t = VSTR[lang];
+  const designDays = (size) => {
+    const f = DEFAULT_SIZE_FACTORS[size] ?? 1;
+    return Math.round((DEFAULT_STAGES["3d"].baseDays + DEFAULT_STAGES["2d"].baseDays) * f);
+  };
+  const openDeals = DEALS.filter((d) => d.stage !== "won");
+  const pendingDays = openDeals.reduce((s, d) => s + designDays(d.size), 0);
+  const threeD = PEOPLE.find((x) => x.dept === "3d");
+  const base = threeD ? commitment(threeD) : { days: 0, free: null };
+  const after = iso(CAL.addWorkingDays(/* @__PURE__ */ new Date(), (base.days || 0) + pendingDays));
+  return `
+${embedded ? "" : '<nav class="crumb"><button class="link" data-act="go" data-route="#/who">\u2190 ' + esc(t.backToTeam) + "</button></nav>"}
+
+<section class="card">
+  <div class="card__head">
+    <h2>${esc(t.pipeline)}</h2>
+    <span class="muted small">${esc(t.proofNote)} ${esc(fmtDate(capturedAt, lang))}</span>
+  </div>
+
+  <div class="board">
+    ${PIPELINE_STAGES.map((st) => {
+    const deals = DEALS.filter((d) => d.stage === st.id);
+    return `
+      <div class="bcol">
+        <h3 class="bcol__title">${esc(st[lang])}<span class="muted">${deals.length}</span></h3>
+        ${deals.map((d) => {
+      const l = lateness(d.due);
+      return `
+          <article class="deal">
+            <p class="deal__name">${esc(d.latin)}</p>
+            ${d.name === d.latin ? "" : `<p class="deal__ar muted small">${esc(d.name)}</p>`}
+            <p class="deal__meta small">
+              <span class="muted">${esc(d.owner)}</span>
+              <span class="${l !== null && l < 0 ? "bad" : "muted"}">${esc(fmtDate(d.due, lang))}</span>
+            </p>
+            ${st.id !== "won" ? `<p class="deal__cost small">
+              ${esc(t.ifWon)}: <strong>${designDays(d.size)}</strong> ${esc(lang === "ar" ? "\u064A\u0648\u0645 \u062A\u0635\u0645\u064A\u0645" : "design days")}
+            </p>` : ""}
+          </article>`;
+    }).join("")}
+      </div>`;
+  }).join("")}
+  </div>
+</section>
+
+<section class="card">
+  <div class="card__head"><h2>${esc(t.capacityCheck)}</h2></div>
+  <p class="muted">${esc(t.capacityBody)}</p>
+  <div class="stats">
+    <div class="stat">
+      <span class="stat__n">${openDeals.length}</span>
+      <span class="stat__l">${esc(t.dealsTitle)}</span>
+    </div>
+    <div class="stat">
+      <span class="stat__n">${pendingDays}</span>
+      <span class="stat__l">${esc(lang === "ar" ? "\u064A\u0648\u0645 \u062A\u0635\u0645\u064A\u0645 \u0639\u0646\u062F \u0627\u0644\u0641\u0648\u0632 \u0628\u0627\u0644\u0643\u0644" : "design days if all close")}</span>
+    </div>
+    <div class="stat stat--wide stat--bad">
+      <span class="stat__n">${esc(fmtDate(after, lang))}</span>
+      <span class="stat__l">${esc(t.wouldPush)}</span>
+    </div>
+  </div>
+</section>
+
+<section class="card">
+  <div class="card__head">
+    <h2>${esc(t.leadGapTitle)}</h2>
+    <span class="muted small">${LEADS.open} / ${LEADS.total} ${esc(lang === "ar" ? "\u0645\u0641\u062A\u0648\u062D\u0629" : "still open")}</span>
+  </div>
+  <p class="muted">${esc(lang === "ar" ? `\u0643\u0644 \u0627\u0644\u0640${LEADS.open} \u0639\u0645\u064A\u0644\u0627\u064B \u0645\u062D\u062A\u0645\u0644\u0627\u064B \u0627\u0644\u0645\u0641\u062A\u0648\u062D\u064A\u0646 \u063A\u064A\u0631 \u0645\u0633\u0646\u062F\u064A\u0646 \u0644\u0623\u062D\u062F\u060C \u0648\u0622\u062E\u0631 \u062F\u0641\u0639\u0629 \u0623\u064F\u0636\u064A\u0641\u062A \u0641\u064A ${fmtDate(LEADS.newestDue, lang)}. \u0627\u0644\u0642\u0627\u0626\u0645\u0629 \u0644\u0645 \u062A\u064F\u0644\u0645\u0633 \u0645\u0646\u0630 \u0630\u0644\u0643 \u0627\u0644\u062D\u064A\u0646.` : `All ${LEADS.open} open leads are unassigned, and the last batch was added on ${fmtDate(LEADS.newestDue, lang)}. Nothing has moved since.`)}</p>
+  <div class="batches">
+    ${LEADS.batches.map((b) => `
+      <div class="batch">
+        <span class="batch__l muted small">${esc(b.label)}</span>
+        <span class="batch__n">${b.open}<span class="muted">/${b.total}</span></span>
+      </div>`).join("")}
+  </div>
+  <table class="tbl tbl--tight">
+    <tbody>
+      ${LEADS.otherLists.map((l) => `<tr>
+        <td>${esc(l.name)}</td>
+        <td class="num muted">${l.total}</td>
+        <td class="num ${l.open ? "bad" : ""}">${l.open} ${esc(lang === "ar" ? "\u0645\u0641\u062A\u0648\u062D\u0629" : "open")}</td>
+      </tr>`).join("")}
+    </tbody>
+  </table>
+</section>`;
+}
+
 // web/app.js
 var STR = {
   en: {
@@ -831,6 +1687,7 @@ var TEAM_LABEL = {
 var TEAM_COLOR = { "3d": "var(--s1)", "2d": "var(--s2)", content: "var(--s3)" };
 var S = {
   lang: "en",
+  route: "#/",
   headcount: { "3d": 2, "2d": 2, content: 1 },
   pipeline: [],
   seq: 0,
@@ -839,9 +1696,9 @@ var S = {
 };
 var T = () => STR[S.lang];
 var $ = (s, r = document) => r.querySelector(s);
-var esc = (x) => String(x ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-var CAL = new WorkCalendar();
-var today = () => iso(CAL.nextWorking(/* @__PURE__ */ new Date()));
+var esc2 = (x) => String(x ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+var CAL2 = new WorkCalendar();
+var today = () => iso(CAL2.nextWorking(/* @__PURE__ */ new Date()));
 function members() {
   const out = [];
   for (const [team, n] of Object.entries(S.headcount)) {
@@ -852,13 +1709,13 @@ function members() {
   return out;
 }
 function loaded() {
-  const s = new Scheduler({ members: members(), calendar: CAL });
+  const s = new Scheduler({ members: members(), calendar: CAL2 });
   for (const p of S.pipeline) {
     s.scheduleProject({ id: p.id, name: p.name, size: p.size, earliestStart: p.start });
   }
   return s;
 }
-var fmtDate = (d) => {
+var fmtDate2 = (d) => {
   const x = parse(d);
   return x.toLocaleDateString(
     S.lang === "ar" ? "ar-SA-u-ca-gregory" : "en-GB",
@@ -879,45 +1736,80 @@ function leverLabel(o) {
   if (o.action === "defer_stage") return `${t.leverDefer} ${team(S.result?.bottleneck?.team)} ${t.leverDeferTail}`;
   return o.label;
 }
+function currentRoute() {
+  const h = location.hash || "#/";
+  if (h.startsWith("#/me/")) return { name: "profile", id: h.slice(5) };
+  if (h.startsWith("#/who")) return { name: "who" };
+  if (h.startsWith("#/pipeline")) return { name: "pipeline" };
+  if (h.startsWith("#/estimate")) return { name: "estimate" };
+  return { name: "landing" };
+}
 function render() {
   document.documentElement.lang = S.lang;
   document.documentElement.dir = S.lang === "ar" ? "rtl" : "ltr";
-  $("#root").innerHTML = `
-    ${header()}
+  const r = currentRoute();
+  document.body.dataset.route = r.name;
+  const body = r.name === "who" ? whoView(S.lang) : r.name === "profile" ? profileView(S.lang, r.id) : r.name === "pipeline" ? pipelineView(S.lang) : r.name === "estimate" ? estimatorBody() : landingView(S.lang);
+  $("#root").innerHTML = header(r) + body;
+  wire();
+}
+var estimatorBody = () => `
     <div class="grid">
       <aside class="col">${teamsCard()}${pipelineCard()}</aside>
       <main class="col">${formCard()}${S.result ? resultCard() : emptyResult()}</main>
       <aside class="col">${utilCard()}${S.whatIf ? leversCard() : ""}</aside>
     </div>
     ${S.result ? timelineCard() : ""}`;
-  wire();
+function headTitle(r) {
+  const v = VSTR[S.lang];
+  if (r.name === "estimate") return { h1: T().title, sub: T().sub };
+  if (r.name === "who") return { h1: v.whoTitle, sub: "" };
+  if (r.name === "pipeline") return { h1: v.pipeline, sub: "" };
+  if (r.name === "profile") {
+    const p = byId(r.id);
+    return { h1: p ? p.name : "\u2014", sub: p ? p.role[S.lang] : "" };
+  }
+  return { h1: "expand", sub: v.brandLine };
 }
-var header = () => `
+var NAV = [
+  { route: "#/who", key: "whoTitle" },
+  { route: "#/pipeline", key: "pipeline" },
+  { route: "#/estimate", key: "openEstimator" }
+];
+function header(r) {
+  const { h1, sub } = headTitle(r);
+  const v = VSTR[S.lang];
+  return `
   <header class="head">
-    <div class="brand">
+    <button class="brand" data-act="go" data-route="#/" aria-label="expand \u2014 home">
       <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true">
         <circle cx="7" cy="12" r="5.4" fill="none" stroke="var(--brand)" stroke-width="2.4"/>
         <rect x="4.4" y="10.6" width="5.2" height="2.8" fill="var(--bg)"/>
         <circle cx="7" cy="12" r="1.6" fill="var(--brand)"/>
       </svg>
       <span class="wordmark">expand</span>
-      <span class="sep"></span>
-      <div><div class="h1">${esc(T().title)}</div><div class="sub">${esc(T().sub)}</div></div>
-    </div>
+    </button>
+    <span class="sep"></span>
+    <div class="headtext"><div class="h1">${esc2(h1)}</div>${sub ? `<div class="sub">${esc2(sub)}</div>` : ""}</div>
+    <nav class="nav">
+      ${NAV.map((n) => `<button class="navbtn${location.hash.startsWith(n.route) ? " is-on" : ""}"
+        data-act="go" data-route="${n.route}">${esc2(v[n.key])}</button>`).join("")}
+    </nav>
     <div class="head__actions">
-      <button class="btn btn--ghost" data-act="reset">${esc(T().reset)}</button>
+      ${r.name === "estimate" ? `<button class="btn btn--ghost" data-act="reset">${esc2(T().reset)}</button>` : ""}
       <button class="btn btn--lang" data-act="lang">${S.lang === "en" ? "\u0627\u0644\u0639\u0631\u0628\u064A\u0629" : "English"}</button>
     </div>
   </header>`;
+}
 function teamsCard() {
   return `
   <section class="card">
-    <div class="card__h">${esc(T().teams)}</div>
+    <div class="card__h">${esc2(T().teams)}</div>
     <div class="card__b stack">
       ${Object.keys(S.headcount).map((t) => `
         <div class="row">
           <span class="dot" style="background:${TEAM_COLOR[t]}"></span>
-          <span class="row__label">${esc(TEAM_LABEL[S.lang][t])}</span>
+          <span class="row__label">${esc2(TEAM_LABEL[S.lang][t])}</span>
           <span class="row__meta">${DEFAULT_STAGES[t].baseDays}d</span>
           <div class="stepper">
             <button data-hc="${t}" data-d="-1" aria-label="minus">\u2212</button>
@@ -932,36 +1824,36 @@ function teamsCard() {
 function pipelineCard() {
   return `
   <section class="card">
-    <div class="card__h">${esc(T().pipeline)}<span class="badge">${S.pipeline.length}</span></div>
+    <div class="card__h">${esc2(T().pipeline)}<span class="badge">${S.pipeline.length}</span></div>
     <div class="card__b stack">
       ${S.pipeline.length ? S.pipeline.map((p) => `
         <div class="row row--proj">
-          <span class="row__label">${esc(p.name)}</span>
-          <span class="tag">${esc(T().sizes[p.size])}</span>
-          <span class="row__meta">${fmtDate(p.start)}</span>
-          <button class="x" data-del="${esc(p.id)}" aria-label="remove">\xD7</button>
-        </div>`).join("") : `<p class="hint">${esc(T().noProjects)}</p>`}
+          <span class="row__label">${esc2(p.name)}</span>
+          <span class="tag">${esc2(T().sizes[p.size])}</span>
+          <span class="row__meta">${fmtDate2(p.start)}</span>
+          <button class="x" data-del="${esc2(p.id)}" aria-label="remove">\xD7</button>
+        </div>`).join("") : `<p class="hint">${esc2(T().noProjects)}</p>`}
     </div>
   </section>`;
 }
 function formCard() {
   return `
   <section class="card card--form">
-    <div class="card__h">${esc(T().newProposal)}</div>
+    <div class="card__h">${esc2(T().newProposal)}</div>
     <div class="card__b">
       <div class="fields">
-        <label class="f f--wide"><span>${esc(T().name)}</span>
+        <label class="f f--wide"><span>${esc2(T().name)}</span>
           <input id="pName" value="Riyadh Expo pavilion" /></label>
-        <label class="f"><span>${esc(T().size)}</span>
-          <select id="pSize">${Object.keys(DEFAULT_SIZE_FACTORS).map((k) => `<option value="${k}"${k === "M" ? " selected" : ""}>${esc(T().sizes[k])} \xD7${DEFAULT_SIZE_FACTORS[k]}</option>`).join("")}</select></label>
-        <label class="f"><span>${esc(T().start)}</span>
+        <label class="f"><span>${esc2(T().size)}</span>
+          <select id="pSize">${Object.keys(DEFAULT_SIZE_FACTORS).map((k) => `<option value="${k}"${k === "M" ? " selected" : ""}>${esc2(T().sizes[k])} \xD7${DEFAULT_SIZE_FACTORS[k]}</option>`).join("")}</select></label>
+        <label class="f"><span>${esc2(T().start)}</span>
           <input id="pStart" type="date" value="${today()}" /></label>
-        <label class="f"><span>${esc(T().deadline)}</span>
+        <label class="f"><span>${esc2(T().deadline)}</span>
           <input id="pDeadline" type="date" /></label>
       </div>
       <div class="actions">
-        <button class="btn btn--primary" data-act="estimate">${esc(T().estimate)}</button>
-        <button class="btn" data-act="add">${esc(T().addPipeline)}</button>
+        <button class="btn btn--primary" data-act="estimate">${esc2(T().estimate)}</button>
+        <button class="btn" data-act="add">${esc2(T().addPipeline)}</button>
       </div>
     </div>
   </section>`;
@@ -986,21 +1878,21 @@ function resultCard() {
     <div class="card__b">
       <div class="compare">
         <div class="compare__side compare__side--naive">
-          <div class="compare__k">${esc(T().naive)}</div>
-          <div class="compare__v">${fmtDate(naive.delivery)}</div>
-          <div class="compare__n">${plural(naive.leadWorkingDays, T().day, T().days)} \xB7 ${esc(T().naiveNote)}</div>
+          <div class="compare__k">${esc2(T().naive)}</div>
+          <div class="compare__v">${fmtDate2(naive.delivery)}</div>
+          <div class="compare__n">${plural(naive.leadWorkingDays, T().day, T().days)} \xB7 ${esc2(T().naiveNote)}</div>
         </div>
-        <div class="compare__arrow">${gap > 0 ? `<b>+${plural(gap, T().day, T().days)}</b><span>${esc(T().later)}</span>` : "\u2014"}</div>
+        <div class="compare__arrow">${gap > 0 ? `<b>+${plural(gap, T().day, T().days)}</b><span>${esc2(T().later)}</span>` : "\u2014"}</div>
         <div class="compare__side compare__side--real">
-          <div class="compare__k">${esc(T().real)}</div>
-          <div class="compare__v">${fmtDate(r.delivery)}</div>
-          <div class="compare__n">${plural(r.leadWorkingDays, T().day, T().days)} \xB7 ${esc(T().realNote)}</div>
+          <div class="compare__k">${esc2(T().real)}</div>
+          <div class="compare__v">${fmtDate2(r.delivery)}</div>
+          <div class="compare__n">${plural(r.leadWorkingDays, T().day, T().days)} \xB7 ${esc2(T().realNote)}</div>
         </div>
       </div>
 
       ${r.deadline ? `
         <div class="deadline ${r.meetsDeadline ? "ok" : "bad"}">
-          ${r.meetsDeadline ? `\u2713 ${esc(T().meets)} \u2014 ${plural(r.slackWorkingDays, T().day, T().days)} ${esc(T().slack)}` : `\u2715 ${esc(T().misses)} ${plural(r.overrunWorkingDays, T().day, T().days)}`}
+          ${r.meetsDeadline ? `\u2713 ${esc2(T().meets)} \u2014 ${plural(r.slackWorkingDays, T().day, T().days)} ${esc2(T().slack)}` : `\u2715 ${esc2(T().misses)} ${plural(r.overrunWorkingDays, T().day, T().days)}`}
         </div>` : ""}
 
       <div class="split" role="img" aria-label="queue versus work">
@@ -1009,41 +1901,41 @@ function resultCard() {
           <span style="width:${100 - qPct}%" class="split__w"></span>
         </div>
         <div class="split__legend">
-          <span><i class="sw sw--q"></i>${plural(r.queueDays, T().day, T().days)} ${esc(T().queue)}</span>
-          <span><i class="sw sw--w"></i>${plural(workDays, T().day, T().days)} ${esc(T().work)}</span>
+          <span><i class="sw sw--q"></i>${plural(r.queueDays, T().day, T().days)} ${esc2(T().queue)}</span>
+          <span><i class="sw sw--w"></i>${plural(workDays, T().day, T().days)} ${esc2(T().work)}</span>
         </div>
       </div>
 
       <div class="facts">
         <div class="fact">
-          <span class="fact__k">${esc(T().bottleneck)}</span>
-          <span class="fact__v"><i class="dot" style="background:${TEAM_COLOR[r.bottleneck.team]}"></i>${esc(TEAM_LABEL[S.lang][r.bottleneck.team])}</span>
-          <span class="fact__n">${esc(r.bottleneck.member)}</span>
+          <span class="fact__k">${esc2(T().bottleneck)}</span>
+          <span class="fact__v"><i class="dot" style="background:${TEAM_COLOR[r.bottleneck.team]}"></i>${esc2(TEAM_LABEL[S.lang][r.bottleneck.team])}</span>
+          <span class="fact__n">${esc2(r.bottleneck.member)}</span>
         </div>
         <div class="fact">
-          <span class="fact__k">${esc(T().confidence)}</span>
-          <span class="fact__v conf conf--${r.confidence.level}">${esc(T().confLevel[r.confidence.level])}</span>
-          <span class="fact__n">${esc(confNote(r.confidence.level))}</span>
+          <span class="fact__k">${esc2(T().confidence)}</span>
+          <span class="fact__v conf conf--${r.confidence.level}">${esc2(T().confLevel[r.confidence.level])}</span>
+          <span class="fact__n">${esc2(confNote(r.confidence.level))}</span>
         </div>
         <div class="fact">
-          <span class="fact__k">${esc(T().effortNote)}</span>
+          <span class="fact__k">${esc2(T().effortNote)}</span>
           <span class="fact__v">${r.totalEffortDays}</span>
-          <span class="fact__n">${r.stages.filter((x) => !x.error).length} ${esc(T().stages)}</span>
+          <span class="fact__n">${r.stages.filter((x) => !x.error).length} ${esc2(T().stages)}</span>
         </div>
       </div>
 
-      <div class="sec">${esc(T().breakdown)}</div>
+      <div class="sec">${esc2(T().breakdown)}</div>
       <table class="tbl">
-        <thead><tr><th></th><th>${esc(T().name)}</th><th class="n">${esc(T().queue)}</th><th class="n">${esc(T().work)}</th><th class="n">${esc(T().start)}</th><th class="n">\u2192</th></tr></thead>
+        <thead><tr><th></th><th>${esc2(T().name)}</th><th class="n">${esc2(T().queue)}</th><th class="n">${esc2(T().work)}</th><th class="n">${esc2(T().start)}</th><th class="n">\u2192</th></tr></thead>
         <tbody>${r.stages.map((s) => s.error ? `
-          <tr class="err"><td colspan="6">${esc(s.message)}</td></tr>` : `
+          <tr class="err"><td colspan="6">${esc2(s.message)}</td></tr>` : `
           <tr${s.finish === r.delivery ? ' class="drive"' : ""}>
             <td><i class="dot" style="background:${TEAM_COLOR[s.team]}"></i></td>
-            <td>${esc(TEAM_LABEL[S.lang][s.team])} <span class="who">${esc(s.memberName)}</span></td>
+            <td>${esc2(TEAM_LABEL[S.lang][s.team])} <span class="who">${esc2(s.memberName)}</span></td>
             <td class="n">${s.queueDays}</td>
             <td class="n">${s.effortDays}</td>
-            <td class="n">${fmtDate(s.start)}</td>
-            <td class="n">${fmtDate(s.finish)}</td>
+            <td class="n">${fmtDate2(s.start)}</td>
+            <td class="n">${fmtDate2(s.finish)}</td>
           </tr>`).join("")}</tbody>
       </table>
     </div>
@@ -1052,11 +1944,11 @@ function resultCard() {
 function utilCard() {
   const s = loaded();
   const from = today();
-  const to = iso(CAL.addWorkingDays(from, 20));
+  const to = iso(CAL2.addWorkingDays(from, 20));
   const u = s.utilisation(from, to);
   return `
   <section class="card">
-    <div class="card__h">${esc(T().utilisation)}<span class="card__sub">${esc(T().next20)}</span></div>
+    <div class="card__h">${esc2(T().utilisation)}<span class="card__sub">${esc2(T().next20)}</span></div>
     <div class="card__b stack">
       ${Object.entries(u).map(([team, v]) => {
     const pct = Math.round(v.utilisation * 100);
@@ -1065,7 +1957,7 @@ function utilCard() {
         <div class="util">
           <div class="util__h">
             <i class="dot" style="background:${TEAM_COLOR[team]}"></i>
-            <span>${esc(TEAM_LABEL[S.lang][team])}</span>
+            <span>${esc2(TEAM_LABEL[S.lang][team])}</span>
             <span class="util__n">${plural(v.headcount, T().person, T().people)}</span>
             <b class="${hot ? "hot" : warm ? "warm" : ""}">${pct}%</b>
           </div>
@@ -1081,13 +1973,13 @@ function leversCard() {
   if (!options.length) return "";
   return `
   <section class="card">
-    <div class="card__h">${esc(T().levers)}</div>
+    <div class="card__h">${esc2(T().levers)}</div>
     <div class="card__b stack">
       ${options.map((o) => `
         <div class="lever">
-          <div class="lever__t">${esc(leverLabel(o))}</div>
-          <div class="lever__v">${fmtDate(o.delivery)}
-            <span class="lever__s">${esc(T().saves)} ${plural(o.savedWorkingDays, T().day, T().days)}</span></div>
+          <div class="lever__t">${esc2(leverLabel(o))}</div>
+          <div class="lever__v">${fmtDate2(o.delivery)}
+            <span class="lever__s">${esc2(T().saves)} ${plural(o.savedWorkingDays, T().day, T().days)}</span></div>
         </div>`).join("")}
     </div>
   </section>`;
@@ -1099,7 +1991,7 @@ function timelineCard() {
   const all = rows.flatMap((r) => [r.start, r.finish]);
   const min = all.reduce((a, b) => a < b ? a : b);
   const max = all.reduce((a, b) => a > b ? a : b);
-  const days = CAL.workingDaysBetween(min, max);
+  const days = CAL2.workingDaysBetween(min, max);
   const idx = new Map(days.map((d, i) => [d, i]));
   const W = Math.max(days.length, 1);
   const byMember = /* @__PURE__ */ new Map();
@@ -1109,7 +2001,7 @@ function timelineCard() {
   }
   return `
   <section class="card card--wide">
-    <div class="card__h">${esc(T().timeline)}<span class="card__sub">${days.length} ${esc(T().days)}</span></div>
+    <div class="card__h">${esc2(T().timeline)}<span class="card__sub">${days.length} ${esc2(T().days)}</span></div>
     <div class="card__b">
       <div class="gantt" style="--cols:${W}">
         <div class="gantt__axis">
@@ -1117,7 +2009,7 @@ function timelineCard() {
         </div>
         ${[...byMember].map(([name, items]) => `
           <div class="gantt__row">
-            <div class="gantt__name">${esc(name)}</div>
+            <div class="gantt__name">${esc2(name)}</div>
             <div class="gantt__track">
               ${items.map((it) => {
     const a = idx.get(it.start) ?? 0;
@@ -1125,7 +2017,7 @@ function timelineCard() {
     const isNew = it.projectId === S.result.id;
     return `<span class="bar${isNew ? " bar--new" : ""}"
                   style="grid-column:${a + 1} / ${b + 2};background:${TEAM_COLOR[it.team]}"
-                  title="${esc(it.projectName)} \u2014 ${esc(it.label)}">${esc(it.projectName)}</span>`;
+                  title="${esc2(it.projectName)} \u2014 ${esc2(it.label)}">${esc2(it.projectName)}</span>`;
   }).join("")}
             </div>
           </div>`).join("")}
@@ -1145,6 +2037,9 @@ function wire() {
     S.pipeline = S.pipeline.filter((p) => p.id !== b.dataset.del);
     if (S.result) estimate(false);
     else render();
+  });
+  document.querySelectorAll('[data-act="go"]').forEach((b) => b.onclick = () => {
+    location.hash = b.dataset.route;
   });
   const act = (name, fn) => {
     const el = document.querySelector(`[data-act="${name}"]`);
@@ -1185,7 +2080,7 @@ function estimate(fromForm) {
     earliestStart: f.start,
     deadline: f.deadline || null
   });
-  const naive = new Scheduler({ members: members(), calendar: CAL }).scheduleProject({ id: "n", name: f.name, size: f.size, earliestStart: f.start, commit: false });
+  const naive = new Scheduler({ members: members(), calendar: CAL2 }).scheduleProject({ id: "n", name: f.name, size: f.size, earliestStart: f.start, commit: false });
   r._naive = naive;
   r._sched = sched;
   r._form = f;
@@ -1202,6 +2097,10 @@ function estimate(fromForm) {
     ["Retail activation", "S"]
   ];
   for (const [name, size] of demo) S.pipeline.push({ id: `p${++S.seq}`, name, size, start });
+  addEventListener("hashchange", () => {
+    scrollTo(0, 0);
+    render();
+  });
   render();
 })();
 export {
