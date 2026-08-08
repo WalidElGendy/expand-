@@ -11,6 +11,8 @@
 
 import { Scheduler, calibrate, backtest, DEFAULT_STAGES, DEFAULT_SIZE_FACTORS } from '../engine/scheduler.js';
 import { WorkCalendar, iso, parse } from '../engine/calendar.js';
+import { landingView, whoView, profileView, pipelineView, VSTR } from './views.js';
+import { byId } from '../data/snapshot.js';
 
 /* ------------------------------ translations ----------------------------- */
 
@@ -81,6 +83,7 @@ const TEAM_COLOR = { '3d': 'var(--s1)', '2d': 'var(--s2)', content: 'var(--s3)' 
 
 const S = {
   lang: 'en',
+  route: '#/',
   headcount: { '3d': 2, '2d': 2, content: 1 },
   pipeline: [],
   seq: 0,
@@ -147,37 +150,86 @@ function leverLabel(o) {
 
 /* --------------------------------- render -------------------------------- */
 
+/* Routes are hash-based on purpose: the whole product is one static file, so
+   there is no server to teach about paths, and a deep link still survives a
+   refresh. Swap for the History API the day there is a backend. */
+function currentRoute() {
+  const h = location.hash || '#/';
+  if (h.startsWith('#/me/')) return { name: 'profile', id: h.slice(5) };
+  if (h.startsWith('#/who')) return { name: 'who' };
+  if (h.startsWith('#/pipeline')) return { name: 'pipeline' };
+  if (h.startsWith('#/estimate')) return { name: 'estimate' };
+  return { name: 'landing' };
+}
+
 function render() {
   document.documentElement.lang = S.lang;
   document.documentElement.dir = S.lang === 'ar' ? 'rtl' : 'ltr';
-  $('#root').innerHTML = `
-    ${header()}
+  const r = currentRoute();
+  document.body.dataset.route = r.name;
+
+  const body =
+    r.name === 'who'      ? whoView(S.lang)
+  : r.name === 'profile'  ? profileView(S.lang, r.id)
+  : r.name === 'pipeline' ? pipelineView(S.lang)
+  : r.name === 'estimate' ? estimatorBody()
+  : landingView(S.lang);
+
+  $('#root').innerHTML = header(r) + body;
+  wire();
+}
+
+const estimatorBody = () => `
     <div class="grid">
       <aside class="col">${teamsCard()}${pipelineCard()}</aside>
       <main class="col">${formCard()}${S.result ? resultCard() : emptyResult()}</main>
       <aside class="col">${utilCard()}${S.whatIf ? leversCard() : ''}</aside>
     </div>
     ${S.result ? timelineCard() : ''}`;
-  wire();
+
+function headTitle(r) {
+  const v = VSTR[S.lang];
+  if (r.name === 'estimate') return { h1: T().title, sub: T().sub };
+  if (r.name === 'who')      return { h1: v.whoTitle, sub: '' };
+  if (r.name === 'pipeline') return { h1: v.pipeline, sub: '' };
+  if (r.name === 'profile') {
+    const p = byId(r.id);
+    return { h1: p ? p.name : '—', sub: p ? p.role[S.lang] : '' };
+  }
+  return { h1: 'expand', sub: v.brandLine };
 }
 
-const header = () => `
+const NAV = [
+  { route: '#/who',      key: 'whoTitle' },
+  { route: '#/pipeline', key: 'pipeline' },
+  { route: '#/estimate', key: 'openEstimator' },
+];
+
+function header(r) {
+  const { h1, sub } = headTitle(r);
+  const v = VSTR[S.lang];
+  return `
   <header class="head">
-    <div class="brand">
+    <button class="brand" data-act="go" data-route="#/" aria-label="expand — home">
       <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true">
         <circle cx="7" cy="12" r="5.4" fill="none" stroke="var(--brand)" stroke-width="2.4"/>
         <rect x="4.4" y="10.6" width="5.2" height="2.8" fill="var(--bg)"/>
         <circle cx="7" cy="12" r="1.6" fill="var(--brand)"/>
       </svg>
       <span class="wordmark">expand</span>
-      <span class="sep"></span>
-      <div><div class="h1">${esc(T().title)}</div><div class="sub">${esc(T().sub)}</div></div>
-    </div>
+    </button>
+    <span class="sep"></span>
+    <div class="headtext"><div class="h1">${esc(h1)}</div>${sub ? `<div class="sub">${esc(sub)}</div>` : ''}</div>
+    <nav class="nav">
+      ${NAV.map(n => `<button class="navbtn${location.hash.startsWith(n.route) ? ' is-on' : ''}"
+        data-act="go" data-route="${n.route}">${esc(v[n.key])}</button>`).join('')}
+    </nav>
     <div class="head__actions">
-      <button class="btn btn--ghost" data-act="reset">${esc(T().reset)}</button>
+      ${r.name === 'estimate' ? `<button class="btn btn--ghost" data-act="reset">${esc(T().reset)}</button>` : ''}
       <button class="btn btn--lang" data-act="lang">${S.lang === 'en' ? 'العربية' : 'English'}</button>
     </div>
   </header>`;
+}
 
 function teamsCard() {
   return `
@@ -443,6 +495,9 @@ function wire() {
     S.pipeline = S.pipeline.filter(p => p.id !== b.dataset.del);
     if (S.result) estimate(false); else render();
   });
+  document.querySelectorAll('[data-act="go"]').forEach(b => b.onclick = () => {
+    location.hash = b.dataset.route;   // hashchange re-renders
+  });
   const act = (name, fn) => { const el = document.querySelector(`[data-act="${name}"]`); if (el) el.onclick = fn; };
   act('lang', () => { S.lang = S.lang === 'en' ? 'ar' : 'en'; render(); });
   act('reset', () => { S.pipeline = []; S.result = null; S.whatIf = null; S.seq = 0; render(); });
@@ -490,6 +545,7 @@ function estimate(fromForm) {
     ['Ministry pavilion', 'XL'], ['Retail activation', 'S'],
   ];
   for (const [name, size] of demo) S.pipeline.push({ id: `p${++S.seq}`, name, size, start });
+  addEventListener('hashchange', () => { scrollTo(0, 0); render(); });
   render();
 })();
 
