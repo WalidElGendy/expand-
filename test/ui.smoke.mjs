@@ -172,6 +172,20 @@ const auth = await page.evaluate(() => {
 check(auth.email && auth.pass, 'sign-in form is missing its fields');
 check(auth.type === 'password', `password field is type=${auth.type}`);
 
+/* A submit handler must be ATTACHED, not merely written in the source.
+
+   The build once collapsed `$$` to `$` via String.replace's $-substitution,
+   so the querySelectorAll helper overwrote the querySelector one, `form` was
+   an array, and the handler was set on that array. The page looked perfect
+   and sign-in silently fell through to a native GET that put the user's
+   email in the URL. Nothing threw. This assertion is the only thing between
+   that class of bug and a user. */
+const wired = await page.evaluate(() => ({
+  onsubmit: typeof document.getElementById('authForm')?.onsubmit === 'function',
+  dollar:   typeof $ === 'undefined' ? 'not-global' : 'global',
+}));
+check(wired.onsubmit, 'the sign-in form has no submit handler — it would submit natively and leak the email into the URL');
+
 /* --------------------------------- report --------------------------------- */
 await browser.close();
 server.close();
