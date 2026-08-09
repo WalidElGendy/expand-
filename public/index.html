@@ -5624,9 +5624,9 @@ var PostgrestClient = class PostgrestClient2 {
   *
   * @exampleSql Call a Postgres function without arguments
   * ```sql
-  * create function hello_world() returns text as $
+  * create function hello_world() returns text as $$
   *   select 'Hello world';
-  * $ language sql;
+  * $$ language sql;
   * ```
   *
   * @exampleResponse Call a Postgres function without arguments
@@ -5645,9 +5645,9 @@ var PostgrestClient = class PostgrestClient2 {
   *
   * @exampleSql Call a Postgres function with arguments
   * ```sql
-  * create function echo(say text) returns text as $
+  * create function echo(say text) returns text as $$
   *   select say;
-  * $ language sql;
+  * $$ language sql;
   * ```
   *
   * @exampleResponse Call a Postgres function with arguments
@@ -5670,9 +5670,9 @@ var PostgrestClient = class PostgrestClient2 {
   *
   * @exampleSql Bulk processing
   * ```sql
-  * create function add_one_each(arr int[]) returns int[] as $
+  * create function add_one_each(arr int[]) returns int[] as $$
   *   select array_agg(n + 1) from unnest(arr) as n;
-  * $ language sql;
+  * $$ language sql;
   * ```
   *
   * @exampleResponse Bulk processing
@@ -5710,9 +5710,9 @@ var PostgrestClient = class PostgrestClient2 {
   *   (1, 'Rohan'),
   *   (2, 'The Shire');
   *
-  * create function list_stored_countries() returns setof countries as $
+  * create function list_stored_countries() returns setof countries as $$
   *   select * from countries;
-  * $ language sql;
+  * $$ language sql;
   * ```
   *
   * @exampleResponse Call a Postgres function with filters
@@ -5734,9 +5734,9 @@ var PostgrestClient = class PostgrestClient2 {
   *
   * @exampleSql Call a read-only Postgres function
   * ```sql
-  * create function hello_world() returns text as $
+  * create function hello_world() returns text as $$
   *   select 'Hello world';
-  * $ language sql;
+  * $$ language sql;
   * ```
   *
   * @exampleResponse Call a read-only Postgres function
@@ -22522,7 +22522,7 @@ function adminView(lang, ctx2) {
 
 // web/controller.js
 var $ = (s, r = document) => r.querySelector(s);
-var $ = (s, r = document) => [...r.querySelectorAll(s)];
+var $$ = (s, r = document) => [...r.querySelectorAll(s)];
 var ctx = {
   projects: [],
   stages: [],
@@ -22603,7 +22603,7 @@ async function loadFor(route) {
 function wireAuth(lang) {
   const form = $("#authForm");
   if (!form) return;
-  $("[data-auth]").forEach((b) => b.onclick = () => {
+  $$("[data-auth]").forEach((b) => b.onclick = () => {
     ctx.authMode = b.dataset.auth;
     ctx.authMsg = "";
     rerender();
@@ -22635,7 +22635,7 @@ function wireAuth(lang) {
   };
 }
 function wireApp(lang) {
-  $("[data-stage]").forEach((b) => b.onclick = async () => {
+  $$("[data-stage]").forEach((b) => b.onclick = async () => {
     b.disabled = true;
     try {
       await setStageStatus(b.dataset.stage, b.dataset.to);
@@ -22674,7 +22674,7 @@ function wireApp(lang) {
   };
   const nl = $('[data-act="newlead"]');
   if (nl) nl.onclick = () => showLeadForm(true);
-  $(".leadStatus").forEach((sel) => sel.onchange = async () => {
+  $$(".leadStatus").forEach((sel) => sel.onchange = async () => {
     try {
       await updateLead(sel.dataset.lead, { status: sel.value });
       await addLeadEvent({ lead_id: sel.dataset.lead, kind: "status_change", body: `\u2192 ${sel.value}` });
@@ -22682,7 +22682,7 @@ function wireApp(lang) {
       fail(e);
     }
   });
-  $("[data-note]").forEach((b) => b.onclick = async () => {
+  $$("[data-note]").forEach((b) => b.onclick = async () => {
     const body = prompt(DSTR[lang].logNote);
     if (!body) return;
     try {
@@ -22714,7 +22714,7 @@ function wireApp(lang) {
       btn.disabled = false;
     }
   };
-  $("[data-open]").forEach((b) => b.onclick = async () => {
+  $$("[data-open]").forEach((b) => b.onclick = async () => {
     const f = ctx.files.find((x) => x.id === b.dataset.open);
     if (!f) return;
     try {
@@ -22741,15 +22741,15 @@ function wireApp(lang) {
       fail(err);
     }
   };
-  $(".pDept").forEach((s) => s.onchange = () => setPerson(s.dataset.p, { department_id: s.value || null }).catch(fail));
-  $(".pRole").forEach((s) => s.onchange = () => setPerson(s.dataset.p, { role: s.value }).catch(fail));
-  $(".pActive").forEach((c) => c.onchange = () => setPerson(c.dataset.p, { is_active: c.checked }).catch(fail));
+  $$(".pDept").forEach((s) => s.onchange = () => setPerson(s.dataset.p, { department_id: s.value || null }).catch(fail));
+  $$(".pRole").forEach((s) => s.onchange = () => setPerson(s.dataset.p, { role: s.value }).catch(fail));
+  $$(".pActive").forEach((c) => c.onchange = () => setPerson(c.dataset.p, { is_active: c.checked }).catch(fail));
   const pf = $("#projForm");
   if (pf) wireNewProject(lang, pf);
 }
 function readProjectForm() {
-  const stages = $(".stageOn").filter((c) => c.checked).map((c) => c.value);
-  const who = Object.fromEntries($(".stageWho").map((s) => [s.dataset.dept, s.value || null]));
+  const stages = $$(".stageOn").filter((c) => c.checked).map((c) => c.value);
+  const who = Object.fromEntries($$(".stageWho").map((s) => [s.dataset.dept, s.value || null]));
   return {
     name: $("#pName").value.trim(),
     client: $("#pClient").value.trim() || null,
@@ -22781,7 +22781,7 @@ function wireNewProject(lang, form) {
     const el = $(s);
     if (el) el.onchange = refresh;
   });
-  $(".stageOn").forEach((c) => c.onchange = refresh);
+  $$(".stageOn").forEach((c) => c.onchange = refresh);
   refresh();
   form.onsubmit = async (e) => {
     e.preventDefault();
