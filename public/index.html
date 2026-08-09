@@ -405,6 +405,13 @@ select.btn--sm { height: 28px; padding: 0 6px; background: var(--s-2); border: 1
 .authform .btn { width: 100%; justify-content: center; }
 .authlinks { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .authmsg { font-size: 12.5px; color: var(--ink2); line-height: 1.55; }
+.autherr {
+  margin: 14px 16px 0; padding: 12px 14px; border-radius: 9px;
+  background: rgba(208,59,59,.09); border: 1px solid rgba(208,59,59,.35);
+  display: grid; gap: 8px; justify-items: start;
+}
+.autherr__h { font-size: 13px; font-weight: 600; color: #ff9f9f; }
+.autherr__b { color: var(--ink2); line-height: 1.6; }
 .f textarea {
   padding: 9px 10px; border-radius: 8px; background: var(--bg);
   border: 1px solid var(--line2); outline: 0; resize: vertical; font: inherit; color: inherit;
@@ -21872,6 +21879,7 @@ if (shouldShowDeprecationWarning()) console.warn("\u26A0\uFE0F  Node.js 20 and b
 var SUPABASE_URL = "https://ookiupgocavjbxcxquwl.supabase.co";
 var SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9va2l1cGdvY2F2amJ4Y3hxdXdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYyMTgyMTUsImV4cCI6MjEwMTc5NDIxNX0.X867Ej8ePT38kO3mC5H6_00I_DSp8t_szBRTM_PUzD4";
 var configured = !SUPABASE_URL.startsWith("__");
+var INITIAL_HASH = typeof location !== "undefined" ? location.hash || "" : "";
 var sb = configured ? createClient(SUPABASE_URL, SUPABASE_ANON, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
 }) : null;
@@ -21909,20 +21917,50 @@ async function signUp(email, password) {
   const { error } = await sb.auth.signUp({
     email: email.trim(),
     password,
-    options: { emailRedirectTo: location.origin }
+    // Land inside the app, not on the marketing page. A confirmed user is a
+    // signed-in user; dropping them on the landing page makes them hunt for
+    // the door they just unlocked.
+    options: { emailRedirectTo: location.origin + "/#/home" }
   });
   if (error) throw new Error(error.message);
 }
 async function resetPassword(email) {
   const { error } = await sb.auth.resetPasswordForEmail(email.trim(), {
-    redirectTo: location.origin + "#/reset"
+    // The slash matters: location.origin has no trailing one, so 'origin#/reset'
+    // produces https://host#/reset — which Supabase's allow-list matching and
+    // some mail clients treat differently from a normal path.
+    redirectTo: location.origin + "/#/reset"
   });
+  if (error) throw new Error(error.message);
+}
+async function updatePassword(password) {
+  const { error } = await sb.auth.updateUser({ password });
   if (error) throw new Error(error.message);
 }
 async function signOut() {
   await sb.auth.signOut();
   state.session = null;
   state.me = null;
+}
+var initialConsumed = false;
+function takeAuthErrorFromUrl() {
+  let h = location.hash || "";
+  if (!h.includes("error") && !initialConsumed) {
+    h = INITIAL_HASH;
+    initialConsumed = true;
+  }
+  if (!h.includes("error")) return null;
+  const p = new URLSearchParams(h.replace(/^#\/?/, ""));
+  const code = p.get("error_code");
+  if (!code && !p.get("error")) return null;
+  history.replaceState(null, "", location.pathname + location.search + "#/signin");
+  return {
+    code,
+    kind: p.get("error"),
+    // Supabase's own wording, plus-encoded. It is more specific than anything
+    // generic we would invent, so it is shown rather than replaced.
+    message: (p.get("error_description") || "").replace(/\+/g, " ")
+  };
 }
 async function loadDepartments() {
   state.departments = await ok(await sb.from("departments").select("*").order("sort"));
@@ -22010,6 +22048,13 @@ var DSTR = {
     sendReset: "Email me a reset link",
     backToSignIn: "Back to sign in",
     checkInbox: "Check your inbox.",
+    newPassword: "Choose a new password",
+    setIt: "Save my new password",
+    linkExpired: "That link has expired or was already used.",
+    linkExpiredWhy: "Sign-in links are single use and time limited. Some mail scanners open links before you do, which uses them up. Send yourself a fresh one.",
+    sendFresh: "Email me a new link",
+    passwordSaved: "Password saved. Signing you in\u2026",
+    recoverPrompt: "Enter a new password for your account.",
     noInvite: "Your account exists but has not been activated. Ask an admin to add you.",
     home: "Home",
     projects: "Projects",
@@ -22082,6 +22127,13 @@ var DSTR = {
     sendReset: "\u0623\u0631\u0633\u0644 \u0644\u064A \u0631\u0627\u0628\u0637 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0639\u064A\u064A\u0646",
     backToSignIn: "\u0631\u062C\u0648\u0639 \u0644\u062A\u0633\u062C\u064A\u0644 \u0627\u0644\u062F\u062E\u0648\u0644",
     checkInbox: "\u062A\u062D\u0642\u0642 \u0645\u0646 \u0628\u0631\u064A\u062F\u0643.",
+    newPassword: "\u0627\u062E\u062A\u0631 \u0643\u0644\u0645\u0629 \u0645\u0631\u0648\u0631 \u062C\u062F\u064A\u062F\u0629",
+    setIt: "\u062D\u0641\u0638 \u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631",
+    linkExpired: "\u0627\u0646\u062A\u0647\u062A \u0635\u0644\u0627\u062D\u064A\u0629 \u0627\u0644\u0631\u0627\u0628\u0637 \u0623\u0648 \u062A\u0645 \u0627\u0633\u062A\u062E\u062F\u0627\u0645\u0647 \u0645\u0646 \u0642\u0628\u0644.",
+    linkExpiredWhy: "\u0631\u0648\u0627\u0628\u0637 \u0627\u0644\u062F\u062E\u0648\u0644 \u062A\u064F\u0633\u062A\u062E\u062F\u0645 \u0645\u0631\u0629 \u0648\u0627\u062D\u062F\u0629 \u0648\u0644\u0647\u0627 \u0645\u062F\u0629 \u0635\u0644\u0627\u062D\u064A\u0629. \u0628\u0639\u0636 \u0623\u0646\u0638\u0645\u0629 \u0641\u062D\u0635 \u0627\u0644\u0628\u0631\u064A\u062F \u062A\u0641\u062A\u062D \u0627\u0644\u0631\u0627\u0628\u0637 \u0642\u0628\u0644\u0643 \u0641\u062A\u0633\u062A\u0647\u0644\u0643\u0647. \u0623\u0631\u0633\u0644 \u0644\u0646\u0641\u0633\u0643 \u0631\u0627\u0628\u0637\u0627\u064B \u062C\u062F\u064A\u062F\u0627\u064B.",
+    sendFresh: "\u0623\u0631\u0633\u0644 \u0644\u064A \u0631\u0627\u0628\u0637\u0627\u064B \u062C\u062F\u064A\u062F\u0627\u064B",
+    passwordSaved: "\u062A\u0645 \u062D\u0641\u0638 \u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631. \u062C\u0627\u0631\u064D \u062A\u0633\u062C\u064A\u0644 \u062F\u062E\u0648\u0644\u0643\u2026",
+    recoverPrompt: "\u0623\u062F\u062E\u0644 \u0643\u0644\u0645\u0629 \u0645\u0631\u0648\u0631 \u062C\u062F\u064A\u062F\u0629 \u0644\u062D\u0633\u0627\u0628\u0643.",
     noInvite: "\u062D\u0633\u0627\u0628\u0643 \u0645\u0648\u062C\u0648\u062F \u0644\u0643\u0646\u0647 \u063A\u064A\u0631 \u0645\u0641\u0639\u0651\u0644. \u0627\u0637\u0644\u0628 \u0645\u0646 \u0627\u0644\u0645\u0633\u0624\u0648\u0644 \u0625\u0636\u0627\u0641\u062A\u0643.",
     home: "\u0627\u0644\u0631\u0626\u064A\u0633\u064A\u0629",
     projects: "\u0627\u0644\u0645\u0634\u0627\u0631\u064A\u0639",
@@ -22200,29 +22252,38 @@ function estimateFor(sched, { name, size, start, deadline, stages }) {
   const naive = new Scheduler({ members: sched.members ?? [], calendar: CAL2 }).scheduleProject({ id: "n", name, size, earliestStart: start, stages, commit: false });
   return { real, naive };
 }
-function signInView(lang, mode = "in", msg = "") {
+function signInView(lang, mode = "in", msg = "", authErr = null) {
   const t = DSTR[lang];
-  const title = mode === "up" ? t.setPassword : mode === "forgot" ? t.forgot : t.signIn;
+  const title = mode === "up" ? t.setPassword : mode === "forgot" ? t.forgot : mode === "reset" ? t.newPassword : t.signIn;
+  const expired = authErr && /expired|invalid/i.test(authErr.code || authErr.message || "");
+  const errPanel = !authErr ? "" : `
+    <div class="autherr">
+      <p class="autherr__h">${esc2(expired ? t.linkExpired : authErr.message || t.linkExpired)}</p>
+      ${expired ? `<p class="autherr__b small">${esc2(t.linkExpiredWhy)}</p>
+                   <button type="button" class="btn btn--sm" data-auth="forgot">${esc2(t.sendFresh)}</button>` : ""}
+    </div>`;
   return `
 <section class="authwrap">
   <div class="card auth">
     <div class="card__head"><h2>${esc2(title)}</h2></div>
+    ${errPanel}
     <form id="authForm" class="authform" autocomplete="on">
+      ${mode === "reset" ? `<p class="small muted">${esc2(t.recoverPrompt)}</p>` : `
       <label class="f f--wide">
         <span>${esc2(t.email)}</span>
         <input id="aEmail" type="email" name="email" required autocomplete="username"
                placeholder="you@expandexpo.com" />
-      </label>
+      </label>`}
       ${mode === "forgot" ? "" : `
       <label class="f f--wide">
-        <span>${esc2(t.password)}</span>
+        <span>${esc2(mode === "reset" ? t.newPassword : t.password)}</span>
         <input id="aPass" type="password" name="password" required minlength="8"
-               autocomplete="${mode === "up" ? "new-password" : "current-password"}" />
+               autocomplete="${mode === "up" || mode === "reset" ? "new-password" : "current-password"}" />
       </label>`}
       ${msg ? `<p class="authmsg ${/^!/.test(msg) ? "bad" : ""}">${esc2(msg.replace(/^!/, ""))}</p>` : ""}
-      <button class="btn btn--primary" type="submit" id="aGo">${esc2(title)}</button>
+      <button class="btn btn--primary" type="submit" id="aGo">${esc2(mode === "reset" ? t.setIt : title)}</button>
       <div class="authlinks small">
-        ${mode === "in" ? `<button type="button" class="link" data-auth="up">${esc2(t.firstTime)}</button>
+        ${mode === "reset" ? "" : mode === "in" ? `<button type="button" class="link" data-auth="up">${esc2(t.firstTime)}</button>
              <button type="button" class="link" data-auth="forgot">${esc2(t.forgot)}</button>` : `<button type="button" class="link" data-auth="in">${esc2(t.backToSignIn)}</button>`}
       </div>
     </form>
@@ -22534,7 +22595,9 @@ var ctx = {
   error: null,
   authMode: "in",
   authMsg: "",
-  est: null
+  est: null,
+  authErr: null
+  // whatever Supabase sent back in the URL fragment
 };
 var rerender = () => {
 };
@@ -22606,17 +22669,24 @@ function wireAuth(lang) {
   $$("[data-auth]").forEach((b) => b.onclick = () => {
     ctx.authMode = b.dataset.auth;
     ctx.authMsg = "";
+    ctx.authErr = null;
     rerender();
   });
   form.onsubmit = async (e) => {
     e.preventDefault();
     const btn = $("#aGo");
-    const email = $("#aEmail").value;
+    const email = $("#aEmail")?.value;
     const pass = $("#aPass")?.value;
     btn.disabled = true;
     try {
-      if (ctx.authMode === "forgot") {
+      if (ctx.authMode === "reset") {
+        await updatePassword(pass);
+        ctx.authErr = null;
+        ctx.authMsg = DSTR[lang].passwordSaved;
+        location.hash = "#/home";
+      } else if (ctx.authMode === "forgot") {
         await resetPassword(email);
+        ctx.authErr = null;
         ctx.authMsg = DSTR[lang].checkInbox;
       } else if (ctx.authMode === "up") {
         await signUp(email, pass);
@@ -23013,6 +23083,7 @@ function currentRoute() {
   if (h.startsWith("#/pipeline")) return { name: "pipeline" };
   if (h.startsWith("#/estimate")) return { name: "estimate" };
   if (h.startsWith("#/signin")) return { name: "signin" };
+  if (h.startsWith("#/reset")) return { name: "signin" };
   if (h.startsWith("#/home")) return { name: "home" };
   if (h.startsWith("#/new")) return { name: "new" };
   if (h.startsWith("#/leads")) return { name: "leads" };
@@ -23028,12 +23099,12 @@ function render() {
   const APP = ["home", "new", "leads", "docs", "admin"];
   if (APP.includes(r.name) && !state.session) {
     document.body.dataset.route = "signin";
-    $2("#root").innerHTML = header({ name: "signin" }) + signInView(S.lang, ctx.authMode, ctx.authMsg);
+    $2("#root").innerHTML = header({ name: "signin" }) + signInView(S.lang, ctx.authMode, ctx.authMsg, ctx.authErr);
     wireAuth(S.lang);
     wire();
     return;
   }
-  const body = r.name === "signin" ? signInView(S.lang, ctx.authMode, ctx.authMsg) : APP.includes(r.name) ? appBody(S.lang, r.name) : r.name === "who" ? whoView(S.lang) : r.name === "profile" ? profileView(S.lang, r.id) : r.name === "pipeline" ? pipelineView(S.lang) : r.name === "estimate" ? estimatorBody() : landingView(S.lang);
+  const body = r.name === "signin" ? signInView(S.lang, ctx.authMode, ctx.authMsg, ctx.authErr) : APP.includes(r.name) ? appBody(S.lang, r.name) : r.name === "who" ? whoView(S.lang) : r.name === "profile" ? profileView(S.lang, r.id) : r.name === "pipeline" ? pipelineView(S.lang) : r.name === "estimate" ? estimatorBody() : landingView(S.lang);
   $2("#root").innerHTML = header(r) + body;
   wire();
   if (r.name === "signin") wireAuth(S.lang);
@@ -23405,6 +23476,11 @@ function estimate(fromForm) {
   bindRender(() => render());
   const go = async () => {
     scrollTo(0, 0);
+    const urlErr = takeAuthErrorFromUrl?.();
+    if (urlErr) {
+      ctx.authErr = urlErr;
+      ctx.authMode = "in";
+    }
     render();
     const r = currentRoute();
     if (["home", "new", "leads", "docs", "admin"].includes(r.name) && state.session) {
@@ -23414,9 +23490,14 @@ function estimate(fromForm) {
   };
   addEventListener("hashchange", go);
   if (sb) {
-    onAuthChange(() => {
+    onAuthChange((event) => {
+      if (event === "PASSWORD_RECOVERY") {
+        ctx.authMode = "reset";
+        location.hash = "#/reset";
+      }
       render();
     });
+    render();
     loadSession().then(go).catch(() => go());
   } else {
     render();
