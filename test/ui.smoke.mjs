@@ -186,6 +186,35 @@ const wired = await page.evaluate(() => ({
 }));
 check(wired.onsubmit, 'the sign-in form has no submit handler — it would submit natively and leak the email into the URL');
 
+/* ------------------- an expired link must explain itself ------------------ */
+/* This is the exact fragment Supabase returned when a confirmation link had
+   expired. Nothing read it, so the app rendered the landing page and said
+   nothing — the user was told "email is broken" by a page that looks fine. */
+const EXPIRED = '#error=access_denied&error_code=otp_expired'
+  + '&error_description=Email+link+is+invalid+or+has+expired&sb=';
+await page.goto(URL_ + EXPIRED, { waitUntil: 'networkidle' });
+await page.waitForTimeout(400);
+const expired = await page.evaluate(() => ({
+  route:  document.body.dataset.route,
+  panel:  document.querySelector('.autherr__h')?.textContent?.trim() || '',
+  resend: !!document.querySelector('.autherr [data-auth="forgot"]'),
+  clean:  !location.hash.includes('error'),
+}));
+check(expired.route === 'signin', `an expired link landed on "${expired.route}", not the sign-in screen`);
+check(expired.panel.length > 10, 'an expired link produced no explanation at all');
+check(expired.resend, 'an expired link offered no way to get a new one');
+check(expired.clean, 'the error fragment was left in the URL, so a refresh replays it');
+
+/* The recovery link points at #/reset — that route has to exist. */
+await page.goto(URL_ + '#/reset', { waitUntil: 'networkidle' });
+await page.waitForTimeout(300);
+const reset = await page.evaluate(() => ({
+  route: document.body.dataset.route,
+  form:  typeof document.getElementById('authForm')?.onsubmit === 'function',
+}));
+check(reset.route === 'signin', '#/reset is not a route — a password-reset link would dead-end');
+check(reset.form, '#/reset has no working form');
+
 /* --------------------------------- report --------------------------------- */
 await browser.close();
 server.close();
