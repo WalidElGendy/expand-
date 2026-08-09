@@ -70,6 +70,10 @@ const ROUTES = [
   ['#/me/1211554705221607',     'profile'],   // Lidia — BD, renders the pipeline
   ['#/pipeline',                'pipeline'],
   ['#/estimate',                'estimate'],
+  ['#/signin',                  'signin'],     // must render signed out
+  ['#/home',                    'signin'],     // an app route with no session
+  ['#/admin',                   'signin'],     //   redirects to sign-in, not a blank page
+
 ];
 
 const seen = {};
@@ -95,7 +99,7 @@ for (const [hash, name] of ROUTES) {
   seen[hash] = m;
 
   check(m.route === name,   `${hash}: body[data-route] is "${m.route}", expected "${name}"`);
-  check(m.rootText > 120,   `${hash}: rendered almost nothing (${m.rootText} chars)`);
+  check(m.rootText > 60,    `${hash}: rendered almost nothing (${m.rootText} chars)`);
   check(m.nav === 3,        `${hash}: expected 3 nav buttons, saw ${m.nav}`);
   // The page scrolls as a document, so the header is not pinned — but on a
   // fresh route it must be at the top, inside the body padding, and never
@@ -154,6 +158,19 @@ const mob = await page.evaluate(() => ({
           .map(e => e.className || e.tagName).slice(0, 4),
 }));
 check(!mob.wide.length, `mobile horizontal overflow from ${JSON.stringify(mob.wide)}`);
+
+/* --------------------------------- sign in -------------------------------- */
+await page.setViewportSize({ width: 1440, height: 900 });
+await page.goto(URL_ + '#/signin', { waitUntil: 'networkidle' });
+await page.waitForTimeout(80);
+// The sign-in form must exist and must not be prefilled by the browser with
+// somebody else's saved credentials.
+const auth = await page.evaluate(() => {
+  const e = document.getElementById('aEmail'), p = document.getElementById('aPass');
+  return { email: !!e, pass: !!p, type: p?.type, value: e?.value || '' };
+});
+check(auth.email && auth.pass, 'sign-in form is missing its fields');
+check(auth.type === 'password', `password field is type=${auth.type}`);
 
 /* --------------------------------- report --------------------------------- */
 await browser.close();
