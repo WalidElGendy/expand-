@@ -1,0 +1,306 @@
+/* ==========================================================================
+   The signed-in application: data loading, routing and event wiring.
+
+   Views in dash.js are pure functions of (lang, ctx) and return HTML. They
+   never fetch and never mutate. Everything with a side effect is here, which
+   is what makes the views trivially testable and keeps "what does this screen
+   show" separate from "what happens when you click".
+   ========================================================================== */
+
+import * as db from './db.js';
+import * as V from './dash.js';
+
+
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+
+export const ctx = {
+  projects: [], stages: [], people: [], leads: [], files: [], invites: [],
+  loading: false, error: null, authMode: 'in', authMsg: '', est: null,
+};
+
+let rerender = () => {};
+export const bindRender = (fn) => { rerender = fn; };
+
+const fail = (e) => {
+  // Show the server's own words. "new row violates row-level security" tells
+  // a user something real; "Something went wrong" tells them nothing and
+  // tells me nothing either.
+  ctx.error = e?.message || String(e);
+  rerender();
+};
+
+/* ------------------------------------------------------------------ loading */
+
+export async function loadFor(route) {
+  if (!db.sb) return;
+  ctx.loading = true; ctx.error = null;
+  try {
+    if (!db.state.departments.length) await db.loadDepartments();
+    const me = db.state.me;
+    if (!me) return;
+
+    const jobs = [];
+    const wantsProjects = ['home', 'new', 'project'].includes(route) &&
+      (me.department_id === 'pm' || ['admin', 'manager'].includes(me.role));
+    const isDesigner = !['pm', 'bd', 'content'].includes(me.department_id);
+
+    if (wantsProjects || route === 'new') {
+      jobs.push(db.listProjects().then(p => { ctx.projects = p; }));
+      jobs.push(db.listPeople().then(p => { ctx.people = p; }));
+    }
+    if (isDesigner || wantsProjects) {
+      jobs.push(db.listProjects().then(ps => {
+        ctx.projects = ps;
+        // Flatten stages once, carrying the project name, so the queue view
+        // does not have to join in the template.
+        ctx.stages = ps.flatMap(p => (p.project_stages || [])
+          .map(s => ({ ...s, project_id: p.id, project_name: p.name })));
+      }));
+    }
+    if (route === 'leads' || me.department_id === 'bd') {
+      jobs.push(db.listLeads().then(l => { ctx.leads = l; }));
+      jobs.push(db.listPeople().then(p => { ctx.people = p; }));
+    }
+    if (route === 'docs' || me.department_id === 'content') {
+      jobs.push(db.listFiles({ purpose: 'document' }).then(f => { ctx.files = f; }));
+    }
+    if (route === 'admin') {
+      jobs.push(db.listPeople().then(p => { ctx.people = p; }));
+      jobs.push(db.listInvitations().then(i => { ctx.invites = i; }).catch(() => { ctx.invites = []; }));
+    }
+    await Promise.all(jobs);
+  } catch (e) {
+    ctx.error = e.message;
+  } finally {
+    ctx.loading = false;
+  }
+}
+
+/* -------------------------------------------------------------------- wire */
+
+export function wireAuth(lang) {
+  const form = $('#authForm');
+  if (!form) return;
+
+  $$('[data-auth]').forEach(b => b.onclick = () => {
+    ctx.authMode = b.dataset.auth; ctx.authMsg = ''; rerender();
+  });
+
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = $('#aGo'); const email = $('#aEmail').value; const pass = $('#aPass')?.value;
+    btn.disabled = true;
+    try {
+      if (ctx.authMode === 'forgot') {
+        await db.resetPassword(email);
+        ctx.authMsg = V.DSTR[lang].checkInbox;
+      } else if (ctx.authMode === 'up') {
+        await db.signUp(email, pass);
+        ctx.authMsg = V.DSTR[lang].checkInbox;
+        ctx.authMode = 'in';
+      } else {
+        await db.signIn(email, pass);
+        location.hash = '#/home';
+      }
+    } catch (err) {
+      ctx.authMsg = '!' + err.message;
+    } finally {
+      btn.disabled = false; rerender();
+    }
+  };
+}
+
+export function wireApp(lang) {
+  /* --- designer: move a stage along --- */
+  $$('[data-stage]').forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    try { await db.setStageStatus(b.dataset.stage, b.dataset.to); await loadFor('home'); rerender(); }
+    catch (e) { fail(e); }
+  });
+
+  /* --- leads --- */
+  const lf = $('#leadForm');
+  const showLeadForm = (on) => {
+    if (!lf) return;
+    lf.innerHTML = on ? V.leadFormHtml(lang, ctx.people) : '';
+    if (on) {
+      $('#newLead').onsubmit = async (e) => {
+        e.preventDefault();
+        try {
+          await db.createLead({
+            name: $('#lName').value.trim(),
+            company: $('#lCompany').value.trim() || null,
+            email: $('#lEmail').value.trim() || null,
+            phone: $('#lPhone').value.trim() || null,
+            next_follow_up_on: $('#lFollow').value || null,
+            value_sar: $('#lValue').value ? Number($('#lValue').value) : null,
+            notes: $('#lNotes').value.trim() || null,
+            status: 'new',
+          });
+          await loadFor('leads'); rerender();
+        } catch (err) { fail(err); }
+      };
+      $('[data-act="cancellead"]').onclick = () => showLeadForm(false);
+    }
+  };
+  const nl = $('[data-act="newlead"]');
+  if (nl) nl.onclick = () => showLeadForm(true);
+
+  $$('.leadStatus').forEach(sel => sel.onchange = async () => {
+    try {
+      await db.updateLead(sel.dataset.lead, { status: sel.value });
+      await db.addLeadEvent({ lead_id: sel.dataset.lead, kind: 'status_change', body: `→ ${sel.value}` });
+    } catch (e) { fail(e); }
+  });
+
+  $$('[data-note]').forEach(b => b.onclick = async () => {
+    const body = prompt(V.DSTR[lang].logNote);
+    if (!body) return;
+    try { await db.addLeadEvent({ lead_id: b.dataset.note, kind: 'note', body }); }
+    catch (e) { fail(e); }
+  });
+
+  /* --- documents --- */
+  const df = $('#docForm');
+  if (df) df.onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = df.querySelector('button[type=submit]');
+    const files = [...$('#dFiles').files];
+    btn.disabled = true; btn.textContent = V.DSTR[lang].uploading;
+    try {
+      for (const f of files) {
+        await db.uploadFile('docs', f, {
+          purpose: 'document',
+          title: $('#dTitle').value.trim() || null,
+          description: $('#dDesc').value.trim() || null,
+          department_id: db.state.me?.department_id || null,
+        });
+      }
+      await loadFor('docs'); rerender();
+    } catch (err) { fail(err); btn.disabled = false; }
+  };
+
+  $$('[data-open]').forEach(b => b.onclick = async () => {
+    const f = ctx.files.find(x => x.id === b.dataset.open);
+    if (!f) return;
+    try { window.open(await db.fileUrl(f.bucket, f.path), '_blank', 'noopener'); }
+    catch (e) { fail(e); }
+  });
+
+  /* --- admin --- */
+  const inv = $('#inviteForm');
+  if (inv) inv.onsubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await db.invite({
+        email: $('#iEmail').value, full_name: $('#iName').value.trim() || null,
+        department_id: $('#iDept').value, role: $('#iRole').value,
+      });
+      $('#iEmail').value = ''; $('#iName').value = '';
+      await loadFor('admin'); rerender();
+    } catch (err) { fail(err); }
+  };
+
+  $$('.pDept').forEach(s => s.onchange = () =>
+    db.setPerson(s.dataset.p, { department_id: s.value || null }).catch(fail));
+  $$('.pRole').forEach(s => s.onchange = () =>
+    db.setPerson(s.dataset.p, { role: s.value }).catch(fail));
+  $$('.pActive').forEach(c => c.onchange = () =>
+    db.setPerson(c.dataset.p, { is_active: c.checked }).catch(fail));
+
+  /* --- new project --- */
+  const pf = $('#projForm');
+  if (pf) wireNewProject(lang, pf);
+}
+
+function readProjectForm() {
+  const stages = $$('.stageOn').filter(c => c.checked).map(c => c.value);
+  const who = Object.fromEntries($$('.stageWho').map(s => [s.dataset.dept, s.value || null]));
+  return {
+    name: $('#pName').value.trim(),
+    client: $('#pClient').value.trim() || null,
+    size: $('#pSize').value,
+    start: $('#pStart').value || undefined,
+    deadline: $('#pDeadline').value || null,
+    description: $('#pDesc').value.trim() || null,
+    stages, who,
+  };
+}
+
+function wireNewProject(lang, form) {
+  const refresh = () => {
+    const f = readProjectForm();
+    if (!f.stages.length) { $('#estBox').innerHTML = ''; ctx.est = null; return; }
+    try {
+      const { sched } = V.buildScheduler(ctx.people, ctx.stages);
+      ctx.est = V.estimateFor(sched, f);
+      $('#estBox').innerHTML = V.estimateBox(lang, ctx.est);
+    } catch (e) {
+      $('#estBox').innerHTML = `<p class="note bad">${e.message}</p>`;
+    }
+  };
+
+  ['#pSize', '#pStart', '#pDeadline'].forEach(s => { const el = $(s); if (el) el.onchange = refresh; });
+  $$('.stageOn').forEach(c => c.onchange = refresh);
+  refresh();
+
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = $('#pGo'); btn.disabled = true; btn.textContent = V.DSTR[lang].saving;
+    const f = readProjectForm();
+    try {
+      const project = await db.createProject({
+        name: f.name, client: f.client, size: f.size, description: f.description,
+        start_on: f.start || null, due_on: f.deadline,
+        status: 'in_design',
+        estimated_delivery: ctx.est?.real?.deliveryDate || null,
+        estimate_meta: ctx.est ? {
+          computed_at: new Date().toISOString(),
+          naive: ctx.est.naive?.deliveryDate || null,
+          confidence: ctx.est.real?.confidence ?? null,
+        } : null,
+      });
+
+      if (f.stages.length) {
+        await db.setStages(project.id, f.stages.map(d => ({
+          department_id: d,
+          assignee_id: f.who[d] || null,
+          effort_days: db.dept(d)?.base_days ?? null,
+          status: 'pending',
+        })));
+      }
+
+      // Files last: a project with no RFP is recoverable, an RFP with no
+      // project to hang off is not.
+      const rfp = $('#pRfp').files[0];
+      if (rfp) await db.uploadFile('rfps', rfp, { purpose: 'rfp', project_id: project.id });
+      for (const ref of [...$('#pRefs').files]) {
+        await db.uploadFile('refs', ref, { purpose: 'reference', project_id: project.id });
+      }
+
+      location.hash = '#/home';
+    } catch (err) {
+      fail(err); btn.disabled = false; btn.textContent = V.DSTR[lang].createAndAssign;
+    }
+  };
+}
+
+/* --------------------------------------------------------------- rendering */
+
+export function appBody(lang, route) {
+  if (ctx.error) {
+    return `<section class="card"><div class="card__head"><h2>Error</h2></div>
+      <p class="note bad">${String(ctx.error).replace(/[&<>]/g, '')}</p></section>`
+      + bodyFor(lang, route);
+  }
+  return bodyFor(lang, route);
+}
+
+function bodyFor(lang, route) {
+  if (route === 'new')   return V.newProjectView(lang, ctx);
+  if (route === 'leads') return V.leadsView(lang, ctx);
+  if (route === 'docs')  return V.docsView(lang, ctx);
+  if (route === 'admin') return V.adminView(lang, ctx);
+  return V.homeView(lang, ctx);
+}

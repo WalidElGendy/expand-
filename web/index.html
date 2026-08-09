@@ -393,6 +393,56 @@ html[dir="rtl"] .deal__ar { direction: rtl; }
 }
 .batch__n { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
 
+.btn--sm { height: 28px; padding: 0 10px; font-size: 12px; border-radius: 6px; }
+select.btn--sm { height: 28px; padding: 0 6px; background: var(--s-2); border: 1px solid var(--line2); border-radius: 6px; font-size: 12px; }
+.whoami { margin-inline-end: 4px; }
+.subhead { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink3); margin: 20px 0 10px; font-weight: 600; }
+
+/* --------------------------------- sign in -------------------------------- */
+.authwrap { display: grid; place-items: center; min-height: 62vh; padding: 20px 0; }
+.auth { width: min(420px, 100%); }
+.authform { padding: 18px 16px 16px; display: grid; gap: 12px; }
+.authform .btn { width: 100%; justify-content: center; }
+.authlinks { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.authmsg { font-size: 12.5px; color: var(--ink2); line-height: 1.55; }
+.f textarea {
+  padding: 9px 10px; border-radius: 8px; background: var(--bg);
+  border: 1px solid var(--line2); outline: 0; resize: vertical; font: inherit; color: inherit;
+}
+.f textarea:focus { border-color: var(--brand); }
+.f input[type="file"] { padding: 7px; font-size: 12px; height: auto; }
+
+/* ------------------------------ forms in cards ---------------------------- */
+.inlineform, .projform { padding: 16px; border-bottom: 1px solid var(--line); display: grid; gap: 4px; }
+.projform { border-bottom: 0; }
+
+.stagepick { display: grid; gap: 8px; }
+.stagepick__row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.chk { display: flex; align-items: center; gap: 9px; flex: 1; min-width: 240px; font-size: 13px; }
+.chk i { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+.chk input { accent-color: var(--brand); width: 16px; height: 16px; }
+.stageWho { height: 32px; padding: 0 8px; border-radius: 7px; background: var(--bg); border: 1px solid var(--line2); font-size: 12.5px; }
+
+.pill {
+  display: inline-block; font-size: 10.5px; padding: 2px 7px; border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--c) 45%, transparent);
+  color: var(--c); white-space: nowrap;
+}
+
+/* ------------------------------- the estimate ----------------------------- */
+.estbox:empty { display: none; }
+.est {
+  display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center;
+  margin: 18px 0 4px;
+}
+.est__side { padding: 14px; border-radius: 10px; background: var(--s-2); border: 1px solid var(--line); display: grid; gap: 4px; }
+.est__side--real { border-color: var(--brand); background: linear-gradient(180deg, rgba(145,91,245,.13), transparent); }
+.est__k { font-size: 11px; color: var(--ink3); }
+.est__v { font-size: 19px; font-weight: 700; letter-spacing: -.02em; }
+.est__note { color: var(--ink2); }
+.est__arrow { color: var(--ink4); font-size: 18px; }
+@media (max-width: 620px) { .est { grid-template-columns: 1fr; } .est__arrow { display: none; } }
+
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 </style>
 </head>

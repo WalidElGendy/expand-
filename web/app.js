@@ -13,6 +13,9 @@ import { Scheduler, calibrate, backtest, DEFAULT_STAGES, DEFAULT_SIZE_FACTORS } 
 import { WorkCalendar, iso, parse } from '../engine/calendar.js';
 import { landingView, whoView, profileView, pipelineView, VSTR } from './views.js';
 import { byId } from '../data/snapshot.js';
+import * as db from './db.js';
+import * as C from './controller.js';
+import { DSTR, signInView } from './dash.js';
 
 /* ------------------------------ translations ----------------------------- */
 
@@ -159,6 +162,12 @@ function currentRoute() {
   if (h.startsWith('#/who')) return { name: 'who' };
   if (h.startsWith('#/pipeline')) return { name: 'pipeline' };
   if (h.startsWith('#/estimate')) return { name: 'estimate' };
+  if (h.startsWith('#/signin'))   return { name: 'signin' };
+  if (h.startsWith('#/home'))     return { name: 'home' };
+  if (h.startsWith('#/new'))      return { name: 'new' };
+  if (h.startsWith('#/leads'))    return { name: 'leads' };
+  if (h.startsWith('#/docs'))     return { name: 'docs' };
+  if (h.startsWith('#/admin'))    return { name: 'admin' };
   return { name: 'landing' };
 }
 
@@ -168,8 +177,24 @@ function render() {
   const r = currentRoute();
   document.body.dataset.route = r.name;
 
+  const APP = ['home', 'new', 'leads', 'docs', 'admin'];
+  // An app route with no session is not an error, it is a sign-in prompt.
+  // Redirecting instead of rendering an empty dashboard means a deep link
+  // survives the login rather than dumping the user on a blank home.
+  if (APP.includes(r.name) && !db.state.session) {
+    // The body must describe what is on screen, not what was asked for.
+    // Leaving it as "home" while showing a sign-in form is the kind of small
+    // lie that makes tests and screen readers disagree with the page.
+    document.body.dataset.route = 'signin';
+    $('#root').innerHTML = header({ name: 'signin' }) + signInView(S.lang, C.ctx.authMode, C.ctx.authMsg);
+    C.wireAuth(S.lang); wire();
+    return;
+  }
+
   const body =
-    r.name === 'who'      ? whoView(S.lang)
+    r.name === 'signin'   ? signInView(S.lang, C.ctx.authMode, C.ctx.authMsg)
+  : APP.includes(r.name)  ? C.appBody(S.lang, r.name)
+  : r.name === 'who'      ? whoView(S.lang)
   : r.name === 'profile'  ? profileView(S.lang, r.id)
   : r.name === 'pipeline' ? pipelineView(S.lang)
   : r.name === 'estimate' ? estimatorBody()
@@ -177,6 +202,8 @@ function render() {
 
   $('#root').innerHTML = header(r) + body;
   wire();
+  if (r.name === 'signin') C.wireAuth(S.lang);
+  if (APP.includes(r.name)) C.wireApp(S.lang);
 }
 
 const estimatorBody = () => `
@@ -199,11 +226,28 @@ function headTitle(r) {
   return { h1: 'expand', sub: v.brandLine };
 }
 
-const NAV = [
-  { route: '#/who',      key: 'whoTitle' },
-  { route: '#/pipeline', key: 'pipeline' },
-  { route: '#/estimate', key: 'openEstimator' },
+/* Two navigations, because a signed-out visitor and a signed-in colleague
+   want different things. The public one shows the product; the private one
+   shows the work. Admin appears only for admins — a link that always 403s is
+   worse than no link. */
+const PUBLIC_NAV = [
+  { route: '#/who',      label: () => VSTR[S.lang].whoTitle },
+  { route: '#/pipeline', label: () => VSTR[S.lang].pipeline },
+  { route: '#/estimate', label: () => VSTR[S.lang].openEstimator },
 ];
+
+function appNav() {
+  const me = db.state.me, d = DSTR[S.lang];
+  if (!me) return [];
+  const items = [{ route: '#/home', label: () => d.home }];
+  if (me.department_id === 'pm' || ['admin','manager'].includes(me.role)) {
+    items.push({ route: '#/new', label: () => d.newProject });
+  }
+  items.push({ route: '#/leads', label: () => d.leads });
+  items.push({ route: '#/docs',  label: () => d.documents });
+  if (me.role === 'admin') items.push({ route: '#/admin', label: () => d.people });
+  return items;
+}
 
 function header(r) {
   const { h1, sub } = headTitle(r);
@@ -221,11 +265,15 @@ function header(r) {
     <span class="sep"></span>
     <div class="headtext"><div class="h1">${esc(h1)}</div>${sub ? `<div class="sub">${esc(sub)}</div>` : ''}</div>
     <nav class="nav">
-      ${NAV.map(n => `<button class="navbtn${location.hash.startsWith(n.route) ? ' is-on' : ''}"
-        data-act="go" data-route="${n.route}">${esc(v[n.key])}</button>`).join('')}
+      ${(db.state.session ? appNav() : PUBLIC_NAV).map(n => `<button class="navbtn${location.hash.startsWith(n.route) ? ' is-on' : ''}"
+        data-act="go" data-route="${n.route}">${esc(n.label ? n.label() : v[n.key])}</button>`).join('')}
     </nav>
     <div class="head__actions">
+      ${db.state.me ? `<span class="whoami small muted">${esc(db.state.me.full_name || db.state.me.email || '')}</span>` : ''}
       ${r.name === 'estimate' ? `<button class="btn btn--ghost" data-act="reset">${esc(T().reset)}</button>` : ''}
+      ${db.state.session
+        ? `<button class="btn btn--ghost" data-act="signout">${esc(DSTR[S.lang].signOut)}</button>`
+        : `<button class="btn btn--primary btn--sm" data-act="go" data-route="#/signin">${esc(DSTR[S.lang].signIn)}</button>`}
       <button class="btn btn--lang" data-act="lang">${S.lang === 'en' ? 'العربية' : 'English'}</button>
     </div>
   </header>`;
@@ -500,6 +548,7 @@ function wire() {
   });
   const act = (name, fn) => { const el = document.querySelector(`[data-act="${name}"]`); if (el) el.onclick = fn; };
   act('lang', () => { S.lang = S.lang === 'en' ? 'ar' : 'en'; render(); });
+  act('signout', async () => { await db.signOut(); location.hash = '#/'; render(); });
   act('reset', () => { S.pipeline = []; S.result = null; S.whatIf = null; S.seq = 0; render(); });
   act('estimate', () => estimate(true));
   act('add', () => {
@@ -545,8 +594,30 @@ function estimate(fromForm) {
     ['Ministry pavilion', 'XL'], ['Retail activation', 'S'],
   ];
   for (const [name, size] of demo) S.pipeline.push({ id: `p${++S.seq}`, name, size, start });
-  addEventListener('hashchange', () => { scrollTo(0, 0); render(); });
-  render();
+
+  C.bindRender(() => render());
+
+  /* Data is fetched for the route BEFORE painting it, so a dashboard never
+     flashes empty and then fills — which reads as "you have no work" for the
+     half-second it takes to find out you do. */
+  const go = async () => {
+    scrollTo(0, 0);
+    render();                       // paint the shell immediately
+    const r = currentRoute();
+    if (['home','new','leads','docs','admin'].includes(r.name) && db.state.session) {
+      await C.loadFor(r.name);
+      render();
+    }
+  };
+
+  addEventListener('hashchange', go);
+
+  if (db.sb) {
+    db.onAuthChange(() => { /* token refresh: keep the shell honest */ render(); });
+    db.loadSession().then(go).catch(() => go());
+  } else {
+    render();
+  }
 })();
 
 export { S, estimate };
