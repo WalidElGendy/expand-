@@ -46,5 +46,27 @@ const shell = readFileSync(root + 'web/index.html', 'utf8');
 if (!shell.includes('/*__BUNDLE__*/')) throw new Error('web/index.html lost its /*__BUNDLE__*/ marker');
 
 mkdirSync(root + 'public', { recursive: true });
-writeFileSync(root + 'public/index.html', shell.replace('/*__BUNDLE__*/', js));
+/* The replacement MUST be a function.
+
+   String.replace() interprets $ patterns in a string replacement: `$$`
+   becomes a literal `$`, and `$&`, `$\``, `$'` and `$1` all mean something
+   too. The bundle is code, so any of those sequences get silently rewritten.
+
+   This actually happened: controller.js declares `$` (querySelector) and `$$`
+   (querySelectorAll). The build collapsed `$$` to `$`, so the second helper
+   overwrote the first, `const form = $('#authForm')` returned an ARRAY, the
+   truthiness guard passed, and `form.onsubmit = ...` set a property on that
+   array instead of the form. Sign-in fell through to a native GET that put
+   the user's email in the URL. No error anywhere — the corruption was in the
+   artifact, not the source.
+
+   A function replacement disables $ substitution entirely. */
+writeFileSync(root + 'public/index.html', shell.replace('/*__BUNDLE__*/', () => js));
+
+/* Guard the class of bug, not just this instance: whatever esbuild emitted
+   must survive into the file byte for byte. */
+const out2 = readFileSync(root + 'public/index.html', 'utf8');
+if (!out2.includes(js)) {
+  throw new Error('the bundle was altered on its way into the HTML shell — check for $ substitution in the replacement');
+}
 console.log(`built public/index.html — ${(js.length / 1024).toFixed(1)}kb of js inlined`);
