@@ -22,6 +22,19 @@ export const SUPABASE_ANON = '__SUPABASE_ANON_KEY__';
 
 export const configured = !SUPABASE_URL.startsWith('__');
 
+/* Snapshot the URL fragment BEFORE createClient() exists.
+
+   The client is created with detectSessionInUrl, which parses the fragment
+   for auth parameters and then scrubs it. That is a race against our own
+   error reader: sometimes we win and show the user why their link failed,
+   sometimes Supabase clears it first and the app renders the landing page
+   with no explanation. It looked like a timing flake in the tests; it was a
+   real one for users.
+
+   Reading it here — at module scope, above the client — makes the order a
+   fact of the file rather than a coincidence of scheduling. */
+const INITIAL_HASH = typeof location !== 'undefined' ? location.hash || '' : '';
+
 export const sb = configured
   ? createClient(SUPABASE_URL, SUPABASE_ANON, {
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
@@ -77,14 +90,20 @@ export async function signIn(email, password) {
 export async function signUp(email, password) {
   const { error } = await sb.auth.signUp({
     email: email.trim(), password,
-    options: { emailRedirectTo: location.origin },
+    // Land inside the app, not on the marketing page. A confirmed user is a
+    // signed-in user; dropping them on the landing page makes them hunt for
+    // the door they just unlocked.
+    options: { emailRedirectTo: location.origin + '/#/home' },
   });
   if (error) throw new Error(error.message);
 }
 
 export async function resetPassword(email) {
   const { error } = await sb.auth.resetPasswordForEmail(email.trim(), {
-    redirectTo: location.origin + '#/reset',
+    // The slash matters: location.origin has no trailing one, so 'origin#/reset'
+    // produces https://host#/reset — which Supabase's allow-list matching and
+    // some mail clients treat differently from a normal path.
+    redirectTo: location.origin + '/#/reset',
   });
   if (error) throw new Error(error.message);
 }
@@ -97,6 +116,49 @@ export async function updatePassword(password) {
 export async function signOut() {
   await sb.auth.signOut();
   state.session = null; state.me = null;
+}
+
+/**
+ * Supabase reports auth failures by redirecting BACK to the app with the
+ * error in the URL fragment:
+ *
+ *   #error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired
+ *
+ * Nothing read that, so an expired link rendered the landing page and said
+ * nothing at all — the user is told the email "did not work" by a page that
+ * looks completely normal. Worse, the fragment collides with hash routing, so
+ * the router saw a garbage route.
+ *
+ * Read it once at boot, then clear it from the URL so a refresh does not
+ * resurrect a stale error.
+ */
+let initialConsumed = false;
+
+export function takeAuthErrorFromUrl() {
+  /* Two arrival paths, and both have to work:
+
+       cold load  — the client may already have scrubbed location.hash, so the
+                    snapshot taken above createClient() is the only copy left
+       hash change — the user was already on the site when the fragment
+                    appeared, so location.hash is current and the snapshot is
+                    stale
+
+     Prefer the live hash; fall back to the snapshot exactly once. */
+  let h = location.hash || '';
+  if (!h.includes('error') && !initialConsumed) { h = INITIAL_HASH; initialConsumed = true; }
+  if (!h.includes('error')) return null;
+  const p = new URLSearchParams(h.replace(/^#\/?/, ''));
+  const code = p.get('error_code');
+  if (!code && !p.get('error')) return null;
+
+  history.replaceState(null, '', location.pathname + location.search + '#/signin');
+  return {
+    code,
+    kind: p.get('error'),
+    // Supabase's own wording, plus-encoded. It is more specific than anything
+    // generic we would invent, so it is shown rather than replaced.
+    message: (p.get('error_description') || '').replace(/\+/g, ' '),
+  };
 }
 
 /* --------------------------------------------------------------- reference */

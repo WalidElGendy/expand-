@@ -17,6 +17,7 @@ const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 export const ctx = {
   projects: [], stages: [], people: [], leads: [], files: [], invites: [],
   loading: false, error: null, authMode: 'in', authMsg: '', est: null,
+  authErr: null,        // whatever Supabase sent back in the URL fragment
 };
 
 let rerender = () => {};
@@ -84,16 +85,24 @@ export function wireAuth(lang) {
   if (!form) return;
 
   $$('[data-auth]').forEach(b => b.onclick = () => {
-    ctx.authMode = b.dataset.auth; ctx.authMsg = ''; rerender();
+    ctx.authMode = b.dataset.auth; ctx.authMsg = ''; ctx.authErr = null; rerender();
   });
 
   form.onsubmit = async (e) => {
     e.preventDefault();
-    const btn = $('#aGo'); const email = $('#aEmail').value; const pass = $('#aPass')?.value;
+    const btn = $('#aGo'); const email = $('#aEmail')?.value; const pass = $('#aPass')?.value;
     btn.disabled = true;
     try {
-      if (ctx.authMode === 'forgot') {
+      if (ctx.authMode === 'reset') {
+        // Arriving here means Supabase already exchanged the recovery link for
+        // a session, so updateUser is authenticated. No email needed.
+        await db.updatePassword(pass);
+        ctx.authErr = null;
+        ctx.authMsg = V.DSTR[lang].passwordSaved;
+        location.hash = '#/home';
+      } else if (ctx.authMode === 'forgot') {
         await db.resetPassword(email);
+        ctx.authErr = null;
         ctx.authMsg = V.DSTR[lang].checkInbox;
       } else if (ctx.authMode === 'up') {
         await db.signUp(email, pass);

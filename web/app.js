@@ -163,6 +163,7 @@ function currentRoute() {
   if (h.startsWith('#/pipeline')) return { name: 'pipeline' };
   if (h.startsWith('#/estimate')) return { name: 'estimate' };
   if (h.startsWith('#/signin'))   return { name: 'signin' };
+  if (h.startsWith('#/reset'))    return { name: 'signin' };   // recovery lands here
   if (h.startsWith('#/home'))     return { name: 'home' };
   if (h.startsWith('#/new'))      return { name: 'new' };
   if (h.startsWith('#/leads'))    return { name: 'leads' };
@@ -186,13 +187,13 @@ function render() {
     // Leaving it as "home" while showing a sign-in form is the kind of small
     // lie that makes tests and screen readers disagree with the page.
     document.body.dataset.route = 'signin';
-    $('#root').innerHTML = header({ name: 'signin' }) + signInView(S.lang, C.ctx.authMode, C.ctx.authMsg);
+    $('#root').innerHTML = header({ name: 'signin' }) + signInView(S.lang, C.ctx.authMode, C.ctx.authMsg, C.ctx.authErr);
     C.wireAuth(S.lang); wire();
     return;
   }
 
   const body =
-    r.name === 'signin'   ? signInView(S.lang, C.ctx.authMode, C.ctx.authMsg)
+    r.name === 'signin'   ? signInView(S.lang, C.ctx.authMode, C.ctx.authMsg, C.ctx.authErr)
   : APP.includes(r.name)  ? C.appBody(S.lang, r.name)
   : r.name === 'who'      ? whoView(S.lang)
   : r.name === 'profile'  ? profileView(S.lang, r.id)
@@ -602,6 +603,12 @@ function estimate(fromForm) {
      half-second it takes to find out you do. */
   const go = async () => {
     scrollTo(0, 0);
+    /* Check on EVERY navigation, not only at boot: someone already on the
+       site who taps the link in their email arrives by hash change, and the
+       app would otherwise route a `#error=...` fragment to the landing page
+       and explain nothing. */
+    const urlErr = db.takeAuthErrorFromUrl?.();
+    if (urlErr) { C.ctx.authErr = urlErr; C.ctx.authMode = 'in'; }
     render();                       // paint the shell immediately
     const r = currentRoute();
     if (['home','new','leads','docs','admin'].includes(r.name) && db.state.session) {
@@ -613,7 +620,28 @@ function estimate(fromForm) {
   addEventListener('hashchange', go);
 
   if (db.sb) {
-    db.onAuthChange(() => { /* token refresh: keep the shell honest */ render(); });
+    /* Read any auth failure out of the fragment BEFORE the router sees it —
+       an `#error=...` fragment is not a route, and left in place it renders
+       the landing page while the user waits for an explanation. */
+    db.onAuthChange((event) => {
+      // A recovery link signs the user in with the sole purpose of letting
+      // them set a new password. Send them to that screen rather than a
+      // dashboard they cannot get back into next time.
+      if (event === 'PASSWORD_RECOVERY') {
+        C.ctx.authMode = 'reset';
+        location.hash = '#/reset';
+      }
+      render();
+    });
+
+    /* Paint BEFORE asking Supabase anything.
+
+       Waiting on loadSession() first means a slow or unreachable network
+       shows a blank page for as long as that call takes to settle — and the
+       one moment a user is most likely to be on a bad connection is when
+       they have just tapped a link in an email. The shell is renderable from
+       local state alone, so render it, then reconcile. */
+    render();
     db.loadSession().then(go).catch(() => go());
   } else {
     render();

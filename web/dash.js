@@ -26,6 +26,11 @@ export const DSTR = {
     firstTime: 'First time here?', setPassword: 'Create your password',
     forgot: 'Forgot your password?', sendReset: 'Email me a reset link',
     backToSignIn: 'Back to sign in', checkInbox: 'Check your inbox.',
+    newPassword: 'Choose a new password', setIt: 'Save my new password',
+    linkExpired: 'That link has expired or was already used.',
+    linkExpiredWhy: 'Sign-in links are single use and time limited. Some mail scanners open links before you do, which uses them up. Send yourself a fresh one.',
+    sendFresh: 'Email me a new link', passwordSaved: 'Password saved. Signing you in…',
+    recoverPrompt: 'Enter a new password for your account.',
     noInvite: 'Your account exists but has not been activated. Ask an admin to add you.',
     home: 'Home', projects: 'Projects', newProject: 'New project', leads: 'Leads',
     documents: 'Documents', people: 'People', myQueue: 'My queue',
@@ -53,6 +58,11 @@ export const DSTR = {
     firstTime: 'أول مرة هنا؟', setPassword: 'أنشئ كلمة المرور',
     forgot: 'نسيت كلمة المرور؟', sendReset: 'أرسل لي رابط إعادة التعيين',
     backToSignIn: 'رجوع لتسجيل الدخول', checkInbox: 'تحقق من بريدك.',
+    newPassword: 'اختر كلمة مرور جديدة', setIt: 'حفظ كلمة المرور',
+    linkExpired: 'انتهت صلاحية الرابط أو تم استخدامه من قبل.',
+    linkExpiredWhy: 'روابط الدخول تُستخدم مرة واحدة ولها مدة صلاحية. بعض أنظمة فحص البريد تفتح الرابط قبلك فتستهلكه. أرسل لنفسك رابطاً جديداً.',
+    sendFresh: 'أرسل لي رابطاً جديداً', passwordSaved: 'تم حفظ كلمة المرور. جارٍ تسجيل دخولك…',
+    recoverPrompt: 'أدخل كلمة مرور جديدة لحسابك.',
     noInvite: 'حسابك موجود لكنه غير مفعّل. اطلب من المسؤول إضافتك.',
     home: 'الرئيسية', projects: 'المشاريع', newProject: 'مشروع جديد', leads: 'العملاء المحتملون',
     documents: 'المستندات', people: 'الفريق', myQueue: 'مهامي',
@@ -145,30 +155,47 @@ export function estimateFor(sched, { name, size, start, deadline, stages }) {
 
 /* ================================ SIGN IN ================================= */
 
-export function signInView(lang, mode = 'in', msg = '') {
+export function signInView(lang, mode = 'in', msg = '', authErr = null) {
   const t = DSTR[lang];
-  const title = mode === 'up' ? t.setPassword : mode === 'forgot' ? t.forgot : t.signIn;
+  const title = mode === 'up' ? t.setPassword
+              : mode === 'forgot' ? t.forgot
+              : mode === 'reset' ? t.newPassword
+              : t.signIn;
+
+  /* An expired link is the single most likely way to arrive here, and the
+     only useful response is a new link — so the panel carries the button
+     rather than telling the user to go and find it. */
+  const expired = authErr && /expired|invalid/i.test(authErr.code || authErr.message || '');
+  const errPanel = !authErr ? '' : `
+    <div class="autherr">
+      <p class="autherr__h">${esc(expired ? t.linkExpired : authErr.message || t.linkExpired)}</p>
+      ${expired ? `<p class="autherr__b small">${esc(t.linkExpiredWhy)}</p>
+                   <button type="button" class="btn btn--sm" data-auth="forgot">${esc(t.sendFresh)}</button>` : ''}
+    </div>`;
 
   return `
 <section class="authwrap">
   <div class="card auth">
     <div class="card__head"><h2>${esc(title)}</h2></div>
+    ${errPanel}
     <form id="authForm" class="authform" autocomplete="on">
+      ${mode === 'reset' ? `<p class="small muted">${esc(t.recoverPrompt)}</p>` : `
       <label class="f f--wide">
         <span>${esc(t.email)}</span>
         <input id="aEmail" type="email" name="email" required autocomplete="username"
                placeholder="you@expandexpo.com" />
-      </label>
+      </label>`}
       ${mode === 'forgot' ? '' : `
       <label class="f f--wide">
-        <span>${esc(t.password)}</span>
+        <span>${esc(mode === 'reset' ? t.newPassword : t.password)}</span>
         <input id="aPass" type="password" name="password" required minlength="8"
-               autocomplete="${mode === 'up' ? 'new-password' : 'current-password'}" />
+               autocomplete="${mode === 'up' || mode === 'reset' ? 'new-password' : 'current-password'}" />
       </label>`}
       ${msg ? `<p class="authmsg ${/^!/.test(msg) ? 'bad' : ''}">${esc(msg.replace(/^!/, ''))}</p>` : ''}
-      <button class="btn btn--primary" type="submit" id="aGo">${esc(title)}</button>
+      <button class="btn btn--primary" type="submit" id="aGo">${esc(mode === 'reset' ? t.setIt : title)}</button>
       <div class="authlinks small">
-        ${mode === 'in'
+        ${mode === 'reset' ? ''
+          : mode === 'in'
           ? `<button type="button" class="link" data-auth="up">${esc(t.firstTime)}</button>
              <button type="button" class="link" data-auth="forgot">${esc(t.forgot)}</button>`
           : `<button type="button" class="link" data-auth="in">${esc(t.backToSignIn)}</button>`}
