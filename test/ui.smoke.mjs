@@ -89,6 +89,9 @@ for (const [hash, name] of ROUTES) {
     pageH:    document.documentElement.scrollHeight,
     viewH:    innerHeight,
     nav:      document.querySelectorAll('.navbtn').length,
+    side:     !!document.querySelector('.side'),
+    sideX:    document.querySelector('.side')?.getBoundingClientRect().left,
+    pageX:    document.querySelector('.page')?.getBoundingClientRect().left,
     headTop:  document.querySelector('.head')?.getBoundingClientRect().top,
     stats:    [...document.querySelectorAll('.stat__n')].map(e => e.textContent.trim()),
     // Any element wider than the viewport is a horizontal-overflow bug.
@@ -101,6 +104,10 @@ for (const [hash, name] of ROUTES) {
   check(m.route === name,   `${hash}: body[data-route] is "${m.route}", expected "${name}"`);
   check(m.rootText > 60,    `${hash}: rendered almost nothing (${m.rootText} chars)`);
   check(m.nav === 3,        `${hash}: expected 3 nav buttons, saw ${m.nav}`);
+  // The shell is the product now: a route that renders without it has escaped
+  // the layout, and the sidebar must never sit on top of the content.
+  check(m.side,             `${hash}: rendered without the sidebar shell`);
+  check(m.pageX > m.sideX,  `${hash}: the page starts at ${m.pageX}, inside the sidebar at ${m.sideX}`);
   // The page scrolls as a document, so the header is not pinned — but on a
   // fresh route it must be at the top, inside the body padding, and never
   // pushed below the fold by something rendering above it.
@@ -256,6 +263,63 @@ const reset = await page.evaluate(() => ({
 }));
 check(reset.route === 'signin', '#/reset is not a route — a password-reset link would dead-end');
 check(reset.form, '#/reset has no working form');
+
+/* ---------------- the dashboard, without needing a real session -----------
+   The signed-in screens cannot be reached in this test (there is no session),
+   but they are pure functions of (lang, ctx), so they can be rendered
+   directly. This is the only cover on the screen the team actually lives in. */
+import * as D from '../web/dash.js';
+import * as dbmod from '../web/db.js';
+
+dbmod.state.departments = [
+  { id: '3d', name_en: '3D design', name_ar: 'ثلاثي', is_stage: true, base_days: 5, colour: '#915bf5' },
+  { id: '2d', name_en: '2D technical', name_ar: 'فني', is_stage: true, base_days: 2, colour: '#d95926' },
+];
+dbmod.state.me = { id: 'u1', full_name: 'Test', role: 'admin', department_id: 'pm', is_active: true };
+
+const proj = (i, due, status, flag, est = null) => ({
+  id: 'p' + i, name: 'Project ' + i, status, due_on: due, estimated_delivery: est,
+  import_flags: flag ? ['size guessed'] : null,
+  project_stages: [
+    { id: 's' + i, department_id: '3d', status: 'pending', assignee_id: null, effort_days: 5, sort: 1 },
+    { id: 't' + i, department_id: '2d', status: 'done', assignee_id: 'u3', effort_days: 2, sort: 2 },
+  ],
+});
+const many = ['2025-11-04', '2025-12-14', '2026-01-09', '2026-03-20', '2026-09-03']
+  .flatMap((d, i) => Array.from({ length: i + 2 }, (_, k) => proj(i * 10 + k, d, k % 2 ? 'submitted' : 'in_design', k === 0)));
+const dctx = {
+  projects: many, stages: [], people: [{ id: 'u3', full_name: 'B', department_id: '2d' }],
+  leads: [{ id: 'l1', status: 'new' }, { id: 'l2', status: 'won' }],
+};
+
+for (const lang of ['en', 'ar']) {
+  const html = D.pmView(lang, dctx);
+  check(html.includes('class="kpis"'), `${lang}: the dashboard lost its KPI tiles`);
+  check((html.match(/class="bar"/g) || []).length >= 4,
+    `${lang}: the deadline chart drew fewer than 4 bars`);
+  check(html.includes('data-rows="flagged"'), `${lang}: no "needs review" filter despite flagged rows`);
+  // The bug this replaced: raw database enums printed at the user.
+  check(!/>in_design</.test(html) && !/>submitted</.test(html),
+    `${lang}: a raw status enum reached the screen`);
+  check((html.match(/class="st"/g) || []).length >= many.length,
+    `${lang}: not every row got a status pill`);
+  // A column of nothing but em dashes is furniture, not information.
+  check(!html.includes(D.DSTR[lang].estimate),
+    `${lang}: the estimate column is shown even though no project has one`);
+}
+/* ...and it must come BACK the moment a project actually has an estimate. */
+const withEst = D.pmView('en', { ...dctx, projects: [...many, proj(99, '2026-04-01', 'in_design', false, '2026-05-05')] });
+check(withEst.includes(D.DSTR.en.estimate), 'the estimate column stays hidden even when a project has one');
+
+/* The estimate itself read `deliveryDate`, a field the scheduler has never
+   returned, so every estimate was undefined and every project was saved with
+   a null delivery date. Assert on the field the engine actually produces. */
+const { sched } = D.buildScheduler([{ id: 'a', full_name: 'A', department_id: '3d' },
+                                    { id: 'b', full_name: 'B', department_id: '2d' }], []);
+const est = D.estimateFor(sched, { name: 'x', size: 'M', start: '2026-08-10', deadline: null, stages: ['3d', '2d'] });
+check(/^\d{4}-\d{2}-\d{2}$/.test(est.real.delivery || ''),
+  `the estimator produced no delivery date (got ${JSON.stringify(est.real.delivery)})`);
+check(/\d{4}/.test(D.estimateBox('en', est)), 'the estimate box renders without a date in it');
 
 /* --------------------------------- report --------------------------------- */
 await browser.close();
