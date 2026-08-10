@@ -208,6 +208,24 @@ const mob = await page.evaluate(() => ({
 }));
 check(!mob.wide.length, `mobile horizontal overflow from ${JSON.stringify(mob.wide)}`);
 
+/* The width check above only sees elements that are THEMSELVES wider than the
+   viewport. A two-column grid whose columns refuse to shrink overflows its
+   own container while every child stays narrow, and a card with
+   overflow:hidden then quietly clips it — which is exactly how a phone-width
+   form lost half its fields with every assertion still green. Compare each
+   container's scroll width to its client width instead. */
+for (const [hash] of ROUTES) {
+  await page.goto(URL_ + hash, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(60);
+  const clipped = await page.evaluate(() => [...document.querySelectorAll('.page *')]
+    // clientWidth <= 2 is a visually-hidden control (the file inputs), whose
+    // scroll width always exceeds its 1px box and is not a layout fault.
+    .filter(e => e.clientWidth > 2 && e.scrollWidth > e.clientWidth + 1
+                 && !['auto', 'scroll'].includes(getComputedStyle(e).overflowX))
+    .map(e => `${e.tagName}.${e.className}`).slice(0, 3));
+  check(!clipped.length, `${hash} at 390px: content overflows its container — ${JSON.stringify(clipped)}`);
+}
+
 /* --------------------------------- sign in -------------------------------- */
 await page.setViewportSize({ width: 1440, height: 900 });
 await page.goto(URL_ + '#/signin', { waitUntil: 'networkidle' });
