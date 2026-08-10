@@ -51,6 +51,10 @@
   --s3: #199e70;   /* content */
   --s4: #c98500;
 
+  /* Status slots. `--info` is deliberately outside the categorical set so a
+     status pill never wears a series colour. Contrast on #101014 verified
+     with the palette validator: all four pass 3:1. */
+  --info:     #4c8dff;
   --ok:       #0ca30c;
   --warn:     #fab219;
   --critical: #d03b3b;
@@ -68,37 +72,115 @@ body {
   background: var(--bg); color: var(--ink1);
   font-family: var(--sans); font-size: 14px; line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-  padding: 20px;
 }
 html[lang="ar"] body { font-family: var(--ar); }
 button, input, select { font: inherit; color: inherit; }
 button { cursor: pointer; border: 0; background: none; }
 :focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 6px; }
 
-#root { max-width: 1440px; margin: 0 auto; }
+/* ============================== the app shell =============================
+   A fixed rail on the inline-start edge and a scrolling column beside it.
+   Grid rather than position:fixed so the sidebar cannot cover content, and
+   so RTL flips the whole layout for free — in an RTL document the first
+   grid column simply lands on the right.
+   ========================================================================= */
+#root { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100vh; }
 
-/* ------------------------------- header ---------------------------------- */
+.side {
+  background: var(--s-1); border-inline-end: 1px solid var(--line);
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 18px 12px 14px; position: sticky; top: 0; height: 100vh; overflow-y: auto;
+}
+.side__brand { display: flex; align-items: center; gap: 11px; padding: 2px 8px 18px; }
+.side__nav { display: grid; gap: 2px; align-content: start; }
+.side__label {
+  font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--ink4); padding: 16px 10px 6px;
+}
+.side__foot { margin-top: auto; padding-top: 12px; border-top: 1px solid var(--line); }
+
+.navbtn {
+  display: flex; align-items: center; gap: 11px; width: 100%;
+  height: 38px; padding: 0 10px; border-radius: 8px; font-size: 13.5px;
+  color: var(--ink2); text-align: start; border: 1px solid transparent;
+}
+.navbtn svg { width: 17px; height: 17px; flex: none; opacity: .75; }
+.navbtn:hover { color: var(--ink1); background: var(--s-2); }
+.navbtn.is-on {
+  color: #fff; background: linear-gradient(90deg, var(--midnight), var(--brand));
+  border-color: transparent; font-weight: 600;
+}
+html[dir="rtl"] .navbtn.is-on { background: linear-gradient(270deg, var(--midnight), var(--brand)); }
+.navbtn.is-on svg { opacity: 1; }
+.navbtn__n {
+  margin-inline-start: auto; font-size: 11px; font-weight: 700;
+  background: var(--s-3); color: var(--ink2); border-radius: 999px; padding: 1px 7px;
+}
+.navbtn.is-on .navbtn__n { background: rgba(0,0,0,.25); color: #fff; }
+
+/* The person, at the bottom of the rail where every CRM puts them. */
+.mecard { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 9px; }
+.mecard:hover { background: var(--s-2); }
+.mecard__t { display: grid; min-width: 0; }
+.mecard__n { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mecard__r { font-size: 11px; color: var(--ink3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ava {
+  width: 30px; height: 30px; border-radius: 9px; flex: none; display: grid; place-items: center;
+  font-size: 12.5px; font-weight: 700; color: #10041f; background: var(--c, var(--brand));
+}
+
+.main { min-width: 0; display: flex; flex-direction: column; }
+.page { padding: 18px 22px 40px; width: 100%; max-width: 1560px; margin: 0 auto; }
+
+/* ------------------------------- top bar ---------------------------------- */
 .head {
-  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
-  padding: 0 4px 20px; position: relative;
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 12px 22px; border-bottom: 1px solid var(--line);
+  background: var(--s-1); position: relative;
 }
 /* Echo of the brand "Lines System" (guideline 7.0) */
 .head::after {
-  content: ""; position: absolute; inset-inline-end: 0; top: 0; bottom: 20px; width: 180px;
+  content: ""; position: absolute; inset-inline-end: 0; top: 0; bottom: 0; width: 160px;
   background: repeating-linear-gradient(90deg,
     var(--midnight) 0 2px, transparent 2px 9px);
-  opacity: .35; mask-image: linear-gradient(90deg, transparent, #000);
+  opacity: .3; mask-image: linear-gradient(90deg, transparent, #000);
   pointer-events: none;
 }
 html[dir="rtl"] .head::after { transform: scaleX(-1); }
 .brand { display: flex; align-items: center; gap: 12px; }
 .wordmark {
-  font-size: 20px; font-weight: 700; letter-spacing: -.03em; color: var(--ink1);
+  font-size: 19px; font-weight: 700; letter-spacing: -.03em; color: var(--ink1);
 }
 .sep { width: 1px; height: 26px; background: var(--line2); }
-.h1 { font-size: 17px; font-weight: 600; letter-spacing: -.01em; }
-.sub { font-size: 12.5px; color: var(--ink3); }
-.head__actions { margin-inline-start: auto; display: flex; gap: 8px; z-index: 1; }
+.h1 { font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
+.sub { font-size: 12px; color: var(--ink3); }
+.head__actions { margin-inline-start: auto; display: flex; gap: 8px; align-items: center; z-index: 1; }
+
+/* Search sits in the bar and filters the table on the page, so it never
+   promises more than it does — placeholder names the thing it filters. */
+.search { position: relative; flex: 1 1 200px; max-width: 380px; z-index: 1; }
+.search svg { position: absolute; inset-inline-start: 11px; top: 9px; width: 15px; height: 15px; color: var(--ink4); }
+.search input {
+  width: 100%; height: 34px; border-radius: 9px; padding-inline: 34px 12px;
+  background: var(--s-2); border: 1px solid var(--line2); color: var(--ink1); font-size: 13px;
+}
+.search input::placeholder { color: var(--ink4); }
+.search input:focus { border-color: var(--line2); outline-offset: 0; }
+
+@media (max-width: 900px) {
+  /* Icon rail: the labels go, the navigation does not. */
+  #root { grid-template-columns: 62px minmax(0, 1fr); }
+  .side { padding: 14px 8px; }
+  .side__label, .navbtn span, .wordmark, .mecard__t, .navbtn__n { display: none; }
+  .navbtn { justify-content: center; padding: 0; }
+  .side__brand { justify-content: center; padding: 2px 0 14px; }
+  .mecard { justify-content: center; padding: 6px 0; }
+  /* The rail is 62px wide; a "Sign in" button in it wraps to two lines and
+     looks broken. The top bar already offers the same action. */
+  .side__foot--cta { display: none; }
+  .head { padding: 10px 14px; }
+  .page { padding: 14px 14px 32px; }
+}
 
 .btn {
   height: 34px; padding: 0 14px; border-radius: 8px; font-size: 13px; font-weight: 500;
@@ -203,7 +285,7 @@ html[dir="rtl"] .head::after { transform: scaleX(-1); }
 
 .sec { font-size: 11px; color: var(--ink3); text-transform: uppercase; letter-spacing: .06em; margin: 18px 0 8px; }
 .tbl { width: 100%; border-collapse: collapse; font-size: 12.5px; font-variant-numeric: tabular-nums; }
-.tbl th { text-align: start; font-size: 10.5px; color: var(--ink3); text-transform: uppercase; letter-spacing: .04em; padding: 0 8px 7px; font-weight: 600; }
+.tbl th { text-align: start; font-size: 10.5px; color: var(--ink3); text-transform: uppercase; letter-spacing: .04em; padding: 12px 8px 8px; font-weight: 600; }
 .tbl td { padding: 8px; border-top: 1px solid var(--line); }
 .tbl .n { text-align: end; }
 .tbl tr.drive td { background: rgba(145,91,245,.08); }
@@ -416,6 +498,65 @@ html[dir="rtl"] .deal__ar { direction: rtl; }
 select.btn--sm { height: 28px; padding: 0 6px; background: var(--s-2); border: 1px solid var(--line2); border-radius: 6px; font-size: 12px; }
 .whoami { margin-inline-end: 4px; }
 .subhead { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink3); margin: 20px 0 10px; font-weight: 600; }
+
+/* ============================ dashboard header ===========================
+   KPI tiles first, then one chart, then the table. The order is deliberate:
+   a 200-row table with no summary above it makes the reader do the counting.
+   ========================================================================= */
+/* Explicit counts rather than auto-fit: with six tiles, auto-fit lands on
+   4+2 at common widths and the orphan row reads as a mistake. */
+.kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+@media (max-width: 1500px) { .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 760px)  { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.kpi {
+  background: var(--s-1); border: 1px solid var(--line); border-radius: var(--r);
+  padding: 14px 16px; display: grid; gap: 3px; align-content: start; min-width: 0;
+}
+.kpi__l { font-size: 11.5px; color: var(--ink3); display: flex; align-items: center; gap: 7px; }
+.kpi__l i { width: 7px; height: 7px; border-radius: 2px; background: var(--c, var(--brand)); flex: none; }
+.kpi__n { font-size: 27px; font-weight: 700; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.kpi__n small { font-size: 14px; font-weight: 600; color: var(--ink3); letter-spacing: 0; }
+.kpi__s { font-size: 11.5px; color: var(--ink4); }
+.kpi--bad .kpi__n { color: #ff8f8f; }
+.kpi--date .kpi__n { font-size: 18px; }
+
+/* ------------------------------- the chart -------------------------------- */
+.chartcard { margin-bottom: 14px; }
+.chart { display: block; width: 100%; height: auto; }
+.chart .grid line { stroke: var(--line); stroke-width: 1; }
+.chart .axis { fill: var(--ink4); font-size: 11px; }
+.chart .val { fill: var(--ink2); font-size: 11px; font-weight: 600; }
+.chart .bar path { fill: var(--brand); transition: fill .12s; }
+.chart .bar:hover path { fill: var(--biloba); }
+.chart .now line { stroke: var(--ink4); stroke-width: 1; stroke-dasharray: 3 3; }
+.chart .now text { fill: var(--ink3); font-size: 10.5px; }
+
+/* -------------------------------- pills ---------------------------------- */
+/* Status is a state, so it gets the reserved status colours and always ships
+   with its own word — never colour alone. */
+.st {
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  font-size: 11.5px; font-weight: 600; padding: 3px 9px; border-radius: 999px;
+  background: color-mix(in srgb, var(--c) 16%, transparent);
+  color: var(--c); border: 1px solid color-mix(in srgb, var(--c) 32%, transparent);
+}
+.st i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex: none; }
+
+.chipbar {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  padding: 12px 16px; border-bottom: 1px solid var(--line);
+}
+.chip--btn { background: var(--s-2); cursor: pointer; }
+.chip--btn:hover { color: var(--ink1); border-color: var(--line2); }
+.chip--btn.is-on { color: #fff; background: var(--brand); border-color: var(--brand); }
+
+/* ------------------------------ table polish ------------------------------ */
+.tblwrap { overflow-x: auto; }
+.tbl tbody tr { transition: background .1s; }
+.tbl tbody tr:hover td { background: var(--s-2); }
+.tbl td .link { font-size: 13px; font-weight: 500; }
+.tbl__empty { padding: 28px 16px; color: var(--ink3); text-align: center; }
+.tbl .stagecell { display: flex; gap: 5px; flex-wrap: wrap; }
 
 /* --------------------------------- sign in -------------------------------- */
 .authwrap { display: grid; place-items: center; min-height: 62vh; padding: 20px 0; }
@@ -6055,9 +6196,9 @@ var Serializer = class {
       throw new Error(`metadata length ${metadata.length} exceeds maximum of 255`);
     }
     const metaLength = this.USER_BROADCAST_PUSH_META_LENGTH + joinRef.length + ref.length + topic.length + userEvent.length + metadata.length;
-    const header2 = new ArrayBuffer(this.HEADER_LENGTH + metaLength);
-    const view = new DataView(header2);
-    const bytes = new Uint8Array(header2);
+    const header = new ArrayBuffer(this.HEADER_LENGTH + metaLength);
+    const view = new DataView(header);
+    const bytes = new Uint8Array(header);
     let offset = 0;
     view.setUint8(offset++, this.KINDS.userBroadcastPush);
     view.setUint8(offset++, joinRef.length);
@@ -6076,9 +6217,9 @@ var Serializer = class {
     offset += userEvent.length;
     bytes.set(metadata, offset);
     offset += metadata.length;
-    var combined = new Uint8Array(header2.byteLength + encodedPayload.byteLength);
-    combined.set(new Uint8Array(header2), 0);
-    combined.set(new Uint8Array(encodedPayload), header2.byteLength);
+    var combined = new Uint8Array(header.byteLength + encodedPayload.byteLength);
+    combined.set(new Uint8Array(header), 0);
+    combined.set(new Uint8Array(encodedPayload), header.byteLength);
     return combined.buffer;
   }
   decode(rawPayload, callback) {
@@ -7356,9 +7497,9 @@ var serializer_default = {
     this.assertFieldSize(topicBytes.byteLength, "topic");
     this.assertFieldSize(eventBytes.byteLength, "event");
     let metaLength = this.META_LENGTH + joinRefBytes.byteLength + refBytes.byteLength + topicBytes.byteLength + eventBytes.byteLength;
-    let header2 = new ArrayBuffer(this.HEADER_LENGTH + metaLength);
-    let headerBytes = new Uint8Array(header2);
-    let view = new DataView(header2);
+    let header = new ArrayBuffer(this.HEADER_LENGTH + metaLength);
+    let headerBytes = new Uint8Array(header);
+    let view = new DataView(header);
     let offset = 0;
     view.setUint8(offset++, this.KINDS.push);
     view.setUint8(offset++, joinRefBytes.byteLength);
@@ -7373,9 +7514,9 @@ var serializer_default = {
     offset += topicBytes.byteLength;
     headerBytes.set(eventBytes, offset);
     offset += eventBytes.byteLength;
-    var combined = new Uint8Array(header2.byteLength + payload.byteLength);
+    var combined = new Uint8Array(header.byteLength + payload.byteLength);
     combined.set(headerBytes, 0);
-    combined.set(new Uint8Array(payload), header2.byteLength);
+    combined.set(new Uint8Array(payload), header.byteLength);
     return combined.buffer;
   },
   assertFieldSize(size, name) {
@@ -20865,7 +21006,7 @@ var GoTrueClient = class _GoTrueClient {
         }
         token = data.session.access_token;
       }
-      const { header: header2, payload, signature, raw: { header: rawHeader, payload: rawPayload } } = decodeJWT(token);
+      const { header, payload, signature, raw: { header: rawHeader, payload: rawPayload } } = decodeJWT(token);
       if (!(options === null || options === void 0 ? void 0 : options.allowExpired)) {
         try {
           validateExp(payload.exp);
@@ -20873,7 +21014,7 @@ var GoTrueClient = class _GoTrueClient {
           throw new AuthInvalidJwtError(e instanceof Error ? e.message : "JWT validation failed");
         }
       }
-      const signingKey = !header2.alg || header2.alg.startsWith("HS") || !header2.kid || !("crypto" in globalThis && "subtle" in globalThis.crypto) ? null : await this.fetchJwk(header2.kid, (options === null || options === void 0 ? void 0 : options.keys) ? { keys: options.keys } : options === null || options === void 0 ? void 0 : options.jwks);
+      const signingKey = !header.alg || header.alg.startsWith("HS") || !header.kid || !("crypto" in globalThis && "subtle" in globalThis.crypto) ? null : await this.fetchJwk(header.kid, (options === null || options === void 0 ? void 0 : options.keys) ? { keys: options.keys } : options === null || options === void 0 ? void 0 : options.jwks);
       if (!signingKey) {
         const { error } = await this.getUser(token);
         if (error) {
@@ -20882,13 +21023,13 @@ var GoTrueClient = class _GoTrueClient {
         return {
           data: {
             claims: payload,
-            header: header2,
+            header,
             signature
           },
           error: null
         };
       }
-      const algorithm = getAlgorithm(header2.alg);
+      const algorithm = getAlgorithm(header.alg);
       const publicKey = await crypto.subtle.importKey("jwk", signingKey, algorithm, true, [
         "verify"
       ]);
@@ -20899,7 +21040,7 @@ var GoTrueClient = class _GoTrueClient {
       return {
         data: {
           claims: payload,
-          header: header2,
+          header,
           signature
         },
         error: null
@@ -22180,7 +22321,42 @@ var DSTR = {
     overdue: "overdue",
     workingDays: "working days",
     importedFrom: "Imported from Asana",
-    flagged: "Imported with caveats"
+    flagged: "Imported with caveats",
+    searchPlaceholder: "Search this page\u2026",
+    homeSub: "What is open, what is late, and what it costs",
+    leadsSub: "Every lead and where it stands",
+    peopleSub: "Who can sign in, and as what",
+    openProjects: "Open projects",
+    overdue_: "Overdue",
+    unassigned_: "Stages unassigned",
+    committedDays: "Design days committed",
+    openLeads: "Open leads",
+    nextFree: "A new project would deliver",
+    ofTotal: "of",
+    needsReview: "Needs review",
+    allRows: "All",
+    teamsCol: "Teams",
+    deadlineChart: "Deadlines by month",
+    deadlineNote: "Open projects grouped by submission deadline. The dashed line is today, so everything to its left is already late.",
+    noneYet: "Nothing here yet.",
+    today_: "today",
+    st: {
+      in_design: "In design",
+      submitted: "Submitted",
+      won: "Won",
+      lost: "Lost",
+      delivered: "Delivered",
+      archived: "Archived",
+      draft: "Draft",
+      pending: "Pending",
+      in_progress: "In progress",
+      done: "Done",
+      blocked: "Blocked",
+      new: "New",
+      contacted: "Contacted",
+      qualified: "Qualified",
+      proposal: "Proposal"
+    }
   },
   ar: {
     signIn: "\u062A\u0633\u062C\u064A\u0644 \u0627\u0644\u062F\u062E\u0648\u0644",
@@ -22259,7 +22435,42 @@ var DSTR = {
     overdue: "\u0645\u062A\u0623\u062E\u0631\u0629",
     workingDays: "\u0623\u064A\u0627\u0645 \u0639\u0645\u0644",
     importedFrom: "\u0645\u0633\u062A\u0648\u0631\u062F \u0645\u0646 \u0623\u0633\u0627\u0646\u0627",
-    flagged: "\u0645\u0633\u062A\u0648\u0631\u062F \u0645\u0639 \u062A\u062D\u0641\u0638\u0627\u062A"
+    flagged: "\u0645\u0633\u062A\u0648\u0631\u062F \u0645\u0639 \u062A\u062D\u0641\u0638\u0627\u062A",
+    searchPlaceholder: "\u0627\u0628\u062D\u062B \u0641\u064A \u0647\u0630\u0647 \u0627\u0644\u0635\u0641\u062D\u0629\u2026",
+    homeSub: "\u0645\u0627 \u0647\u0648 \u0645\u0641\u062A\u0648\u062D\u060C \u0648\u0645\u0627 \u0647\u0648 \u0645\u062A\u0623\u062E\u0631\u060C \u0648\u0643\u0645 \u064A\u0643\u0644\u0651\u0641",
+    leadsSub: "\u0643\u0644 \u0639\u0645\u064A\u0644 \u0645\u062D\u062A\u0645\u0644 \u0648\u0645\u0648\u0642\u0639\u0647",
+    peopleSub: "\u0645\u0646 \u064A\u0633\u062A\u0637\u064A\u0639 \u0627\u0644\u062F\u062E\u0648\u0644\u060C \u0648\u0628\u0623\u064A \u0635\u0644\u0627\u062D\u064A\u0629",
+    openProjects: "\u0645\u0634\u0627\u0631\u064A\u0639 \u0645\u0641\u062A\u0648\u062D\u0629",
+    overdue_: "\u0645\u062A\u0623\u062E\u0631\u0629",
+    unassigned_: "\u0645\u0631\u0627\u062D\u0644 \u063A\u064A\u0631 \u0645\u0633\u0646\u062F\u0629",
+    committedDays: "\u0623\u064A\u0627\u0645 \u062A\u0635\u0645\u064A\u0645 \u0645\u0644\u062A\u0632\u0645 \u0628\u0647\u0627",
+    openLeads: "\u0639\u0645\u0644\u0627\u0621 \u0645\u062D\u062A\u0645\u0644\u0648\u0646 \u0645\u0641\u062A\u0648\u062D\u0648\u0646",
+    nextFree: "\u0645\u0634\u0631\u0648\u0639 \u062C\u062F\u064A\u062F \u064A\u064F\u0633\u0644\u064E\u0651\u0645 \u0641\u064A",
+    ofTotal: "\u0645\u0646",
+    needsReview: "\u062A\u062D\u062A\u0627\u062C \u0645\u0631\u0627\u062C\u0639\u0629",
+    allRows: "\u0627\u0644\u0643\u0644",
+    teamsCol: "\u0627\u0644\u0641\u0631\u0642",
+    deadlineChart: "\u0627\u0644\u0645\u0648\u0627\u0639\u064A\u062F \u062D\u0633\u0628 \u0627\u0644\u0634\u0647\u0631",
+    deadlineNote: "\u0627\u0644\u0645\u0634\u0627\u0631\u064A\u0639 \u0627\u0644\u0645\u0641\u062A\u0648\u062D\u0629 \u0645\u062C\u0645\u0651\u0639\u0629 \u062D\u0633\u0628 \u0645\u0648\u0639\u062F \u0627\u0644\u062A\u0642\u062F\u064A\u0645. \u0627\u0644\u062E\u0637 \u0627\u0644\u0645\u062A\u0642\u0637\u0639 \u0647\u0648 \u0627\u0644\u064A\u0648\u0645\u060C \u0648\u0643\u0644 \u0645\u0627 \u0639\u0644\u0649 \u064A\u0633\u0627\u0631\u0647 \u0645\u062A\u0623\u062E\u0631 \u0628\u0627\u0644\u0641\u0639\u0644.",
+    noneYet: "\u0644\u0627 \u0634\u064A\u0621 \u0647\u0646\u0627 \u0628\u0639\u062F.",
+    today_: "\u0627\u0644\u064A\u0648\u0645",
+    st: {
+      in_design: "\u0642\u064A\u062F \u0627\u0644\u062A\u0635\u0645\u064A\u0645",
+      submitted: "\u0645\u064F\u0642\u062F\u064E\u0651\u0645",
+      won: "\u0645\u0643\u0633\u0648\u0628",
+      lost: "\u062E\u0627\u0633\u0631",
+      delivered: "\u0645\u064F\u0633\u0644\u064E\u0651\u0645",
+      archived: "\u0645\u0624\u0631\u0634\u0641",
+      draft: "\u0645\u0633\u0648\u062F\u0629",
+      pending: "\u0628\u0627\u0646\u062A\u0638\u0627\u0631",
+      in_progress: "\u0642\u064A\u062F \u0627\u0644\u062A\u0646\u0641\u064A\u0630",
+      done: "\u0645\u0646\u062C\u0632",
+      blocked: "\u0645\u062A\u0648\u0642\u0641",
+      new: "\u062C\u062F\u064A\u062F",
+      contacted: "\u062A\u0645 \u0627\u0644\u062A\u0648\u0627\u0635\u0644",
+      qualified: "\u0645\u0624\u0647\u0644",
+      proposal: "\u0639\u0631\u0636"
+    }
   }
 };
 var fmt = (isoStr, lang) => isoStr ? parse(isoStr).toLocaleDateString(
@@ -22275,6 +22486,115 @@ var deptName2 = (id, lang) => {
   const d = dept(id);
   return d ? lang === "ar" ? d.name_ar : d.name_en : id;
 };
+var ST_COLOUR = {
+  in_design: "var(--info)",
+  in_progress: "var(--info)",
+  qualified: "var(--info)",
+  submitted: "var(--warn)",
+  proposal: "var(--warn)",
+  contacted: "var(--warn)",
+  pending: "var(--ink3)",
+  draft: "var(--ink3)",
+  new: "var(--ink3)",
+  blocked: "var(--critical)",
+  lost: "var(--critical)",
+  won: "var(--ok)",
+  done: "var(--ok)",
+  delivered: "var(--ok)",
+  archived: "var(--ink4)"
+};
+function statusPill(status, lang) {
+  if (!status) return "";
+  const label = DSTR[lang].st[status] || String(status).replace(/_/g, " ");
+  return `<span class="st" style="--c:${ST_COLOUR[status] || "var(--ink3)"}"><i></i>${esc2(label)}</span>`;
+}
+var kpi = (n, label, { sub = "", bad = false, colour = "", date = false } = {}) => `
+  <div class="kpi${bad ? " kpi--bad" : ""}${date ? " kpi--date" : ""}">
+    <span class="kpi__l">${colour ? `<i style="--c:${colour}"></i>` : ""}${esc2(label)}</span>
+    <span class="kpi__n">${n}</span>
+    ${sub ? `<span class="kpi__s">${esc2(sub)}</span>` : ""}
+  </div>`;
+function monthKey(d) {
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+function deadlineChart(lang, projects) {
+  const dated = projects.filter((p) => p.due_on);
+  if (dated.length < 2) return "";
+  const counts = /* @__PURE__ */ new Map();
+  for (const p of dated) {
+    const k = monthKey(parse(p.due_on));
+    counts.set(k, (counts.get(k) || 0) + 1);
+  }
+  const keys = [...counts.keys()].sort();
+  const months = [];
+  let [y, m] = keys[0].split("-").map(Number);
+  const [ly, lm] = keys[keys.length - 1].split("-").map(Number);
+  while (y < ly || y === ly && m <= lm) {
+    months.push(`${y}-${String(m).padStart(2, "0")}`);
+    if (++m > 12) {
+      m = 1;
+      y++;
+    }
+    if (months.length > 24) break;
+  }
+  const series = months.slice(-14).map((k) => ({ k, n: counts.get(k) || 0 }));
+  const max = Math.max(...series.map((s) => s.n), 1);
+  const W = 1180, H = 250, PAD_L = 36, PAD_R = 10, PAD_T = 20, PAD_B = 34;
+  const plotW = W - PAD_L - PAD_R, plotH = H - PAD_T - PAD_B;
+  const step = plotW / series.length;
+  const barW = Math.max(6, Math.min(46, step - 16));
+  const yOf = (n) => PAD_T + plotH - n / max * plotH;
+  const ticks = [0, Math.round(max / 2), max].filter((v, i, a) => a.indexOf(v) === i);
+  const label = (k) => {
+    const [yy, mm] = k.split("-");
+    return new Date(Date.UTC(+yy, +mm - 1, 1)).toLocaleDateString(
+      lang === "ar" ? "ar-SA-u-ca-gregory" : "en-GB",
+      { month: "short", timeZone: "UTC" }
+    );
+  };
+  const barPath = (x, y2, w, h) => {
+    const r = Math.min(4, w / 2, h);
+    return `M${x} ${y2 + h}V${y2 + r}q0-${r} ${r}-${r}h${w - 2 * r}q${r} 0 ${r} ${r}V${y2 + h}Z`;
+  };
+  const nowKey = monthKey(/* @__PURE__ */ new Date());
+  const nowIdx = series.findIndex((s) => s.k >= nowKey);
+  const nowX = nowIdx < 0 ? null : PAD_L + nowIdx * step;
+  const t = DSTR[lang];
+  const peak = series.reduce((a, b) => b.n > a.n ? b : a, series[0]);
+  return `
+<section class="card chartcard">
+  <div class="card__head">
+    <h2>${esc2(t.deadlineChart)}</h2>
+    <span class="muted small">${dated.length} ${esc2(lang === "ar" ? "\u0645\u0634\u0631\u0648\u0639 \u0644\u0647 \u0645\u0648\u0639\u062F" : "projects with a deadline")}</span>
+  </div>
+  <div style="padding:6px 16px 0">
+    <svg class="chart" viewBox="0 0 ${W} ${H}" role="img"
+         aria-label="${esc2(t.deadlineChart)}: ${series.map((s) => `${label(s.k)} ${s.n}`).join(", ")}">
+      <g class="grid">
+        ${ticks.map((v) => `<line x1="${PAD_L}" x2="${W - PAD_R}" y1="${yOf(v)}" y2="${yOf(v)}"/>`).join("")}
+      </g>
+      <g class="axis">
+        ${ticks.map((v) => `<text x="${PAD_L - 8}" y="${yOf(v) + 4}" text-anchor="end">${v}</text>`).join("")}
+        ${series.map((s, i) => `<text x="${PAD_L + i * step + step / 2}" y="${H - 10}" text-anchor="middle">${esc2(label(s.k))}</text>`).join("")}
+      </g>
+      ${nowX !== null ? `<g class="now">
+        <line x1="${nowX}" x2="${nowX}" y1="${PAD_T - 6}" y2="${PAD_T + plotH}"/>
+        <text x="${nowX + 4}" y="${PAD_T - 1}">${esc2(t.today_)}</text>
+      </g>` : ""}
+      <g>
+        ${series.map((s, i) => {
+    if (!s.n) return "";
+    const x = PAD_L + i * step + (step - barW) / 2, y2 = yOf(s.n);
+    return `<g class="bar"><title>${esc2(label(s.k))} ${s.k.slice(0, 4)} \u2014 ${s.n}</title>
+            <path d="${barPath(x, y2, barW, PAD_T + plotH - y2)}"/></g>`;
+  }).join("")}
+        ${peak.n ? `<text class="val" x="${PAD_L + series.indexOf(peak) * step + step / 2}" y="${yOf(peak.n) - 6}" text-anchor="middle">${peak.n}</text>` : ""}
+      </g>
+    </svg>
+  </div>
+  <p class="note">${esc2(t.deadlineNote)}</p>
+</section>`;
+}
 function buildScheduler(people, openStages) {
   const members2 = people.filter((p) => p.department_id && dept(p.department_id)?.is_stage).map((p) => ({ id: p.id, name: p.full_name || p.email, team: p.department_id }));
   const sched = new Scheduler({ members: members2, calendar: CAL2 });
@@ -22403,35 +22723,79 @@ function pmView(lang, ctx2) {
   const t = DSTR[lang];
   const projects = (ctx2.projects || []).filter((p) => !p.is_crm_list);
   const open = projects.filter((p) => !["delivered", "archived", "lost"].includes(p.status));
+  const overdue = open.filter((p) => lateBy(p.due_on)).length;
+  const stages = open.flatMap((p) => p.project_stages || []);
+  const liveStages = stages.filter((s) => s.status !== "done");
+  const unassigned = liveStages.filter((s) => !s.assignee_id).length;
+  const committed = Math.round(liveStages.reduce((sum, s) => sum + (Number(s.effort_days) || 0), 0));
+  const leads = ctx2.leads || [];
+  const openLeads = leads.filter((l) => !["won", "lost"].includes(l.status)).length;
+  let freeFrom = null;
+  try {
+    const { sched } = buildScheduler(ctx2.people || [], liveStages);
+    const probeStages = (state.departments || []).filter((d) => d.is_stage).map((d) => d.id);
+    if (probeStages.length) {
+      const { real } = estimateFor(sched, {
+        name: "probe",
+        size: "M",
+        start: today(),
+        deadline: null,
+        stages: probeStages
+      });
+      freeFrom = real?.delivery || null;
+    }
+  } catch {
+    freeFrom = null;
+  }
+  const flagged = open.filter((p) => p.import_flags?.length).length;
+  const rows = open.slice(0, 80);
+  const anyEstimate = rows.some((p) => p.estimated_delivery);
   return `
+<div class="kpis">
+  ${kpi(open.length, t.openProjects, { sub: `${projects.length} ${lang === "ar" ? "\u0625\u062C\u0645\u0627\u0644\u0627\u064B" : "in total"}`, colour: "var(--brand)" })}
+  ${kpi(overdue, t.overdue_, { bad: overdue > 0, sub: lang === "ar" ? "\u062A\u062C\u0627\u0648\u0632\u062A \u0645\u0648\u0639\u062F \u0627\u0644\u062A\u0642\u062F\u064A\u0645" : "past their deadline", colour: "var(--critical)" })}
+  ${kpi(unassigned, t.unassigned_, { sub: `${liveStages.length} ${lang === "ar" ? "\u0645\u0631\u062D\u0644\u0629 \u0645\u0641\u062A\u0648\u062D\u0629" : "open stages"}`, colour: "var(--warn)" })}
+  ${kpi(committed, t.committedDays, { sub: lang === "ar" ? "\u062C\u0647\u062F \u0645\u062A\u0628\u0642\u064D" : "effort still to do", colour: "var(--s2)" })}
+  ${kpi(openLeads, t.openLeads, { sub: `${leads.length} ${lang === "ar" ? "\u0641\u064A \u0627\u0644\u0642\u0627\u0626\u0645\u0629" : "in the list"}`, colour: "var(--s3)" })}
+  ${kpi(esc2(fmt(freeFrom, lang)), t.nextFree, { date: true, sub: lang === "ar" ? "\u062D\u062C\u0645 \u0645\u062A\u0648\u0633\u0637\u060C \u064A\u0628\u062F\u0623 \u0627\u0644\u064A\u0648\u0645" : "medium size, starting today", colour: "var(--s1)" })}
+</div>
+
+${deadlineChart(lang, open)}
+
 <section class="card">
   <div class="card__head">
     <h2>${esc2(t.projects)}</h2>
     <span class="muted small">${open.length} ${esc2(lang === "ar" ? "\u0645\u0641\u062A\u0648\u062D" : "open")} \xB7 ${projects.length} ${esc2(lang === "ar" ? "\u0625\u062C\u0645\u0627\u0644\u0627\u064B" : "total")}</span>
     <button class="btn btn--primary btn--sm" style="margin-inline-start:auto" data-act="go" data-route="#/new">${esc2(t.newProject)}</button>
   </div>
-  <table class="tbl">
-    <thead><tr>
-      <th>${esc2(t.name)}</th><th>${esc2(t.stages)}</th>
-      <th class="num">${esc2(t.estimate)}</th><th class="num">${esc2(t.due)}</th><th>${esc2(t.status)}</th>
-    </tr></thead>
-    <tbody>
-      ${open.slice(0, 60).map((p) => {
+  ${flagged ? `<div class="chipbar">
+    <button class="chip chip--btn is-on" data-rows="all">${esc2(t.allRows)} ${open.length}</button>
+    <button class="chip chip--btn" data-rows="flagged">${esc2(t.needsReview)} ${flagged}</button>
+  </div>` : ""}
+  <div class="tblwrap">
+    <table class="tbl">
+      <thead><tr>
+        <th>${esc2(t.name)}</th><th>${esc2(t.teamsCol)}</th>
+        ${anyEstimate ? `<th class="num">${esc2(t.estimate)}</th>` : ""}
+        <th class="num">${esc2(t.due)}</th><th>${esc2(t.status)}</th>
+      </tr></thead>
+      <tbody>
+        ${rows.map((p) => {
     const late = lateBy(p.due_on);
-    const stages = (p.project_stages || []).slice().sort((a, b) => a.sort - b.sort);
-    return `<tr>
-          <td>
-            <button class="link" data-act="go" data-route="#/p/${esc2(p.id)}">${esc2(p.name)}</button>
-            ${p.import_flags?.length ? `<span class="muted small block" title="${esc2(p.import_flags.join(", "))}">${esc2(t.flagged)}</span>` : ""}
-          </td>
-          <td class="small">${stages.map((s) => `<span class="pill" style="--c:${esc2(dept(s.department_id)?.colour || "#555")}">${esc2(deptName2(s.department_id, lang))}${s.status === "done" ? " \u2713" : ""}</span>`).join(" ")}</td>
-          <td class="num">${esc2(fmt(p.estimated_delivery, lang))}</td>
-          <td class="num ${late ? "bad" : "muted"}">${esc2(fmt(p.due_on, lang))}</td>
-          <td class="muted small">${esc2(p.status)}</td>
-        </tr>`;
+    const st = (p.project_stages || []).slice().sort((a, b) => a.sort - b.sort);
+    return `<tr${p.import_flags?.length ? ' data-flagged="1"' : ""}>
+            <td><button class="link" data-act="go" data-route="#/p/${esc2(p.id)}">${esc2(p.name)}</button></td>
+            <td class="small"><span class="stagecell">${st.map((s) => `<span class="pill" style="--c:${esc2(dept(s.department_id)?.colour || "#555")}">${esc2(deptName2(s.department_id, lang))}${s.status === "done" ? " \u2713" : ""}</span>`).join("")}</span></td>
+            ${anyEstimate ? `<td class="num">${esc2(fmt(p.estimated_delivery, lang))}</td>` : ""}
+            <td class="num ${late ? "bad" : "muted"}">${esc2(fmt(p.due_on, lang))}
+              ${late ? `<span class="block small">${late} ${esc2(t.overdue)}</span>` : ""}</td>
+            <td>${statusPill(p.status, lang)}</td>
+          </tr>`;
   }).join("")}
-    </tbody>
-  </table>
+      </tbody>
+    </table>
+  </div>
+  ${open.length > rows.length ? `<p class="note">${esc2(lang === "ar" ? `\u062A\u0639\u0631\u0636 ${rows.length} \u0645\u0646 ${open.length} \u0645\u0634\u0631\u0648\u0639\u0627\u064B \u0645\u0641\u062A\u0648\u062D\u0627\u064B. \u0627\u0633\u062A\u062E\u062F\u0645 \u0627\u0644\u0628\u062D\u062B \u0641\u064A \u0627\u0644\u0623\u0639\u0644\u0649 \u0644\u0644\u0648\u0635\u0648\u0644 \u0625\u0644\u0649 \u0627\u0644\u0628\u0642\u064A\u0629.` : `Showing ${rows.length} of ${open.length} open projects. Use the search above to reach the rest.`)}</p>` : ""}
 </section>`;
 }
 function newProjectView(lang, ctx2) {
@@ -22493,17 +22857,17 @@ function estimateBox(lang, est) {
   const t = DSTR[lang];
   if (!est) return "";
   const { real, naive } = est;
-  const gap = real.deliveryDate && naive.deliveryDate ? CAL2.countWorkingDays(parse(naive.deliveryDate), parse(real.deliveryDate)) : 0;
+  const gap = real.delivery && naive.delivery ? CAL2.countWorkingDays(parse(naive.delivery), parse(real.delivery)) : 0;
   return `
   <div class="est">
     <div class="est__side">
       <span class="est__k">${esc2(t.naive)}</span>
-      <span class="est__v">${esc2(fmt(naive.deliveryDate, lang))}</span>
+      <span class="est__v">${esc2(fmt(naive.delivery, lang))}</span>
     </div>
     <div class="est__arrow">\u2192</div>
     <div class="est__side est__side--real">
       <span class="est__k">${esc2(t.estimate)}</span>
-      <span class="est__v">${esc2(fmt(real.deliveryDate, lang))}</span>
+      <span class="est__v">${esc2(fmt(real.delivery, lang))}</span>
       ${gap > 0 ? `<span class="est__note small">${gap} ${esc2(t.workingDays)} ${esc2(t.queueDays)}</span>` : ""}
     </div>
   </div>`;
@@ -22522,10 +22886,11 @@ function leadsView(lang, ctx2) {
     <button class="btn btn--primary btn--sm" style="margin-inline-start:auto" data-act="newlead">${esc2(t.addLead)}</button>
   </div>
   <div class="stats">
-    ${STATUSES.map((s) => `<div class="stat"><span class="stat__n">${counts[s]}</span><span class="stat__l">${esc2(s)}</span></div>`).join("")}
+    ${STATUSES.map((s) => `<div class="stat"><span class="stat__n">${counts[s]}</span><span class="stat__l">${esc2(t.st[s] || s)}</span></div>`).join("")}
     <div class="stat${stale ? " stat--bad" : ""}"><span class="stat__n">${stale}</span><span class="stat__l">${esc2(t.overdue)}</span></div>
   </div>
   <div id="leadForm"></div>
+  <div class="tblwrap">
   <table class="tbl">
     <thead><tr>
       <th>${esc2(t.name)}</th><th>${esc2(t.company)}</th><th>${esc2(t.status)}</th>
@@ -22539,7 +22904,7 @@ function leadsView(lang, ctx2) {
           <td class="muted small">${esc2(l.company || l.source || "")}</td>
           <td>
             <select class="leadStatus btn--sm" data-lead="${esc2(l.id)}">
-              ${STATUSES.map((s) => `<option value="${s}"${s === l.status ? " selected" : ""}>${s}</option>`).join("")}
+              ${STATUSES.map((s) => `<option value="${s}"${s === l.status ? " selected" : ""}>${esc2(t.st[s] || s)}</option>`).join("")}
             </select>
           </td>
           <td class="num ${late ? "bad" : "muted"}">${esc2(fmt(l.next_follow_up_on, lang))}</td>
@@ -22549,6 +22914,7 @@ function leadsView(lang, ctx2) {
   }).join("")}
     </tbody>
   </table>
+  </div>
 </section>`;
 }
 var leadFormHtml = (lang, people) => {
@@ -22699,9 +23065,11 @@ async function loadFor(route) {
         ctx.stages = ps.flatMap((p) => (p.project_stages || []).map((s) => ({ ...s, project_id: p.id, project_name: p.name })));
       }));
     }
-    if (route === "leads" || me.department_id === "bd") {
+    if (route === "leads" || me.department_id === "bd" || wantsProjects) {
       jobs.push(listLeads().then((l) => {
         ctx.leads = l;
+      }).catch(() => {
+        ctx.leads = [];
       }));
       jobs.push(listPeople().then((p) => {
         ctx.people = p;
@@ -22771,6 +23139,16 @@ function wireAuth(lang) {
   };
 }
 function wireApp(lang) {
+  const chips = $$("[data-rows]");
+  chips.forEach((c) => c.onclick = () => {
+    chips.forEach((x) => x.classList.toggle("is-on", x === c));
+    const onlyFlagged = c.dataset.rows === "flagged";
+    $$(".tbl tbody tr").forEach((tr) => {
+      if (tr.dataset.empty) return;
+      tr.dataset.chipHidden = onlyFlagged && !tr.dataset.flagged ? "1" : "";
+      tr.hidden = !!tr.dataset.chipHidden || tr.dataset.searchHidden === "1";
+    });
+  });
   $$("[data-stage]").forEach((b) => b.onclick = async () => {
     b.disabled = true;
     try {
@@ -22934,10 +23312,10 @@ function wireNewProject(lang, form) {
         start_on: f.start || null,
         due_on: f.deadline,
         status: "in_design",
-        estimated_delivery: ctx.est?.real?.deliveryDate || null,
+        estimated_delivery: ctx.est?.real?.delivery || null,
         estimate_meta: ctx.est ? {
           computed_at: (/* @__PURE__ */ new Date()).toISOString(),
-          naive: ctx.est.naive?.deliveryDate || null,
+          naive: ctx.est.naive?.delivery || null,
           confidence: ctx.est.real?.confidence ?? null
         } : null
       });
@@ -23094,6 +23472,8 @@ var TEAM_COLOR = { "3d": "var(--s1)", "2d": "var(--s2)", content: "var(--s3)" };
 var S = {
   lang: "en",
   route: "#/",
+  q: "",
+  // the top-bar filter, kept across re-renders
   headcount: { "3d": 2, "2d": 2, content: 1 },
   pipeline: [],
   seq: 0,
@@ -23165,13 +23545,13 @@ function render() {
   const APP = ["home", "new", "leads", "docs", "admin"];
   if (APP.includes(r.name) && !state.session) {
     document.body.dataset.route = "signin";
-    $2("#root").innerHTML = header({ name: "signin" }) + signInView(S.lang, ctx.authMode, ctx.authMsg, ctx.authErr);
+    $2("#root").innerHTML = shell({ name: "signin" }, signInView(S.lang, ctx.authMode, ctx.authMsg, ctx.authErr));
     wireAuth(S.lang);
     wire();
     return;
   }
   const body = r.name === "signin" ? signInView(S.lang, ctx.authMode, ctx.authMsg, ctx.authErr) : APP.includes(r.name) ? appBody(S.lang, r.name) : r.name === "who" ? whoView(S.lang) : r.name === "profile" ? profileView(S.lang, r.id) : r.name === "pipeline" ? pipelineView(S.lang) : r.name === "estimate" ? estimatorBody() : landingView(S.lang);
-  $2("#root").innerHTML = header(r) + body;
+  $2("#root").innerHTML = shell(r, body);
   wire();
   if (r.name === "signin") wireAuth(S.lang);
   if (APP.includes(r.name)) wireApp(S.lang);
@@ -23184,7 +23564,13 @@ var estimatorBody = () => `
     </div>
     ${S.result ? timelineCard() : ""}`;
 function headTitle(r) {
-  const v = VSTR[S.lang];
+  const v = VSTR[S.lang], d = DSTR[S.lang];
+  if (r.name === "home") return { h1: d.home, sub: d.homeSub };
+  if (r.name === "new") return { h1: d.newProject, sub: "" };
+  if (r.name === "leads") return { h1: d.leads, sub: d.leadsSub };
+  if (r.name === "docs") return { h1: d.documents, sub: "" };
+  if (r.name === "admin") return { h1: d.people, sub: d.peopleSub };
+  if (r.name === "signin") return { h1: d.signIn, sub: "" };
   if (r.name === "estimate") return { h1: T().title, sub: T().sub };
   if (r.name === "who") return { h1: v.whoTitle, sub: "" };
   if (r.name === "pipeline") return { h1: v.pipeline, sub: "" };
@@ -23194,50 +23580,106 @@ function headTitle(r) {
   }
   return { h1: "expand", sub: v.brandLine };
 }
+var ICON = {
+  home: "M3 10.5 12 3l9 7.5M5.5 9.5V21h13V9.5",
+  plus: "M12 5v14M5 12h14",
+  users: "M16 20v-1.5a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4V20M9 10.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M22 20v-1.5a4 4 0 0 0-3-3.9M16 3.6a4 4 0 0 1 0 7.7",
+  doc: "M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M9 13h6M9 17h4",
+  team: "M17 20v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M10 10a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M21 20v-2a4 4 0 0 0-3-3.9",
+  chart: "M4 20V10M10 20V4M16 20v-7M22 20H2",
+  spark: "M12 3v3M12 18v3M4.2 7.2l2.1 2.1M17.7 17.7l2.1 2.1M3 12h3M18 12h3M4.2 16.8l2.1-2.1M17.7 6.3l2.1-2.1",
+  board: "M4 4h6v7H4zM14 4h6v11h-6zM4 15h6v5H4zM14 19h6v1h-6z",
+  search: "M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM21 21l-4.3-4.3"
+};
+var icon = (n) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${ICON[n]}"/></svg>`;
 var PUBLIC_NAV = [
-  { route: "#/who", label: () => VSTR[S.lang].whoTitle },
-  { route: "#/pipeline", label: () => VSTR[S.lang].pipeline },
-  { route: "#/estimate", label: () => VSTR[S.lang].openEstimator }
+  { group: "product", route: "#/who", icon: "team", label: () => VSTR[S.lang].whoTitle },
+  { group: "product", route: "#/pipeline", icon: "board", label: () => VSTR[S.lang].pipeline },
+  { group: "product", route: "#/estimate", icon: "spark", label: () => VSTR[S.lang].openEstimator }
 ];
 function appNav() {
   const me = state.me, d = DSTR[S.lang];
   if (!me) return [];
-  const items = [{ route: "#/home", label: () => d.home }];
+  const items = [{ group: "work", route: "#/home", icon: "home", label: () => d.home }];
   if (me.department_id === "pm" || ["admin", "manager"].includes(me.role)) {
-    items.push({ route: "#/new", label: () => d.newProject });
+    items.push({ group: "work", route: "#/new", icon: "plus", label: () => d.newProject });
   }
-  items.push({ route: "#/leads", label: () => d.leads });
-  items.push({ route: "#/docs", label: () => d.documents });
-  if (me.role === "admin") items.push({ route: "#/admin", label: () => d.people });
+  items.push({ group: "work", route: "#/leads", icon: "users", label: () => d.leads });
+  items.push({ group: "work", route: "#/docs", icon: "doc", label: () => d.documents });
+  items.push({ group: "insight", route: "#/estimate", icon: "spark", label: () => VSTR[S.lang].openEstimator });
+  items.push({ group: "insight", route: "#/pipeline", icon: "board", label: () => VSTR[S.lang].pipeline });
+  if (me.role === "admin") items.push({ group: "workspace", route: "#/admin", icon: "team", label: () => d.people });
   return items;
 }
-function header(r) {
-  const { h1, sub } = headTitle(r);
-  const v = VSTR[S.lang];
+var GROUP_LABEL = {
+  en: { product: "Product", work: "Work", insight: "Insight", workspace: "Workspace" },
+  ar: { product: "\u0627\u0644\u0645\u0646\u062A\u062C", work: "\u0627\u0644\u0639\u0645\u0644", insight: "\u0627\u0644\u062A\u062D\u0644\u064A\u0644", workspace: "\u0645\u0633\u0627\u062D\u0629 \u0627\u0644\u0639\u0645\u0644" }
+};
+function isOn(route) {
+  const h = location.hash || "#/";
+  return h === route || h.startsWith(route + "/");
+}
+function sidebar() {
+  const items = state.session ? appNav() : PUBLIC_NAV;
+  const me = state.me;
+  const groups = [];
+  for (const it of items) {
+    const g = groups.find((x) => x.key === it.group);
+    (g || groups[groups.push({ key: it.group, items: [] }) - 1]).items.push(it);
+  }
   return `
-  <header class="head">
-    <button class="brand" data-act="go" data-route="#/" aria-label="expand \u2014 home">
+  <aside class="side">
+    <button class="side__brand" data-act="go" data-route="#/" aria-label="expand \u2014 home">
       <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true">
         <circle cx="7" cy="12" r="5.4" fill="none" stroke="var(--brand)" stroke-width="2.4"/>
-        <rect x="4.4" y="10.6" width="5.2" height="2.8" fill="var(--bg)"/>
+        <rect x="4.4" y="10.6" width="5.2" height="2.8" fill="var(--s-1)"/>
         <circle cx="7" cy="12" r="1.6" fill="var(--brand)"/>
       </svg>
       <span class="wordmark">expand</span>
     </button>
-    <span class="sep"></span>
+
+    ${groups.map((g) => `
+      <div class="side__label">${esc3(GROUP_LABEL[S.lang][g.key] || g.key)}</div>
+      <nav class="side__nav">
+        ${g.items.map((n) => `
+          <button class="navbtn${isOn(n.route) ? " is-on" : ""}" data-act="go" data-route="${n.route}">
+            ${icon(n.icon)}<span>${esc3(n.label())}</span>
+          </button>`).join("")}
+      </nav>`).join("")}
+
+    <div class="side__foot${me ? "" : " side__foot--cta"}">
+      ${me ? `
+        <div class="mecard">
+          <span class="ava">${esc3((me.full_name || me.email || "?").trim().slice(0, 1).toUpperCase())}</span>
+          <span class="mecard__t">
+            <span class="mecard__n">${esc3(me.full_name || me.email || "")}</span>
+            <span class="mecard__r">${esc3(me.role || "")}</span>
+          </span>
+        </div>` : `<button class="btn btn--primary" style="width:100%" data-act="go" data-route="#/signin">${esc3(DSTR[S.lang].signIn)}</button>`}
+    </div>
+  </aside>`;
+}
+var SEARCHABLE = ["home", "leads", "docs", "admin"];
+function topbar(r) {
+  const { h1, sub } = headTitle(r);
+  const d = DSTR[S.lang];
+  return `
+  <header class="head">
     <div class="headtext"><div class="h1">${esc3(h1)}</div>${sub ? `<div class="sub">${esc3(sub)}</div>` : ""}</div>
-    <nav class="nav">
-      ${(state.session ? appNav() : PUBLIC_NAV).map((n) => `<button class="navbtn${location.hash.startsWith(n.route) ? " is-on" : ""}"
-        data-act="go" data-route="${n.route}">${esc3(n.label ? n.label() : v[n.key])}</button>`).join("")}
-    </nav>
+    ${SEARCHABLE.includes(r.name) ? `
+    <div class="search">
+      ${icon("search")}
+      <input id="q" type="search" autocomplete="off" placeholder="${esc3(d.searchPlaceholder)}" value="${esc3(S.q)}" />
+    </div>` : ""}
     <div class="head__actions">
-      ${state.me ? `<span class="whoami small muted">${esc3(state.me.full_name || state.me.email || "")}</span>` : ""}
       ${r.name === "estimate" ? `<button class="btn btn--ghost" data-act="reset">${esc3(T().reset)}</button>` : ""}
-      ${state.session ? `<button class="btn btn--ghost" data-act="signout">${esc3(DSTR[S.lang].signOut)}</button>` : `<button class="btn btn--primary btn--sm" data-act="go" data-route="#/signin">${esc3(DSTR[S.lang].signIn)}</button>`}
+      ${state.session ? `<button class="btn btn--ghost" data-act="signout">${esc3(d.signOut)}</button>` : `<button class="btn btn--primary btn--sm" data-act="go" data-route="#/signin">${esc3(d.signIn)}</button>`}
       <button class="btn btn--lang" data-act="lang">${S.lang === "en" ? "\u0627\u0644\u0639\u0631\u0628\u064A\u0629" : "English"}</button>
     </div>
   </header>`;
 }
+var shell = (r, body) => sidebar() + `<div class="main">${topbar(r)}<div class="page">${body}</div></div>`;
 function teamsCard() {
   return `
   <section class="card">
@@ -23478,6 +23920,14 @@ function wire() {
   document.querySelectorAll('[data-act="go"]').forEach((b) => b.onclick = () => {
     location.hash = b.dataset.route;
   });
+  const q = $2("#q");
+  if (q) {
+    q.oninput = () => {
+      S.q = q.value;
+      applyFilter();
+    };
+    applyFilter();
+  }
   const act = (name, fn) => {
     const el = document.querySelector(`[data-act="${name}"]`);
     if (el) el.onclick = fn;
@@ -23504,6 +23954,28 @@ function wire() {
     S.pipeline.push({ id: `p${++S.seq}`, ...f });
     if (S.result) estimate(false);
     else render();
+  });
+}
+function applyFilter() {
+  const needle = S.q.trim().toLowerCase();
+  document.querySelectorAll(".tbl tbody").forEach((body) => {
+    let shown = 0;
+    body.querySelectorAll("tr").forEach((tr) => {
+      if (tr.dataset.empty) return;
+      const hit = !needle || tr.textContent.toLowerCase().includes(needle);
+      tr.dataset.searchHidden = hit ? "" : "1";
+      tr.hidden = !hit || tr.dataset.chipHidden === "1";
+      if (hit) shown++;
+    });
+    let none = body.querySelector("tr[data-empty]");
+    if (!none) {
+      none = document.createElement("tr");
+      none.dataset.empty = "1";
+      none.innerHTML = `<td class="tbl__empty" colspan="9"></td>`;
+      body.appendChild(none);
+    }
+    none.firstElementChild.textContent = S.lang === "ar" ? `\u0644\u0627 \u0646\u062A\u0627\u0626\u062C \u0644\u0640 "${S.q}"` : `Nothing matches \u201C${S.q}\u201D`;
+    none.hidden = shown > 0 || !needle;
   });
 }
 var readForm = () => ({
