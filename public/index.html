@@ -22727,13 +22727,15 @@ function pmView(lang, ctx2) {
   const stages = open.flatMap((p) => p.project_stages || []);
   const liveStages = stages.filter((s) => s.status !== "done");
   const unassigned = liveStages.filter((s) => !s.assignee_id).length;
-  const committed = Math.round(liveStages.reduce((sum, s) => sum + (Number(s.effort_days) || 0), 0));
+  const effortOf = (s) => Number(s.effort_days) || Number(dept(s.department_id)?.base_days) || 0;
+  const committed = Math.round(liveStages.reduce((sum, s) => sum + effortOf(s), 0));
+  const unpriced = liveStages.filter((s) => !effortOf(s)).length;
   const leads = ctx2.leads || [];
   const openLeads = leads.filter((l) => !["won", "lost"].includes(l.status)).length;
   let freeFrom = null;
   try {
     const { sched } = buildScheduler(ctx2.people || [], liveStages);
-    const probeStages = (state.departments || []).filter((d) => d.is_stage).map((d) => d.id);
+    const probeStages = (state.departments || []).filter((d) => d.is_stage && Number(d.base_days) > 0).filter((d) => (ctx2.people || []).some((p) => p.department_id === d.id)).map((d) => d.id);
     if (probeStages.length) {
       const { real } = estimateFor(sched, {
         name: "probe",
@@ -22755,7 +22757,10 @@ function pmView(lang, ctx2) {
   ${kpi(open.length, t.openProjects, { sub: `${projects.length} ${lang === "ar" ? "\u0625\u062C\u0645\u0627\u0644\u0627\u064B" : "in total"}`, colour: "var(--brand)" })}
   ${kpi(overdue, t.overdue_, { bad: overdue > 0, sub: lang === "ar" ? "\u062A\u062C\u0627\u0648\u0632\u062A \u0645\u0648\u0639\u062F \u0627\u0644\u062A\u0642\u062F\u064A\u0645" : "past their deadline", colour: "var(--critical)" })}
   ${kpi(unassigned, t.unassigned_, { sub: `${liveStages.length} ${lang === "ar" ? "\u0645\u0631\u062D\u0644\u0629 \u0645\u0641\u062A\u0648\u062D\u0629" : "open stages"}`, colour: "var(--warn)" })}
-  ${kpi(committed, t.committedDays, { sub: lang === "ar" ? "\u062C\u0647\u062F \u0645\u062A\u0628\u0642\u064D" : "effort still to do", colour: "var(--s2)" })}
+  ${kpi(committed, t.committedDays, {
+    colour: "var(--s2)",
+    sub: unpriced ? `${unpriced} ${lang === "ar" ? "\u0645\u0631\u062D\u0644\u0629 \u0628\u0644\u0627 \u0631\u0642\u0645 \u062C\u0647\u062F" : "stages have no effort figure"}` : lang === "ar" ? "\u062C\u0647\u062F \u0645\u062A\u0628\u0642\u064D" : "effort still to do"
+  })}
   ${kpi(openLeads, t.openLeads, { sub: `${leads.length} ${lang === "ar" ? "\u0641\u064A \u0627\u0644\u0642\u0627\u0626\u0645\u0629" : "in the list"}`, colour: "var(--s3)" })}
   ${kpi(esc2(fmt(freeFrom, lang)), t.nextFree, { date: true, sub: lang === "ar" ? "\u062D\u062C\u0645 \u0645\u062A\u0648\u0633\u0637\u060C \u064A\u0628\u062F\u0623 \u0627\u0644\u064A\u0648\u0645" : "medium size, starting today", colour: "var(--s1)" })}
 </div>
