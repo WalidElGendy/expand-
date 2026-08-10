@@ -508,6 +508,10 @@ select.btn--sm { height: 28px; padding: 0 6px; background: var(--s-2); border: 1
 .kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
 @media (max-width: 1500px) { .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 760px)  { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* Eight tiles want four across, not six-plus-an-orphan. */
+.kpis--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 1180px) { .kpis--4 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 760px)  { .kpis--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .kpi {
   background: var(--s-1); border: 1px solid var(--line); border-radius: var(--r);
   padding: 14px 16px; display: grid; gap: 3px; align-content: start; min-width: 0;
@@ -22336,6 +22340,7 @@ var DSTR = {
     needsReview: "Needs review",
     allRows: "All",
     teamsCol: "Teams",
+    overdueFollow: "Follow-ups overdue",
     deadlineChart: "Deadlines by month",
     deadlineNote: "Open projects grouped by submission deadline. The dashed line is today, so everything to its left is already late.",
     noneYet: "Nothing here yet.",
@@ -22450,6 +22455,7 @@ var DSTR = {
     needsReview: "\u062A\u062D\u062A\u0627\u062C \u0645\u0631\u0627\u062C\u0639\u0629",
     allRows: "\u0627\u0644\u0643\u0644",
     teamsCol: "\u0627\u0644\u0641\u0631\u0642",
+    overdueFollow: "\u0645\u062A\u0627\u0628\u0639\u0627\u062A \u0645\u062A\u0623\u062E\u0631\u0629",
     deadlineChart: "\u0627\u0644\u0645\u0648\u0627\u0639\u064A\u062F \u062D\u0633\u0628 \u0627\u0644\u0634\u0647\u0631",
     deadlineNote: "\u0627\u0644\u0645\u0634\u0627\u0631\u064A\u0639 \u0627\u0644\u0645\u0641\u062A\u0648\u062D\u0629 \u0645\u062C\u0645\u0651\u0639\u0629 \u062D\u0633\u0628 \u0645\u0648\u0639\u062F \u0627\u0644\u062A\u0642\u062F\u064A\u0645. \u0627\u0644\u062E\u0637 \u0627\u0644\u0645\u062A\u0642\u0637\u0639 \u0647\u0648 \u0627\u0644\u064A\u0648\u0645\u060C \u0648\u0643\u0644 \u0645\u0627 \u0639\u0644\u0649 \u064A\u0633\u0627\u0631\u0647 \u0645\u062A\u0623\u062E\u0631 \u0628\u0627\u0644\u0641\u0639\u0644.",
     noneYet: "\u0644\u0627 \u0634\u064A\u0621 \u0647\u0646\u0627 \u0628\u0639\u062F.",
@@ -22883,16 +22889,30 @@ function leadsView(lang, ctx2) {
   const STATUSES = ["new", "contacted", "qualified", "proposal", "won", "lost"];
   const counts = Object.fromEntries(STATUSES.map((s) => [s, leads.filter((l) => l.status === s).length]));
   const stale = leads.filter((l) => l.status !== "won" && l.status !== "lost" && lateBy(l.next_follow_up_on)).length;
+  const open = leads.filter((l) => !["won", "lost"].includes(l.status)).length;
+  const share = (n) => leads.length ? `${Math.round(n / leads.length * 100)}% ${lang === "ar" ? "\u0645\u0646 \u0627\u0644\u0642\u0627\u0626\u0645\u0629" : "of the list"}` : "";
   return `
+<div class="kpis kpis--4">
+  ${kpi(open, t.openLeads, {
+    colour: "var(--brand)",
+    sub: `${leads.length} ${lang === "ar" ? "\u0641\u064A \u0627\u0644\u0642\u0627\u0626\u0645\u0629" : "in the list"}`
+  })}
+  ${kpi(stale, t.overdueFollow, {
+    bad: stale > 0,
+    colour: "var(--critical)",
+    sub: lang === "ar" ? "\u0645\u0648\u0639\u062F \u0627\u0644\u0645\u062A\u0627\u0628\u0639\u0629 \u0641\u0627\u062A" : "follow-up date has passed"
+  })}
+  ${STATUSES.map((s) => kpi(counts[s], t.st[s] || s, {
+    colour: ST_COLOUR[s] || "var(--ink3)",
+    sub: share(counts[s])
+  })).join("")}
+</div>
+
 <section class="card">
   <div class="card__head">
     <h2>${esc2(t.leads)}</h2>
     <span class="muted small">${leads.length}</span>
     <button class="btn btn--primary btn--sm" style="margin-inline-start:auto" data-act="newlead">${esc2(t.addLead)}</button>
-  </div>
-  <div class="stats">
-    ${STATUSES.map((s) => `<div class="stat"><span class="stat__n">${counts[s]}</span><span class="stat__l">${esc2(t.st[s] || s)}</span></div>`).join("")}
-    <div class="stat${stale ? " stat--bad" : ""}"><span class="stat__n">${stale}</span><span class="stat__l">${esc2(t.overdue)}</span></div>
   </div>
   <div id="leadForm"></div>
   <div class="tblwrap">
