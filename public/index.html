@@ -587,6 +587,58 @@ select.btn--sm { height: 28px; padding: 0 6px; background: var(--s-2); border: 1
 .inlineform, .projform { padding: 16px; border-bottom: 1px solid var(--line); display: grid; gap: 4px; }
 .projform { border-bottom: 0; }
 
+/* ------------------------------ the uploader ------------------------------
+   One column, top to bottom: title, then the description under it, then the
+   file picker, then the button on the trailing edge where the eye finishes.
+   The two fields used to sit side by side, which pushed the description off
+   the page on anything narrower than a desktop. */
+.uploader {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px 18px; padding: 18px 16px; max-width: 1000px;
+  border-bottom: 1px solid var(--line);
+}
+.uploader .f input, .uploader .f textarea { width: 100%; }
+/* Title over description on the left, the drop target filling the height
+   beside them, and the button on the trailing edge of the whole form. Left
+   to itself the button floated in the middle of an empty card. */
+.uploader > .f:nth-of-type(1) { grid-area: 1 / 1; }
+.uploader > .f:nth-of-type(2) { grid-area: 2 / 1; }
+.uploader > .drop {
+  grid-area: 1 / 2 / 3 / 3;
+  flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; gap: 10px; padding: 24px 20px;
+}
+.uploader > .drop .drop__ico { width: 26px; height: 26px; }
+.uploader > .actions { grid-column: 1 / -1; }
+@media (max-width: 900px) {
+  .uploader { grid-template-columns: minmax(0, 1fr); }
+  .uploader > .f:nth-of-type(1), .uploader > .f:nth-of-type(2),
+  .uploader > .drop { grid-area: auto; }
+  /* Back to a compact row once it is not filling a tall column. */
+  .uploader > .drop { flex-direction: row; text-align: start; padding: 15px 16px; }
+}
+
+.drop {
+  display: flex; align-items: center; gap: 14px; padding: 15px 16px;
+  border: 1px dashed var(--line2); border-radius: var(--r); background: var(--s-2);
+  cursor: pointer; transition: border-color .14s, background .14s;
+}
+.drop:hover { border-color: var(--brand); background: var(--s-3); }
+.drop__ico { width: 22px; height: 22px; flex: none; color: var(--brand); }
+.drop__t { display: grid; gap: 2px; min-width: 0; }
+.drop__t b { font-size: 13px; font-weight: 600; }
+.drop__h { font-size: 11.5px; color: var(--ink3); line-height: 1.5; }
+/* Visually hidden, still focusable and still the thing the label activates. */
+.drop input[type="file"] {
+  position: absolute; width: 1px; height: 1px; padding: 0;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.drop:has(input:focus-visible) { border-color: var(--brand); border-style: solid; }
+.drop.is-set { border-style: solid; border-color: color-mix(in srgb, var(--brand) 55%, transparent); }
+.drop.is-set .drop__h { color: var(--ink2); }
+
+.actions--end { justify-content: flex-end; margin-top: 0; }
+
 .stagepick { display: grid; gap: 8px; }
 .stagepick__row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .chk { display: flex; align-items: center; gap: 9px; flex: 1; min-width: 240px; font-size: 13px; }
@@ -22341,6 +22393,12 @@ var DSTR = {
     allRows: "All",
     teamsCol: "Teams",
     overdueFollow: "Follow-ups overdue",
+    titleHint: "What is this document called?",
+    descHint: "What is it for, and who should read it? Optional.",
+    dropHint: "PDF, Word, PowerPoint, Excel or images. You can pick several at once.",
+    filesPicked: "files selected",
+    filePicked: "file selected",
+    noDocsYet: "No documents yet. The first upload appears here.",
     deadlineChart: "Deadlines by month",
     deadlineNote: "Open projects grouped by submission deadline. The dashed line is today, so everything to its left is already late.",
     noneYet: "Nothing here yet.",
@@ -22456,6 +22514,12 @@ var DSTR = {
     allRows: "\u0627\u0644\u0643\u0644",
     teamsCol: "\u0627\u0644\u0641\u0631\u0642",
     overdueFollow: "\u0645\u062A\u0627\u0628\u0639\u0627\u062A \u0645\u062A\u0623\u062E\u0631\u0629",
+    titleHint: "\u0645\u0627 \u0627\u0633\u0645 \u0647\u0630\u0627 \u0627\u0644\u0645\u0633\u062A\u0646\u062F\u061F",
+    descHint: "\u0645\u0627 \u0627\u0644\u063A\u0631\u0636 \u0645\u0646\u0647\u060C \u0648\u0645\u0646 \u064A\u062C\u0628 \u0623\u0646 \u064A\u0642\u0631\u0623\u0647\u061F \u0627\u062E\u062A\u064A\u0627\u0631\u064A.",
+    dropHint: "PDF \u0623\u0648 \u0648\u0648\u0631\u062F \u0623\u0648 \u0628\u0627\u0648\u0631\u0628\u0648\u064A\u0646\u062A \u0623\u0648 \u0625\u0643\u0633\u0644 \u0623\u0648 \u0635\u0648\u0631. \u064A\u0645\u0643\u0646 \u0627\u062E\u062A\u064A\u0627\u0631 \u0639\u062F\u0629 \u0645\u0644\u0641\u0627\u062A.",
+    filesPicked: "\u0645\u0644\u0641\u0627\u062A \u0645\u062E\u062A\u0627\u0631\u0629",
+    filePicked: "\u0645\u0644\u0641 \u0645\u062E\u062A\u0627\u0631",
+    noDocsYet: "\u0644\u0627 \u062A\u0648\u062C\u062F \u0645\u0633\u062A\u0646\u062F\u0627\u062A \u0628\u0639\u062F. \u0623\u0648\u0644 \u0631\u0641\u0639 \u0633\u064A\u0638\u0647\u0631 \u0647\u0646\u0627.",
     deadlineChart: "\u0627\u0644\u0645\u0648\u0627\u0639\u064A\u062F \u062D\u0633\u0628 \u0627\u0644\u0634\u0647\u0631",
     deadlineNote: "\u0627\u0644\u0645\u0634\u0627\u0631\u064A\u0639 \u0627\u0644\u0645\u0641\u062A\u0648\u062D\u0629 \u0645\u062C\u0645\u0651\u0639\u0629 \u062D\u0633\u0628 \u0645\u0648\u0639\u062F \u0627\u0644\u062A\u0642\u062F\u064A\u0645. \u0627\u0644\u062E\u0637 \u0627\u0644\u0645\u062A\u0642\u0637\u0639 \u0647\u0648 \u0627\u0644\u064A\u0648\u0645\u060C \u0648\u0643\u0644 \u0645\u0627 \u0639\u0644\u0649 \u064A\u0633\u0627\u0631\u0647 \u0645\u062A\u0623\u062E\u0631 \u0628\u0627\u0644\u0641\u0639\u0644.",
     noneYet: "\u0644\u0627 \u0634\u064A\u0621 \u0647\u0646\u0627 \u0628\u0639\u062F.",
@@ -22967,27 +23031,48 @@ function docsView(lang, ctx2) {
   return `
 <section class="card">
   <div class="card__head"><h2>${esc2(t.library)}</h2><span class="muted small">${files.length}</span></div>
-  <form id="docForm" class="inlineform">
-    <div class="fields">
-      <label class="f"><span>${esc2(t.title)}</span><input id="dTitle" /></label>
-      <label class="f"><span>${esc2(t.description)}</span><input id="dDesc" /></label>
-      <label class="f f--wide"><span>${esc2(t.dropHere)}</span>
-        <input id="dFiles" type="file" multiple
-               accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip,image/*" required /></label>
+  <form id="docForm" class="uploader">
+    <label class="f"><span>${esc2(t.title)}</span>
+      <input id="dTitle" autocomplete="off" placeholder="${esc2(t.titleHint)}" /></label>
+    <label class="f"><span>${esc2(t.description)}</span>
+      <textarea id="dDesc" rows="3" placeholder="${esc2(t.descHint)}"></textarea></label>
+
+    <!-- The native file control cannot be styled, so it is visually hidden
+         and the label is the target. It stays in the tab order and keeps its
+         focus ring, so this is a restyle rather than a reimplementation. -->
+    <label class="drop" for="dFiles">
+      <svg class="drop__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 16V4M8 8l4-4 4 4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+      </svg>
+      <span class="drop__t">
+        <b>${esc2(t.dropHere)}</b>
+        <span class="drop__h" id="dNames">${esc2(t.dropHint)}</span>
+      </span>
+      <input id="dFiles" type="file" multiple
+             accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip,image/*" required />
+    </label>
+
+    <div class="actions actions--end">
+      <button class="btn btn--primary" type="submit">${esc2(t.upload)}</button>
     </div>
-    <div class="actions"><button class="btn btn--primary" type="submit">${esc2(t.upload)}</button></div>
   </form>
-  <table class="tbl">
-    <thead><tr><th>${esc2(t.name)}</th><th>${esc2(t.title)}</th><th class="num">${esc2(lang === "ar" ? "\u0627\u0644\u062D\u062C\u0645" : "Size")}</th><th></th></tr></thead>
-    <tbody>
-      ${files.map((f) => `<tr>
-        <td>${esc2(f.filename)}<span class="muted small block">${esc2(f.uploader?.full_name || "")}</span></td>
-        <td class="muted small">${esc2(f.title || "")}</td>
-        <td class="num muted small">${f.size_bytes ? (f.size_bytes / 1048576).toFixed(1) + " MB" : "\u2014"}</td>
-        <td class="num"><button class="link small" data-open="${esc2(f.id)}">${esc2(lang === "ar" ? "\u0641\u062A\u062D" : "Open")}</button></td>
-      </tr>`).join("")}
-    </tbody>
-  </table>
+
+  <div class="tblwrap">
+    <table class="tbl">
+      <thead><tr><th>${esc2(t.name)}</th><th>${esc2(t.title)}</th><th class="num">${esc2(lang === "ar" ? "\u0627\u0644\u062D\u062C\u0645" : "Size")}</th><th></th></tr></thead>
+      <tbody>
+        ${files.length ? files.map((f) => `<tr>
+          <td>${esc2(f.filename)}<span class="muted small block">${esc2(f.uploader?.full_name || "")}</span></td>
+          <td class="muted small">${esc2(f.title || "")}</td>
+          <!-- dir=ltr because bidi reorders "4.0 MB" into "MB 4.0" in an
+               Arabic paragraph; the unit belongs after the number. -->
+          <td class="num muted small" dir="ltr">${f.size_bytes ? (f.size_bytes / 1048576).toFixed(1) + " MB" : "\u2014"}</td>
+          <td class="num"><button class="link small" data-open="${esc2(f.id)}">${esc2(lang === "ar" ? "\u0641\u062A\u062D" : "Open")}</button></td>
+        </tr>`).join("") : `<tr><td class="tbl__empty" colspan="4">${esc2(t.noDocsYet)}</td></tr>`}
+      </tbody>
+    </table>
+  </div>
 </section>`;
 }
 function adminView(lang, ctx2) {
@@ -23230,6 +23315,15 @@ function wireApp(lang) {
       fail(e);
     }
   });
+  const dFiles = $("#dFiles"), dNames = $("#dNames");
+  if (dFiles && dNames) {
+    const hint = dNames.textContent;
+    dFiles.onchange = () => {
+      const picked = [...dFiles.files];
+      dFiles.closest(".drop")?.classList.toggle("is-set", picked.length > 0);
+      dNames.textContent = !picked.length ? hint : picked.length === 1 ? picked[0].name : `${picked.length} ${DSTR[lang].filesPicked} \u2014 ${picked.map((f) => f.name).join(", ")}`;
+    };
+  }
   const df = $("#docForm");
   if (df) df.onsubmit = async (e) => {
     e.preventDefault();
