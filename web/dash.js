@@ -64,6 +64,9 @@ export const DSTR = {
     dropHint: 'PDF, Word, PowerPoint, Excel or images. You can pick several at once.',
     filesPicked: 'files selected', filePicked: 'file selected',
     noDocsYet: 'No documents yet. The first upload appears here.',
+    attachments: 'Attachments',
+    rfpHint: 'The brief you were sent. PDF, Word, Excel or a zip.',
+    refsHint: 'Photos, moodboards, anything the designers should look at first.',
     deadlineChart: 'Deadlines by month', deadlineNote: 'Open projects grouped by submission deadline. The dashed line is today, so everything to its left is already late.',
     noneYet: 'Nothing here yet.', today_: 'today',
     st: { in_design: 'In design', submitted: 'Submitted', won: 'Won', lost: 'Lost',
@@ -114,6 +117,9 @@ export const DSTR = {
     dropHint: 'PDF أو وورد أو باوربوينت أو إكسل أو صور. يمكن اختيار عدة ملفات.',
     filesPicked: 'ملفات مختارة', filePicked: 'ملف مختار',
     noDocsYet: 'لا توجد مستندات بعد. أول رفع سيظهر هنا.',
+    attachments: 'المرفقات',
+    rfpHint: 'الكراسة التي وصلتك. PDF أو وورد أو إكسل أو ملف مضغوط.',
+    refsHint: 'صور أو لوحات إلهام، أي شيء يجب أن يراه المصممون أولاً.',
     deadlineChart: 'المواعيد حسب الشهر', deadlineNote: 'المشاريع المفتوحة مجمّعة حسب موعد التقديم. الخط المتقطع هو اليوم، وكل ما على يساره متأخر بالفعل.',
     noneYet: 'لا شيء هنا بعد.', today_: 'اليوم',
     st: { in_design: 'قيد التصميم', submitted: 'مُقدَّم', won: 'مكسوب', lost: 'خاسر',
@@ -174,6 +180,29 @@ export function statusPill(status, lang) {
   if (!status) return '';
   const label = DSTR[lang].st[status] || String(status).replace(/_/g, ' ');
   return `<span class="st" style="--c:${ST_COLOUR[status] || 'var(--ink3)'}"><i></i>${esc(label)}</span>`;
+}
+
+/* ------------------------------------------------------------- file picker
+   The native file input cannot be styled and its "No file chosen" text is
+   not translatable, so every upload on the product used to look like a raw
+   OS control dropped into a dark page. This renders the same input visually
+   hidden — still focusable, still what the label activates — behind a target
+   that says what it takes. controller.js fills the hint with the chosen file
+   names, which the hidden control can no longer do for itself. */
+export function dropField(id, title, hint, { accept = '', multiple = false, required = false, tall = false } = {}) {
+  return `
+  <label class="drop${tall ? ' drop--tall' : ''}" for="${esc(id)}">
+    <svg class="drop__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M12 16V4M8 8l4-4 4 4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+    </svg>
+    <span class="drop__t">
+      <b>${esc(title)}</b>
+      <span class="drop__h" data-hint>${esc(hint)}</span>
+    </span>
+    <input id="${esc(id)}" type="file"${multiple ? ' multiple' : ''}${required ? ' required' : ''}
+           accept="${esc(accept)}" />
+  </label>`;
 }
 
 /* --------------------------------------------------------------- KPI tiles */
@@ -593,12 +622,10 @@ export function newProjectView(lang, ctx) {
         </div>`).join('')}
     </div>
 
-    <h3 class="subhead">${esc(t.rfp)} · ${esc(t.refs)}</h3>
-    <div class="fields">
-      <label class="f"><span>${esc(t.rfp)}</span>
-        <input id="pRfp" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.txt" /></label>
-      <label class="f"><span>${esc(t.refs)}</span>
-        <input id="pRefs" type="file" accept="image/*,.pdf" multiple /></label>
+    <h3 class="subhead">${esc(t.attachments)}</h3>
+    <div class="dropgrid">
+      ${dropField('pRfp', t.rfp, t.rfpHint, { accept: '.pdf,.doc,.docx,.xls,.xlsx,.zip,.txt', tall: true })}
+      ${dropField('pRefs', t.refs, t.refsHint, { accept: 'image/*,.pdf', multiple: true, tall: true })}
     </div>
 
     <div id="estBox" class="estbox"></div>
@@ -731,21 +758,10 @@ export function docsView(lang, ctx) {
     <label class="f"><span>${esc(t.description)}</span>
       <textarea id="dDesc" rows="3" placeholder="${esc(t.descHint)}"></textarea></label>
 
-    <!-- The native file control cannot be styled, so it is visually hidden
-         and the label is the target. It stays in the tab order and keeps its
-         focus ring, so this is a restyle rather than a reimplementation. -->
-    <label class="drop" for="dFiles">
-      <svg class="drop__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
-           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M12 16V4M8 8l4-4 4 4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
-      </svg>
-      <span class="drop__t">
-        <b>${esc(t.dropHere)}</b>
-        <span class="drop__h" id="dNames">${esc(t.dropHint)}</span>
-      </span>
-      <input id="dFiles" type="file" multiple
-             accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip,image/*" required />
-    </label>
+    ${dropField('dFiles', t.dropHere, t.dropHint, {
+      accept: '.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip,image/*',
+      multiple: true, required: true, tall: true,
+    })}
 
     <div class="actions actions--end">
       <button class="btn btn--primary" type="submit">${esc(t.upload)}</button>

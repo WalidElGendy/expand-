@@ -188,21 +188,25 @@ export function wireApp(lang) {
     catch (e) { fail(e); }
   });
 
-  /* --- documents --- */
-  /* The native control's own "No file chosen" is hidden with it, so the label
-     has to say what was picked. Without this the dropzone looks identical
-     before and after choosing a file, and people click it twice. */
-  const dFiles = $('#dFiles'), dNames = $('#dNames');
-  if (dFiles && dNames) {
-    const hint = dNames.textContent;
-    dFiles.onchange = () => {
-      const picked = [...dFiles.files];
-      dFiles.closest('.drop')?.classList.toggle('is-set', picked.length > 0);
-      dNames.textContent = !picked.length ? hint
+  /* --- file pickers, wherever they appear ---
+     The native control's own "No file chosen" is hidden along with it, so the
+     label has to say what was picked. Without this the target looks identical
+     before and after choosing and people click it twice. Bound by class so
+     every screen that uses dropField() gets it — the documents library and
+     the two on the new-project form alike. */
+  $$('.drop input[type="file"]').forEach(input => {
+    const drop = input.closest('.drop');
+    const hintEl = drop?.querySelector('[data-hint]');
+    if (!hintEl) return;
+    const hint = hintEl.textContent;
+    input.onchange = () => {
+      const picked = [...input.files];
+      drop.classList.toggle('is-set', picked.length > 0);
+      hintEl.textContent = !picked.length ? hint
         : picked.length === 1 ? picked[0].name
         : `${picked.length} ${V.DSTR[lang].filesPicked} — ${picked.map(f => f.name).join(', ')}`;
     };
-  }
+  });
 
   const df = $('#docForm');
   if (df) df.onsubmit = async (e) => {
