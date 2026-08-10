@@ -236,7 +236,13 @@ html[dir="rtl"] .head::after { transform: scaleX(-1); }
 
 /* --------------------------------- form ---------------------------------- */
 .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.f { display: grid; gap: 5px; }
+/* An input's intrinsic width is about 20 characters, so a two-column grid
+   refuses to shrink below ~350px and pushes itself out of the card on a
+   phone. One column below that, and min-width:0 so a field can always be
+   narrower than the text it expects. */
+@media (max-width: 700px) { .fields { grid-template-columns: minmax(0, 1fr); } }
+.f { display: grid; gap: 5px; min-width: 0; }
+.f input, .f select, .f textarea { min-width: 0; max-width: 100%; }
 .f--wide { grid-column: 1 / -1; }
 .f span { font-size: 11.5px; color: var(--ink3); }
 .f input, .f select {
@@ -585,7 +591,9 @@ select.btn--sm { height: 28px; padding: 0 6px; background: var(--s-2); border: 1
 
 /* ------------------------------ forms in cards ---------------------------- */
 .inlineform, .projform { padding: 16px; border-bottom: 1px solid var(--line); display: grid; gap: 4px; }
-.projform { border-bottom: 0; }
+.projform { border-bottom: 0; max-width: 1100px; }
+/* Left to fill a 1440px card, the Name field became a 1450px slot for six
+   words. Forms read better with a measure. */
 
 /* ------------------------------ the uploader ------------------------------
    One column, top to bottom: title, then the description under it, then the
@@ -603,19 +611,12 @@ select.btn--sm { height: 28px; padding: 0 6px; background: var(--s-2); border: 1
    to itself the button floated in the middle of an empty card. */
 .uploader > .f:nth-of-type(1) { grid-area: 1 / 1; }
 .uploader > .f:nth-of-type(2) { grid-area: 2 / 1; }
-.uploader > .drop {
-  grid-area: 1 / 2 / 3 / 3;
-  flex-direction: column; align-items: center; justify-content: center;
-  text-align: center; gap: 10px; padding: 24px 20px;
-}
-.uploader > .drop .drop__ico { width: 26px; height: 26px; }
+.uploader > .drop { grid-area: 1 / 2 / 3 / 3; }
 .uploader > .actions { grid-column: 1 / -1; }
 @media (max-width: 900px) {
   .uploader { grid-template-columns: minmax(0, 1fr); }
   .uploader > .f:nth-of-type(1), .uploader > .f:nth-of-type(2),
   .uploader > .drop { grid-area: auto; }
-  /* Back to a compact row once it is not filling a tall column. */
-  .uploader > .drop { flex-direction: row; text-align: start; padding: 15px 16px; }
 }
 
 .drop {
@@ -637,11 +638,31 @@ select.btn--sm { height: 28px; padding: 0 6px; background: var(--s-2); border: 1
 .drop.is-set { border-style: solid; border-color: color-mix(in srgb, var(--brand) 55%, transparent); }
 .drop.is-set .drop__h { color: var(--ink2); }
 
+/* Tall variant: the icon over centred text, for a target that fills a column
+   rather than sitting in a row. Collapses back to the compact row on narrow
+   screens, where the height it would fill does not exist. */
+.drop--tall {
+  flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; gap: 10px; padding: 24px 20px; min-height: 132px;
+}
+.drop--tall .drop__ico { width: 26px; height: 26px; }
+.drop--tall .drop__h { max-width: 44ch; }
+
+.dropgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 760px) {
+  .dropgrid { grid-template-columns: 1fr; }
+  .drop--tall {
+    flex-direction: row; text-align: start; align-items: center;
+    padding: 15px 16px; min-height: 0;
+  }
+  .drop--tall .drop__ico { width: 22px; height: 22px; }
+}
+
 .actions--end { justify-content: flex-end; margin-top: 0; }
 
 .stagepick { display: grid; gap: 8px; }
 .stagepick__row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.chk { display: flex; align-items: center; gap: 9px; flex: 1; min-width: 240px; font-size: 13px; }
+.chk { display: flex; align-items: center; gap: 9px; flex: 1; min-width: min(240px, 100%); font-size: 13px; }
 .chk i { width: 9px; height: 9px; border-radius: 3px; flex: none; }
 .chk input { accent-color: var(--brand); width: 16px; height: 16px; }
 .stageWho { height: 32px; padding: 0 8px; border-radius: 7px; background: var(--bg); border: 1px solid var(--line2); font-size: 12.5px; }
@@ -22399,6 +22420,9 @@ var DSTR = {
     filesPicked: "files selected",
     filePicked: "file selected",
     noDocsYet: "No documents yet. The first upload appears here.",
+    attachments: "Attachments",
+    rfpHint: "The brief you were sent. PDF, Word, Excel or a zip.",
+    refsHint: "Photos, moodboards, anything the designers should look at first.",
     deadlineChart: "Deadlines by month",
     deadlineNote: "Open projects grouped by submission deadline. The dashed line is today, so everything to its left is already late.",
     noneYet: "Nothing here yet.",
@@ -22520,6 +22544,9 @@ var DSTR = {
     filesPicked: "\u0645\u0644\u0641\u0627\u062A \u0645\u062E\u062A\u0627\u0631\u0629",
     filePicked: "\u0645\u0644\u0641 \u0645\u062E\u062A\u0627\u0631",
     noDocsYet: "\u0644\u0627 \u062A\u0648\u062C\u062F \u0645\u0633\u062A\u0646\u062F\u0627\u062A \u0628\u0639\u062F. \u0623\u0648\u0644 \u0631\u0641\u0639 \u0633\u064A\u0638\u0647\u0631 \u0647\u0646\u0627.",
+    attachments: "\u0627\u0644\u0645\u0631\u0641\u0642\u0627\u062A",
+    rfpHint: "\u0627\u0644\u0643\u0631\u0627\u0633\u0629 \u0627\u0644\u062A\u064A \u0648\u0635\u0644\u062A\u0643. PDF \u0623\u0648 \u0648\u0648\u0631\u062F \u0623\u0648 \u0625\u0643\u0633\u0644 \u0623\u0648 \u0645\u0644\u0641 \u0645\u0636\u063A\u0648\u0637.",
+    refsHint: "\u0635\u0648\u0631 \u0623\u0648 \u0644\u0648\u062D\u0627\u062A \u0625\u0644\u0647\u0627\u0645\u060C \u0623\u064A \u0634\u064A\u0621 \u064A\u062C\u0628 \u0623\u0646 \u064A\u0631\u0627\u0647 \u0627\u0644\u0645\u0635\u0645\u0645\u0648\u0646 \u0623\u0648\u0644\u0627\u064B.",
     deadlineChart: "\u0627\u0644\u0645\u0648\u0627\u0639\u064A\u062F \u062D\u0633\u0628 \u0627\u0644\u0634\u0647\u0631",
     deadlineNote: "\u0627\u0644\u0645\u0634\u0627\u0631\u064A\u0639 \u0627\u0644\u0645\u0641\u062A\u0648\u062D\u0629 \u0645\u062C\u0645\u0651\u0639\u0629 \u062D\u0633\u0628 \u0645\u0648\u0639\u062F \u0627\u0644\u062A\u0642\u062F\u064A\u0645. \u0627\u0644\u062E\u0637 \u0627\u0644\u0645\u062A\u0642\u0637\u0639 \u0647\u0648 \u0627\u0644\u064A\u0648\u0645\u060C \u0648\u0643\u0644 \u0645\u0627 \u0639\u0644\u0649 \u064A\u0633\u0627\u0631\u0647 \u0645\u062A\u0623\u062E\u0631 \u0628\u0627\u0644\u0641\u0639\u0644.",
     noneYet: "\u0644\u0627 \u0634\u064A\u0621 \u0647\u0646\u0627 \u0628\u0639\u062F.",
@@ -22577,6 +22604,21 @@ function statusPill(status, lang) {
   if (!status) return "";
   const label = DSTR[lang].st[status] || String(status).replace(/_/g, " ");
   return `<span class="st" style="--c:${ST_COLOUR[status] || "var(--ink3)"}"><i></i>${esc2(label)}</span>`;
+}
+function dropField(id, title, hint, { accept = "", multiple = false, required = false, tall = false } = {}) {
+  return `
+  <label class="drop${tall ? " drop--tall" : ""}" for="${esc2(id)}">
+    <svg class="drop__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M12 16V4M8 8l4-4 4 4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+    </svg>
+    <span class="drop__t">
+      <b>${esc2(title)}</b>
+      <span class="drop__h" data-hint>${esc2(hint)}</span>
+    </span>
+    <input id="${esc2(id)}" type="file"${multiple ? " multiple" : ""}${required ? " required" : ""}
+           accept="${esc2(accept)}" />
+  </label>`;
 }
 var kpi = (n, label, { sub = "", bad = false, colour = "", date = false } = {}) => `
   <div class="kpi${bad ? " kpi--bad" : ""}${date ? " kpi--date" : ""}">
@@ -22911,12 +22953,10 @@ function newProjectView(lang, ctx2) {
         </div>`).join("")}
     </div>
 
-    <h3 class="subhead">${esc2(t.rfp)} \xB7 ${esc2(t.refs)}</h3>
-    <div class="fields">
-      <label class="f"><span>${esc2(t.rfp)}</span>
-        <input id="pRfp" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.txt" /></label>
-      <label class="f"><span>${esc2(t.refs)}</span>
-        <input id="pRefs" type="file" accept="image/*,.pdf" multiple /></label>
+    <h3 class="subhead">${esc2(t.attachments)}</h3>
+    <div class="dropgrid">
+      ${dropField("pRfp", t.rfp, t.rfpHint, { accept: ".pdf,.doc,.docx,.xls,.xlsx,.zip,.txt", tall: true })}
+      ${dropField("pRefs", t.refs, t.refsHint, { accept: "image/*,.pdf", multiple: true, tall: true })}
     </div>
 
     <div id="estBox" class="estbox"></div>
@@ -23037,21 +23077,12 @@ function docsView(lang, ctx2) {
     <label class="f"><span>${esc2(t.description)}</span>
       <textarea id="dDesc" rows="3" placeholder="${esc2(t.descHint)}"></textarea></label>
 
-    <!-- The native file control cannot be styled, so it is visually hidden
-         and the label is the target. It stays in the tab order and keeps its
-         focus ring, so this is a restyle rather than a reimplementation. -->
-    <label class="drop" for="dFiles">
-      <svg class="drop__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
-           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M12 16V4M8 8l4-4 4 4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
-      </svg>
-      <span class="drop__t">
-        <b>${esc2(t.dropHere)}</b>
-        <span class="drop__h" id="dNames">${esc2(t.dropHint)}</span>
-      </span>
-      <input id="dFiles" type="file" multiple
-             accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip,image/*" required />
-    </label>
+    ${dropField("dFiles", t.dropHere, t.dropHint, {
+    accept: ".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip,image/*",
+    multiple: true,
+    required: true,
+    tall: true
+  })}
 
     <div class="actions actions--end">
       <button class="btn btn--primary" type="submit">${esc2(t.upload)}</button>
@@ -23315,15 +23346,17 @@ function wireApp(lang) {
       fail(e);
     }
   });
-  const dFiles = $("#dFiles"), dNames = $("#dNames");
-  if (dFiles && dNames) {
-    const hint = dNames.textContent;
-    dFiles.onchange = () => {
-      const picked = [...dFiles.files];
-      dFiles.closest(".drop")?.classList.toggle("is-set", picked.length > 0);
-      dNames.textContent = !picked.length ? hint : picked.length === 1 ? picked[0].name : `${picked.length} ${DSTR[lang].filesPicked} \u2014 ${picked.map((f) => f.name).join(", ")}`;
+  $$('.drop input[type="file"]').forEach((input) => {
+    const drop = input.closest(".drop");
+    const hintEl = drop?.querySelector("[data-hint]");
+    if (!hintEl) return;
+    const hint = hintEl.textContent;
+    input.onchange = () => {
+      const picked = [...input.files];
+      drop.classList.toggle("is-set", picked.length > 0);
+      hintEl.textContent = !picked.length ? hint : picked.length === 1 ? picked[0].name : `${picked.length} ${DSTR[lang].filesPicked} \u2014 ${picked.map((f) => f.name).join(", ")}`;
     };
-  }
+  });
   const df = $("#docForm");
   if (df) df.onsubmit = async (e) => {
     e.preventDefault();
