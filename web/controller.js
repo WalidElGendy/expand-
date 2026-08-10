@@ -189,6 +189,21 @@ export function wireApp(lang) {
   });
 
   /* --- documents --- */
+  /* The native control's own "No file chosen" is hidden with it, so the label
+     has to say what was picked. Without this the dropzone looks identical
+     before and after choosing a file, and people click it twice. */
+  const dFiles = $('#dFiles'), dNames = $('#dNames');
+  if (dFiles && dNames) {
+    const hint = dNames.textContent;
+    dFiles.onchange = () => {
+      const picked = [...dFiles.files];
+      dFiles.closest('.drop')?.classList.toggle('is-set', picked.length > 0);
+      dNames.textContent = !picked.length ? hint
+        : picked.length === 1 ? picked[0].name
+        : `${picked.length} ${V.DSTR[lang].filesPicked} — ${picked.map(f => f.name).join(', ')}`;
+    };
+  }
+
   const df = $('#docForm');
   if (df) df.onsubmit = async (e) => {
     e.preventDefault();

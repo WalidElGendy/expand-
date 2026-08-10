@@ -59,6 +59,11 @@ export const DSTR = {
     committedDays: 'Design days committed', openLeads: 'Open leads', nextFree: 'A new project would deliver',
     ofTotal: 'of', needsReview: 'Needs review', allRows: 'All', teamsCol: 'Teams',
     overdueFollow: 'Follow-ups overdue',
+    titleHint: 'What is this document called?',
+    descHint: 'What is it for, and who should read it? Optional.',
+    dropHint: 'PDF, Word, PowerPoint, Excel or images. You can pick several at once.',
+    filesPicked: 'files selected', filePicked: 'file selected',
+    noDocsYet: 'No documents yet. The first upload appears here.',
     deadlineChart: 'Deadlines by month', deadlineNote: 'Open projects grouped by submission deadline. The dashed line is today, so everything to its left is already late.',
     noneYet: 'Nothing here yet.', today_: 'today',
     st: { in_design: 'In design', submitted: 'Submitted', won: 'Won', lost: 'Lost',
@@ -104,6 +109,11 @@ export const DSTR = {
     committedDays: 'أيام تصميم ملتزم بها', openLeads: 'عملاء محتملون مفتوحون', nextFree: 'مشروع جديد يُسلَّم في',
     ofTotal: 'من', needsReview: 'تحتاج مراجعة', allRows: 'الكل', teamsCol: 'الفرق',
     overdueFollow: 'متابعات متأخرة',
+    titleHint: 'ما اسم هذا المستند؟',
+    descHint: 'ما الغرض منه، ومن يجب أن يقرأه؟ اختياري.',
+    dropHint: 'PDF أو وورد أو باوربوينت أو إكسل أو صور. يمكن اختيار عدة ملفات.',
+    filesPicked: 'ملفات مختارة', filePicked: 'ملف مختار',
+    noDocsYet: 'لا توجد مستندات بعد. أول رفع سيظهر هنا.',
     deadlineChart: 'المواعيد حسب الشهر', deadlineNote: 'المشاريع المفتوحة مجمّعة حسب موعد التقديم. الخط المتقطع هو اليوم، وكل ما على يساره متأخر بالفعل.',
     noneYet: 'لا شيء هنا بعد.', today_: 'اليوم',
     st: { in_design: 'قيد التصميم', submitted: 'مُقدَّم', won: 'مكسوب', lost: 'خاسر',
@@ -715,27 +725,49 @@ export function docsView(lang, ctx) {
   return `
 <section class="card">
   <div class="card__head"><h2>${esc(t.library)}</h2><span class="muted small">${files.length}</span></div>
-  <form id="docForm" class="inlineform">
-    <div class="fields">
-      <label class="f"><span>${esc(t.title)}</span><input id="dTitle" /></label>
-      <label class="f"><span>${esc(t.description)}</span><input id="dDesc" /></label>
-      <label class="f f--wide"><span>${esc(t.dropHere)}</span>
-        <input id="dFiles" type="file" multiple
-               accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip,image/*" required /></label>
+  <form id="docForm" class="uploader">
+    <label class="f"><span>${esc(t.title)}</span>
+      <input id="dTitle" autocomplete="off" placeholder="${esc(t.titleHint)}" /></label>
+    <label class="f"><span>${esc(t.description)}</span>
+      <textarea id="dDesc" rows="3" placeholder="${esc(t.descHint)}"></textarea></label>
+
+    <!-- The native file control cannot be styled, so it is visually hidden
+         and the label is the target. It stays in the tab order and keeps its
+         focus ring, so this is a restyle rather than a reimplementation. -->
+    <label class="drop" for="dFiles">
+      <svg class="drop__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 16V4M8 8l4-4 4 4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+      </svg>
+      <span class="drop__t">
+        <b>${esc(t.dropHere)}</b>
+        <span class="drop__h" id="dNames">${esc(t.dropHint)}</span>
+      </span>
+      <input id="dFiles" type="file" multiple
+             accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip,image/*" required />
+    </label>
+
+    <div class="actions actions--end">
+      <button class="btn btn--primary" type="submit">${esc(t.upload)}</button>
     </div>
-    <div class="actions"><button class="btn btn--primary" type="submit">${esc(t.upload)}</button></div>
   </form>
-  <table class="tbl">
-    <thead><tr><th>${esc(t.name)}</th><th>${esc(t.title)}</th><th class="num">${esc(lang === 'ar' ? 'الحجم' : 'Size')}</th><th></th></tr></thead>
-    <tbody>
-      ${files.map(f => `<tr>
-        <td>${esc(f.filename)}<span class="muted small block">${esc(f.uploader?.full_name || '')}</span></td>
-        <td class="muted small">${esc(f.title || '')}</td>
-        <td class="num muted small">${f.size_bytes ? (f.size_bytes / 1048576).toFixed(1) + ' MB' : '—'}</td>
-        <td class="num"><button class="link small" data-open="${esc(f.id)}">${esc(lang === 'ar' ? 'فتح' : 'Open')}</button></td>
-      </tr>`).join('')}
-    </tbody>
-  </table>
+
+  <div class="tblwrap">
+    <table class="tbl">
+      <thead><tr><th>${esc(t.name)}</th><th>${esc(t.title)}</th><th class="num">${esc(lang === 'ar' ? 'الحجم' : 'Size')}</th><th></th></tr></thead>
+      <tbody>
+        ${files.length ? files.map(f => `<tr>
+          <td>${esc(f.filename)}<span class="muted small block">${esc(f.uploader?.full_name || '')}</span></td>
+          <td class="muted small">${esc(f.title || '')}</td>
+          <!-- dir=ltr because bidi reorders "4.0 MB" into "MB 4.0" in an
+               Arabic paragraph; the unit belongs after the number. -->
+          <td class="num muted small" dir="ltr">${f.size_bytes ? (f.size_bytes / 1048576).toFixed(1) + ' MB' : '—'}</td>
+          <td class="num"><button class="link small" data-open="${esc(f.id)}">${esc(lang === 'ar' ? 'فتح' : 'Open')}</button></td>
+        </tr>`).join('')
+        : `<tr><td class="tbl__empty" colspan="4">${esc(t.noDocsYet)}</td></tr>`}
+      </tbody>
+    </table>
+  </div>
 </section>`;
 }
 
