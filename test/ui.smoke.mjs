@@ -109,6 +109,48 @@ for (const [hash, name] of ROUTES) {
   check(!m.tooWide.length,  `${hash}: horizontal overflow from ${JSON.stringify(m.tooWide)}`);
 }
 
+/* ------------------ the landing page covers the whole business ------------ */
+/* "Measured on delivered work" used to be a table of its own, which meant the
+   two departments with a stated effort figure got bars and dates while
+   pricing, content and BD got a chip that said, in effect, "no comment". The
+   table is gone and its numbers moved into the department rows — so the thing
+   to assert is that MOVING them did not LOSE them. */
+import { MEASURED, DEPARTMENTS } from '../data/snapshot.js';
+
+await page.goto(URL_, { waitUntil: 'networkidle' });
+await page.waitForTimeout(120);
+const land = await page.evaluate(() => ({
+  rows:   document.querySelectorAll('.deptrow').length,
+  cards:  document.querySelectorAll('.card').length,
+  text:   document.body.innerText,
+  notes:  document.querySelectorAll('.deptrow__note').length,
+}));
+
+check(land.rows === 7, `landing shows ${land.rows} department rows, expected all 7 functions`);
+check(land.cards === 1, `landing has ${land.cards} cards — the measured table should be folded into the one workspace card`);
+check(!/Measured on delivered work/i.test(land.text), 'the standalone "Measured on delivered work" table is still on the landing page');
+
+for (const id of Object.keys(DEPARTMENTS)) {
+  check(land.text.includes(DEPARTMENTS[id].en), `landing never names the ${id} department — a 360 view has a hole in it`);
+}
+// Every median from the old table must still be visible somewhere on screen.
+for (const m of MEASURED) {
+  check(land.text.includes(String(m.medianElapsed)),
+    `the measured median for ${m.stage} (${m.medianElapsed}) disappeared when the table was removed`);
+}
+check(land.notes >= 4, `only ${land.notes} departments explain themselves; pricing, content, BD and PM each have a finding worth stating`);
+
+/* A stage with no stated effort must NOT be given an invented delivery date.
+   Multiplying a measured median (which includes queue) by a project count
+   would count the queue twice and produce a confident, wrong date. */
+const pricingRow = await page.evaluate(() => {
+  const row = [...document.querySelectorAll('.deptrow')]
+    .find(r => r.innerText.includes('Pricing'));
+  return row ? row.innerText : '';
+});
+check(/—/.test(pricingRow), 'pricing was given a delivery date despite having no stated effort figure');
+check(/13/.test(pricingRow), 'the pricing row lost its measured median of 13 days');
+
 /* ---- the numbers on the profile must come from the engine, not a string --- */
 import { WorkCalendar, iso } from '../engine/calendar.js';
 import { DEFAULT_STAGES } from '../engine/scheduler.js';
