@@ -58,6 +58,7 @@ export const DSTR = {
     openProjects: 'Open projects', overdue_: 'Overdue', unassigned_: 'Stages unassigned',
     committedDays: 'Design days committed', openLeads: 'Open leads', nextFree: 'A new project would deliver',
     ofTotal: 'of', needsReview: 'Needs review', allRows: 'All', teamsCol: 'Teams',
+    overdueFollow: 'Follow-ups overdue',
     deadlineChart: 'Deadlines by month', deadlineNote: 'Open projects grouped by submission deadline. The dashed line is today, so everything to its left is already late.',
     noneYet: 'Nothing here yet.', today_: 'today',
     st: { in_design: 'In design', submitted: 'Submitted', won: 'Won', lost: 'Lost',
@@ -102,6 +103,7 @@ export const DSTR = {
     openProjects: 'مشاريع مفتوحة', overdue_: 'متأخرة', unassigned_: 'مراحل غير مسندة',
     committedDays: 'أيام تصميم ملتزم بها', openLeads: 'عملاء محتملون مفتوحون', nextFree: 'مشروع جديد يُسلَّم في',
     ofTotal: 'من', needsReview: 'تحتاج مراجعة', allRows: 'الكل', teamsCol: 'الفرق',
+    overdueFollow: 'متابعات متأخرة',
     deadlineChart: 'المواعيد حسب الشهر', deadlineNote: 'المشاريع المفتوحة مجمّعة حسب موعد التقديم. الخط المتقطع هو اليوم، وكل ما على يساره متأخر بالفعل.',
     noneYet: 'لا شيء هنا بعد.', today_: 'اليوم',
     st: { in_design: 'قيد التصميم', submitted: 'مُقدَّم', won: 'مكسوب', lost: 'خاسر',
@@ -628,17 +630,33 @@ export function leadsView(lang, ctx) {
   const STATUSES = ['new', 'contacted', 'qualified', 'proposal', 'won', 'lost'];
   const counts = Object.fromEntries(STATUSES.map(s => [s, leads.filter(l => l.status === s).length]));
   const stale = leads.filter(l => l.status !== 'won' && l.status !== 'lost' && lateBy(l.next_follow_up_on)).length;
+  const open = leads.filter(l => !['won', 'lost'].includes(l.status)).length;
+
+  /* Same tiles as the dashboard rather than the old edge-to-edge strip: the
+     strip had no card, no colour and no denominator, so "0 qualified" read as
+     a rendering gap instead of the finding it is. Each tile carries the share
+     of the whole list, and its dot matches the pill the same status wears in
+     the table below. */
+  const share = (n) => leads.length
+    ? `${Math.round((n / leads.length) * 100)}% ${lang === 'ar' ? 'من القائمة' : 'of the list'}`
+    : '';
 
   return `
+<div class="kpis kpis--4">
+  ${kpi(open, t.openLeads, { colour: 'var(--brand)',
+    sub: `${leads.length} ${lang === 'ar' ? 'في القائمة' : 'in the list'}` })}
+  ${kpi(stale, t.overdueFollow, { bad: stale > 0, colour: 'var(--critical)',
+    sub: lang === 'ar' ? 'موعد المتابعة فات' : 'follow-up date has passed' })}
+  ${STATUSES.map(s => kpi(counts[s], t.st[s] || s, {
+    colour: ST_COLOUR[s] || 'var(--ink3)', sub: share(counts[s]),
+  })).join('')}
+</div>
+
 <section class="card">
   <div class="card__head">
     <h2>${esc(t.leads)}</h2>
     <span class="muted small">${leads.length}</span>
     <button class="btn btn--primary btn--sm" style="margin-inline-start:auto" data-act="newlead">${esc(t.addLead)}</button>
-  </div>
-  <div class="stats">
-    ${STATUSES.map(s => `<div class="stat"><span class="stat__n">${counts[s]}</span><span class="stat__l">${esc(t.st[s] || s)}</span></div>`).join('')}
-    <div class="stat${stale ? ' stat--bad' : ''}"><span class="stat__n">${stale}</span><span class="stat__l">${esc(t.overdue)}</span></div>
   </div>
   <div id="leadForm"></div>
   <div class="tblwrap">
