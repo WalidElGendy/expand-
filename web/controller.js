@@ -59,8 +59,11 @@ export async function loadFor(route) {
           .map(s => ({ ...s, project_id: p.id, project_name: p.name })));
       }));
     }
-    if (route === 'leads' || me.department_id === 'bd') {
-      jobs.push(db.listLeads().then(l => { ctx.leads = l; }));
+    // The PM dashboard shows an open-leads tile, so it needs the leads too.
+    // Without this the tile renders a confident zero, which is a lie a
+    // missing tile would not have told.
+    if (route === 'leads' || me.department_id === 'bd' || wantsProjects) {
+      jobs.push(db.listLeads().then(l => { ctx.leads = l; }).catch(() => { ctx.leads = []; }));
       jobs.push(db.listPeople().then(p => { ctx.people = p; }));
     }
     if (route === 'docs' || me.department_id === 'content') {
@@ -121,6 +124,21 @@ export function wireAuth(lang) {
 }
 
 export function wireApp(lang) {
+  /* --- "needs review" row filter ---
+     A view concern, so it toggles rows in place rather than re-rendering and
+     re-fetching. Rows the top-bar search has hidden stay hidden: the two
+     filters compose instead of fighting. */
+  const chips = $$('[data-rows]');
+  chips.forEach(c => c.onclick = () => {
+    chips.forEach(x => x.classList.toggle('is-on', x === c));
+    const onlyFlagged = c.dataset.rows === 'flagged';
+    $$('.tbl tbody tr').forEach(tr => {
+      if (tr.dataset.empty) return;
+      tr.dataset.chipHidden = onlyFlagged && !tr.dataset.flagged ? '1' : '';
+      tr.hidden = !!tr.dataset.chipHidden || tr.dataset.searchHidden === '1';
+    });
+  });
+
   /* --- designer: move a stage along --- */
   $$('[data-stage]').forEach(b => b.onclick = async () => {
     b.disabled = true;
@@ -263,10 +281,10 @@ function wireNewProject(lang, form) {
         name: f.name, client: f.client, size: f.size, description: f.description,
         start_on: f.start || null, due_on: f.deadline,
         status: 'in_design',
-        estimated_delivery: ctx.est?.real?.deliveryDate || null,
+        estimated_delivery: ctx.est?.real?.delivery || null,
         estimate_meta: ctx.est ? {
           computed_at: new Date().toISOString(),
-          naive: ctx.est.naive?.deliveryDate || null,
+          naive: ctx.est.naive?.delivery || null,
           confidence: ctx.est.real?.confidence ?? null,
         } : null,
       });

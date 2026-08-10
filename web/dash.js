@@ -52,6 +52,18 @@ export const DSTR = {
     inviteNote: 'They will set their own password from the sign-in screen. You never see it.',
     unassigned: 'Unassigned', overdue: 'overdue', workingDays: 'working days',
     importedFrom: 'Imported from Asana', flagged: 'Imported with caveats',
+    searchPlaceholder: 'Search this page…',
+    homeSub: 'What is open, what is late, and what it costs',
+    leadsSub: 'Every lead and where it stands', peopleSub: 'Who can sign in, and as what',
+    openProjects: 'Open projects', overdue_: 'Overdue', unassigned_: 'Stages unassigned',
+    committedDays: 'Design days committed', openLeads: 'Open leads', nextFree: 'A new project would deliver',
+    ofTotal: 'of', needsReview: 'Needs review', allRows: 'All', teamsCol: 'Teams',
+    deadlineChart: 'Deadlines by month', deadlineNote: 'Open projects grouped by submission deadline. The dashed line is today, so everything to its left is already late.',
+    noneYet: 'Nothing here yet.', today_: 'today',
+    st: { in_design: 'In design', submitted: 'Submitted', won: 'Won', lost: 'Lost',
+          delivered: 'Delivered', archived: 'Archived', draft: 'Draft', pending: 'Pending',
+          in_progress: 'In progress', done: 'Done', blocked: 'Blocked', new: 'New',
+          contacted: 'Contacted', qualified: 'Qualified', proposal: 'Proposal' },
   },
   ar: {
     signIn: 'تسجيل الدخول', signOut: 'تسجيل الخروج', email: 'البريد الإلكتروني', password: 'كلمة المرور',
@@ -84,6 +96,18 @@ export const DSTR = {
     inviteNote: 'سيضع كلمة المرور بنفسه من شاشة الدخول. أنت لا تراها أبداً.',
     unassigned: 'غير مسند', overdue: 'متأخرة', workingDays: 'أيام عمل',
     importedFrom: 'مستورد من أسانا', flagged: 'مستورد مع تحفظات',
+    searchPlaceholder: 'ابحث في هذه الصفحة…',
+    homeSub: 'ما هو مفتوح، وما هو متأخر، وكم يكلّف',
+    leadsSub: 'كل عميل محتمل وموقعه', peopleSub: 'من يستطيع الدخول، وبأي صلاحية',
+    openProjects: 'مشاريع مفتوحة', overdue_: 'متأخرة', unassigned_: 'مراحل غير مسندة',
+    committedDays: 'أيام تصميم ملتزم بها', openLeads: 'عملاء محتملون مفتوحون', nextFree: 'مشروع جديد يُسلَّم في',
+    ofTotal: 'من', needsReview: 'تحتاج مراجعة', allRows: 'الكل', teamsCol: 'الفرق',
+    deadlineChart: 'المواعيد حسب الشهر', deadlineNote: 'المشاريع المفتوحة مجمّعة حسب موعد التقديم. الخط المتقطع هو اليوم، وكل ما على يساره متأخر بالفعل.',
+    noneYet: 'لا شيء هنا بعد.', today_: 'اليوم',
+    st: { in_design: 'قيد التصميم', submitted: 'مُقدَّم', won: 'مكسوب', lost: 'خاسر',
+          delivered: 'مُسلَّم', archived: 'مؤرشف', draft: 'مسودة', pending: 'بانتظار',
+          in_progress: 'قيد التنفيذ', done: 'منجز', blocked: 'متوقف', new: 'جديد',
+          contacted: 'تم التواصل', qualified: 'مؤهل', proposal: 'عرض' },
   },
 };
 
@@ -106,6 +130,151 @@ const deptName = (id, lang) => {
 };
 
 const STAGE_LABEL = { pending: 'pending', in_progress: 'started', done: 'done', blocked: 'blocked' };
+
+/* -------------------------------------------------------------- status pills
+   Status is a STATE, not a series, so it uses the reserved status colours and
+   always carries its own word. `in_design` shipped to production as raw enum
+   text; a colleague should not have to know the column names of the database
+   to read their own dashboard. */
+/* Deliberately NOT the categorical hues. A "3D design" team pill and an
+   "In design" status pill sit inches apart in the same row, and giving them
+   the same purple makes the reader work out which is which. Status uses the
+   reserved status slots plus one info blue that is not in the series set. */
+const ST_COLOUR = {
+  in_design:   'var(--info)',
+  in_progress: 'var(--info)',
+  qualified:   'var(--info)',
+  submitted:   'var(--warn)',
+  proposal:    'var(--warn)',
+  contacted:   'var(--warn)',
+  pending:     'var(--ink3)',
+  draft:       'var(--ink3)',
+  new:         'var(--ink3)',
+  blocked:     'var(--critical)',
+  lost:        'var(--critical)',
+  won:         'var(--ok)',
+  done:        'var(--ok)',
+  delivered:   'var(--ok)',
+  archived:    'var(--ink4)',
+};
+
+export function statusPill(status, lang) {
+  if (!status) return '';
+  const label = DSTR[lang].st[status] || String(status).replace(/_/g, ' ');
+  return `<span class="st" style="--c:${ST_COLOUR[status] || 'var(--ink3)'}"><i></i>${esc(label)}</span>`;
+}
+
+/* --------------------------------------------------------------- KPI tiles */
+
+const kpi = (n, label, { sub = '', bad = false, colour = '', date = false } = {}) => `
+  <div class="kpi${bad ? ' kpi--bad' : ''}${date ? ' kpi--date' : ''}">
+    <span class="kpi__l">${colour ? `<i style="--c:${colour}"></i>` : ''}${esc(label)}</span>
+    <span class="kpi__n">${n}</span>
+    ${sub ? `<span class="kpi__s">${esc(sub)}</span>` : ''}
+  </div>`;
+
+/* ------------------------------------------------------------- the chart
+   One series, so no legend — the title names it. Bars are anchored to the
+   baseline with only their top corners rounded, separated by a 2px surface
+   gap, over a recessive grid. Only the tallest bar is labelled: a number on
+   every bar is a table pretending to be a chart.
+
+   The window is the data's own range rather than "the next 12 months",
+   because these deadlines were imported from Asana and most of them are
+   already in the past. A forward-looking chart would have been empty and
+   would have read as "nothing due" rather than "nothing captured".        */
+
+function monthKey(d) { return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`; }
+
+export function deadlineChart(lang, projects) {
+  const dated = projects.filter(p => p.due_on);
+  if (dated.length < 2) return '';
+
+  const counts = new Map();
+  for (const p of dated) {
+    const k = monthKey(parse(p.due_on));
+    counts.set(k, (counts.get(k) || 0) + 1);
+  }
+  const keys = [...counts.keys()].sort();
+
+  // A contiguous run of months, so an empty month reads as a gap rather than
+  // being silently closed up — the shape of the workload is the point.
+  const months = [];
+  let [y, m] = keys[0].split('-').map(Number);
+  const [ly, lm] = keys[keys.length - 1].split('-').map(Number);
+  while (y < ly || (y === ly && m <= lm)) {
+    months.push(`${y}-${String(m).padStart(2, '0')}`);
+    if (++m > 12) { m = 1; y++; }
+    if (months.length > 24) break;
+  }
+  const series = months.slice(-14).map(k => ({ k, n: counts.get(k) || 0 }));
+  const max = Math.max(...series.map(s => s.n), 1);
+
+  /* A viewBox close to the width the card actually gets, so the SVG is not
+     scaled up 2x on a wide screen — which would take 11px axis labels to 22px
+     and make the chart shout over everything around it. */
+  const W = 1180, H = 250, PAD_L = 36, PAD_R = 10, PAD_T = 20, PAD_B = 34;
+  const plotW = W - PAD_L - PAD_R, plotH = H - PAD_T - PAD_B;
+  const step = plotW / series.length;
+  const barW = Math.max(6, Math.min(46, step - 16));   // thin marks, clear surface gap
+  const yOf = (n) => PAD_T + plotH - (n / max) * plotH;
+
+  const ticks = [0, Math.round(max / 2), max].filter((v, i, a) => a.indexOf(v) === i);
+  const label = (k) => {
+    const [yy, mm] = k.split('-');
+    return new Date(Date.UTC(+yy, +mm - 1, 1))
+      .toLocaleDateString(lang === 'ar' ? 'ar-SA-u-ca-gregory' : 'en-GB',
+        { month: 'short', timeZone: 'UTC' });
+  };
+
+  // Top-rounded bar: a plain rx rounds the base too, which lifts the bar off
+  // its own axis and makes small values look like floating lozenges.
+  const barPath = (x, y, w, h) => {
+    const r = Math.min(4, w / 2, h);
+    return `M${x} ${y + h}V${y + r}q0-${r} ${r}-${r}h${w - 2 * r}q${r} 0 ${r} ${r}V${y + h}Z`;
+  };
+
+  const nowKey = monthKey(new Date());
+  const nowIdx = series.findIndex(s => s.k >= nowKey);
+  const nowX = nowIdx < 0 ? null : PAD_L + nowIdx * step;
+
+  const t = DSTR[lang];
+  const peak = series.reduce((a, b) => (b.n > a.n ? b : a), series[0]);
+
+  return `
+<section class="card chartcard">
+  <div class="card__head">
+    <h2>${esc(t.deadlineChart)}</h2>
+    <span class="muted small">${dated.length} ${esc(lang === 'ar' ? 'مشروع له موعد' : 'projects with a deadline')}</span>
+  </div>
+  <div style="padding:6px 16px 0">
+    <svg class="chart" viewBox="0 0 ${W} ${H}" role="img"
+         aria-label="${esc(t.deadlineChart)}: ${series.map(s => `${label(s.k)} ${s.n}`).join(', ')}">
+      <g class="grid">
+        ${ticks.map(v => `<line x1="${PAD_L}" x2="${W - PAD_R}" y1="${yOf(v)}" y2="${yOf(v)}"/>`).join('')}
+      </g>
+      <g class="axis">
+        ${ticks.map(v => `<text x="${PAD_L - 8}" y="${yOf(v) + 4}" text-anchor="end">${v}</text>`).join('')}
+        ${series.map((s, i) => `<text x="${PAD_L + i * step + step / 2}" y="${H - 10}" text-anchor="middle">${esc(label(s.k))}</text>`).join('')}
+      </g>
+      ${nowX !== null ? `<g class="now">
+        <line x1="${nowX}" x2="${nowX}" y1="${PAD_T - 6}" y2="${PAD_T + plotH}"/>
+        <text x="${nowX + 4}" y="${PAD_T - 1}">${esc(t.today_)}</text>
+      </g>` : ''}
+      <g>
+        ${series.map((s, i) => {
+          if (!s.n) return '';
+          const x = PAD_L + i * step + (step - barW) / 2, y = yOf(s.n);
+          return `<g class="bar"><title>${esc(label(s.k))} ${s.k.slice(0, 4)} — ${s.n}</title>
+            <path d="${barPath(x, y, barW, PAD_T + plotH - y)}"/></g>`;
+        }).join('')}
+        ${peak.n ? `<text class="val" x="${PAD_L + series.indexOf(peak) * step + step / 2}" y="${yOf(peak.n) - 6}" text-anchor="middle">${peak.n}</text>` : ''}
+      </g>
+    </svg>
+  </div>
+  <p class="note">${esc(t.deadlineNote)}</p>
+</section>`;
+}
 
 /* --------------------------------------------------------------- scheduling
    Build a scheduler that already knows what everyone is carrying, then ask it
@@ -265,35 +434,91 @@ export function pmView(lang, ctx) {
   const projects = (ctx.projects || []).filter(p => !p.is_crm_list);
   const open = projects.filter(p => !['delivered', 'archived', 'lost'].includes(p.status));
 
+  /* --- the numbers above the table ------------------------------------- */
+  const overdue = open.filter(p => lateBy(p.due_on)).length;
+  const stages = open.flatMap(p => p.project_stages || []);
+  const liveStages = stages.filter(s => s.status !== 'done');
+  const unassigned = liveStages.filter(s => !s.assignee_id).length;
+  const committed = Math.round(liveStages.reduce((sum, s) => sum + (Number(s.effort_days) || 0), 0));
+
+  const leads = ctx.leads || [];
+  const openLeads = leads.filter(l => !['won', 'lost'].includes(l.status)).length;
+
+  /* The product's own promise, on the dashboard: if a medium proposal landed
+     today, when would it deliver — against everything already committed.
+     It runs through the same scheduler the estimator uses, so this tile and
+     that screen cannot quietly disagree. Wrapped because a roster with an
+     empty stage throws, and one empty tile beats a blank dashboard. */
+  let freeFrom = null;
+  try {
+    const { sched } = buildScheduler(ctx.people || [], liveStages);
+    const probeStages = (db.state.departments || []).filter(d => d.is_stage).map(d => d.id);
+    if (probeStages.length) {
+      const { real } = estimateFor(sched, {
+        name: 'probe', size: 'M', start: today(), deadline: null, stages: probeStages,
+      });
+      freeFrom = real?.delivery || null;
+    }
+  } catch { freeFrom = null; }
+
+  /* Only offer the review filter if there is something to review, and count
+     it over everything rather than the visible page. */
+  const flagged = open.filter(p => p.import_flags?.length).length;
+  const rows = open.slice(0, 80);
+
+  /* The estimate column earned its place only if any row can fill it. When
+     every cell is an em dash the column is not information, it is furniture
+     that makes the table look broken. */
+  const anyEstimate = rows.some(p => p.estimated_delivery);
+
   return `
+<div class="kpis">
+  ${kpi(open.length, t.openProjects, { sub: `${projects.length} ${lang === 'ar' ? 'إجمالاً' : 'in total'}`, colour: 'var(--brand)' })}
+  ${kpi(overdue, t.overdue_, { bad: overdue > 0, sub: lang === 'ar' ? 'تجاوزت موعد التقديم' : 'past their deadline', colour: 'var(--critical)' })}
+  ${kpi(unassigned, t.unassigned_, { sub: `${liveStages.length} ${lang === 'ar' ? 'مرحلة مفتوحة' : 'open stages'}`, colour: 'var(--warn)' })}
+  ${kpi(committed, t.committedDays, { sub: lang === 'ar' ? 'جهد متبقٍ' : 'effort still to do', colour: 'var(--s2)' })}
+  ${kpi(openLeads, t.openLeads, { sub: `${leads.length} ${lang === 'ar' ? 'في القائمة' : 'in the list'}`, colour: 'var(--s3)' })}
+  ${kpi(esc(fmt(freeFrom, lang)), t.nextFree, { date: true, sub: lang === 'ar' ? 'حجم متوسط، يبدأ اليوم' : 'medium size, starting today', colour: 'var(--s1)' })}
+</div>
+
+${deadlineChart(lang, open)}
+
 <section class="card">
   <div class="card__head">
     <h2>${esc(t.projects)}</h2>
     <span class="muted small">${open.length} ${esc(lang === 'ar' ? 'مفتوح' : 'open')} · ${projects.length} ${esc(lang === 'ar' ? 'إجمالاً' : 'total')}</span>
     <button class="btn btn--primary btn--sm" style="margin-inline-start:auto" data-act="go" data-route="#/new">${esc(t.newProject)}</button>
   </div>
-  <table class="tbl">
-    <thead><tr>
-      <th>${esc(t.name)}</th><th>${esc(t.stages)}</th>
-      <th class="num">${esc(t.estimate)}</th><th class="num">${esc(t.due)}</th><th>${esc(t.status)}</th>
-    </tr></thead>
-    <tbody>
-      ${open.slice(0, 60).map(p => {
-        const late = lateBy(p.due_on);
-        const stages = (p.project_stages || []).slice().sort((a, b) => a.sort - b.sort);
-        return `<tr>
-          <td>
-            <button class="link" data-act="go" data-route="#/p/${esc(p.id)}">${esc(p.name)}</button>
-            ${p.import_flags?.length ? `<span class="muted small block" title="${esc(p.import_flags.join(', '))}">${esc(t.flagged)}</span>` : ''}
-          </td>
-          <td class="small">${stages.map(s => `<span class="pill" style="--c:${esc(db.dept(s.department_id)?.colour || '#555')}">${esc(deptName(s.department_id, lang))}${s.status === 'done' ? ' ✓' : ''}</span>`).join(' ')}</td>
-          <td class="num">${esc(fmt(p.estimated_delivery, lang))}</td>
-          <td class="num ${late ? 'bad' : 'muted'}">${esc(fmt(p.due_on, lang))}</td>
-          <td class="muted small">${esc(p.status)}</td>
-        </tr>`;
-      }).join('')}
-    </tbody>
-  </table>
+  ${flagged ? `<div class="chipbar">
+    <button class="chip chip--btn is-on" data-rows="all">${esc(t.allRows)} ${open.length}</button>
+    <button class="chip chip--btn" data-rows="flagged">${esc(t.needsReview)} ${flagged}</button>
+  </div>` : ''}
+  <div class="tblwrap">
+    <table class="tbl">
+      <thead><tr>
+        <th>${esc(t.name)}</th><th>${esc(t.teamsCol)}</th>
+        ${anyEstimate ? `<th class="num">${esc(t.estimate)}</th>` : ''}
+        <th class="num">${esc(t.due)}</th><th>${esc(t.status)}</th>
+      </tr></thead>
+      <tbody>
+        ${rows.map(p => {
+          const late = lateBy(p.due_on);
+          const st = (p.project_stages || []).slice().sort((a, b) => a.sort - b.sort);
+          return `<tr${p.import_flags?.length ? ' data-flagged="1"' : ''}>
+            <td><button class="link" data-act="go" data-route="#/p/${esc(p.id)}">${esc(p.name)}</button></td>
+            <td class="small"><span class="stagecell">${st.map(s => `<span class="pill" style="--c:${esc(db.dept(s.department_id)?.colour || '#555')}">${esc(deptName(s.department_id, lang))}${s.status === 'done' ? ' ✓' : ''}</span>`).join('')}</span></td>
+            ${anyEstimate ? `<td class="num">${esc(fmt(p.estimated_delivery, lang))}</td>` : ''}
+            <td class="num ${late ? 'bad' : 'muted'}">${esc(fmt(p.due_on, lang))}
+              ${late ? `<span class="block small">${late} ${esc(t.overdue)}</span>` : ''}</td>
+            <td>${statusPill(p.status, lang)}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  </div>
+  ${open.length > rows.length ? `<p class="note">${esc(lang === 'ar'
+    ? `تعرض ${rows.length} من ${open.length} مشروعاً مفتوحاً. استخدم البحث في الأعلى للوصول إلى البقية.`
+    : `Showing ${rows.length} of ${open.length} open projects. Use the search above to reach the rest.`)}</p>` : ''}
 </section>`;
 }
 
@@ -361,18 +586,18 @@ export function estimateBox(lang, est) {
   const t = DSTR[lang];
   if (!est) return '';
   const { real, naive } = est;
-  const gap = real.deliveryDate && naive.deliveryDate
-    ? CAL.countWorkingDays(parse(naive.deliveryDate), parse(real.deliveryDate)) : 0;
+  const gap = real.delivery && naive.delivery
+    ? CAL.countWorkingDays(parse(naive.delivery), parse(real.delivery)) : 0;
   return `
   <div class="est">
     <div class="est__side">
       <span class="est__k">${esc(t.naive)}</span>
-      <span class="est__v">${esc(fmt(naive.deliveryDate, lang))}</span>
+      <span class="est__v">${esc(fmt(naive.delivery, lang))}</span>
     </div>
     <div class="est__arrow">→</div>
     <div class="est__side est__side--real">
       <span class="est__k">${esc(t.estimate)}</span>
-      <span class="est__v">${esc(fmt(real.deliveryDate, lang))}</span>
+      <span class="est__v">${esc(fmt(real.delivery, lang))}</span>
       ${gap > 0 ? `<span class="est__note small">${gap} ${esc(t.workingDays)} ${esc(t.queueDays)}</span>` : ''}
     </div>
   </div>`;
@@ -395,10 +620,11 @@ export function leadsView(lang, ctx) {
     <button class="btn btn--primary btn--sm" style="margin-inline-start:auto" data-act="newlead">${esc(t.addLead)}</button>
   </div>
   <div class="stats">
-    ${STATUSES.map(s => `<div class="stat"><span class="stat__n">${counts[s]}</span><span class="stat__l">${esc(s)}</span></div>`).join('')}
+    ${STATUSES.map(s => `<div class="stat"><span class="stat__n">${counts[s]}</span><span class="stat__l">${esc(t.st[s] || s)}</span></div>`).join('')}
     <div class="stat${stale ? ' stat--bad' : ''}"><span class="stat__n">${stale}</span><span class="stat__l">${esc(t.overdue)}</span></div>
   </div>
   <div id="leadForm"></div>
+  <div class="tblwrap">
   <table class="tbl">
     <thead><tr>
       <th>${esc(t.name)}</th><th>${esc(t.company)}</th><th>${esc(t.status)}</th>
@@ -412,7 +638,7 @@ export function leadsView(lang, ctx) {
           <td class="muted small">${esc(l.company || l.source || '')}</td>
           <td>
             <select class="leadStatus btn--sm" data-lead="${esc(l.id)}">
-              ${STATUSES.map(s => `<option value="${s}"${s === l.status ? ' selected' : ''}>${s}</option>`).join('')}
+              ${STATUSES.map(s => `<option value="${s}"${s === l.status ? ' selected' : ''}>${esc(t.st[s] || s)}</option>`).join('')}
             </select>
           </td>
           <td class="num ${late ? 'bad' : 'muted'}">${esc(fmt(l.next_follow_up_on, lang))}</td>
@@ -422,6 +648,7 @@ export function leadsView(lang, ctx) {
       }).join('')}
     </tbody>
   </table>
+  </div>
 </section>`;
 }
 

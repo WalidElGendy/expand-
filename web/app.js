@@ -87,6 +87,7 @@ const TEAM_COLOR = { '3d': 'var(--s1)', '2d': 'var(--s2)', content: 'var(--s3)' 
 const S = {
   lang: 'en',
   route: '#/',
+  q: '',                 // the top-bar filter, kept across re-renders
   headcount: { '3d': 2, '2d': 2, content: 1 },
   pipeline: [],
   seq: 0,
@@ -187,7 +188,7 @@ function render() {
     // Leaving it as "home" while showing a sign-in form is the kind of small
     // lie that makes tests and screen readers disagree with the page.
     document.body.dataset.route = 'signin';
-    $('#root').innerHTML = header({ name: 'signin' }) + signInView(S.lang, C.ctx.authMode, C.ctx.authMsg, C.ctx.authErr);
+    $('#root').innerHTML = shell({ name: 'signin' }, signInView(S.lang, C.ctx.authMode, C.ctx.authMsg, C.ctx.authErr));
     C.wireAuth(S.lang); wire();
     return;
   }
@@ -201,7 +202,7 @@ function render() {
   : r.name === 'estimate' ? estimatorBody()
   : landingView(S.lang);
 
-  $('#root').innerHTML = header(r) + body;
+  $('#root').innerHTML = shell(r, body);
   wire();
   if (r.name === 'signin') C.wireAuth(S.lang);
   if (APP.includes(r.name)) C.wireApp(S.lang);
@@ -216,7 +217,13 @@ const estimatorBody = () => `
     ${S.result ? timelineCard() : ''}`;
 
 function headTitle(r) {
-  const v = VSTR[S.lang];
+  const v = VSTR[S.lang], d = DSTR[S.lang];
+  if (r.name === 'home')     return { h1: d.home, sub: d.homeSub };
+  if (r.name === 'new')      return { h1: d.newProject, sub: '' };
+  if (r.name === 'leads')    return { h1: d.leads, sub: d.leadsSub };
+  if (r.name === 'docs')     return { h1: d.documents, sub: '' };
+  if (r.name === 'admin')    return { h1: d.people, sub: d.peopleSub };
+  if (r.name === 'signin')   return { h1: d.signIn, sub: '' };
   if (r.name === 'estimate') return { h1: T().title, sub: T().sub };
   if (r.name === 'who')      return { h1: v.whoTitle, sub: '' };
   if (r.name === 'pipeline') return { h1: v.pipeline, sub: '' };
@@ -227,58 +234,129 @@ function headTitle(r) {
   return { h1: 'expand', sub: v.brandLine };
 }
 
+/* ------------------------------------------------------------------ icons
+   Inline rather than a font or a sprite sheet: the whole product is one
+   file, so a second request for six glyphs is a request too many. */
+const ICON = {
+  home:   'M3 10.5 12 3l9 7.5M5.5 9.5V21h13V9.5',
+  plus:   'M12 5v14M5 12h14',
+  users:  'M16 20v-1.5a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4V20M9 10.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M22 20v-1.5a4 4 0 0 0-3-3.9M16 3.6a4 4 0 0 1 0 7.7',
+  doc:    'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M9 13h6M9 17h4',
+  team:   'M17 20v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M10 10a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M21 20v-2a4 4 0 0 0-3-3.9',
+  chart:  'M4 20V10M10 20V4M16 20v-7M22 20H2',
+  spark:  'M12 3v3M12 18v3M4.2 7.2l2.1 2.1M17.7 17.7l2.1 2.1M3 12h3M18 12h3M4.2 16.8l2.1-2.1M17.7 6.3l2.1-2.1',
+  board:  'M4 4h6v7H4zM14 4h6v11h-6zM4 15h6v5H4zM14 19h6v1h-6z',
+  search: 'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM21 21l-4.3-4.3',
+};
+const icon = (n) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${ICON[n]}"/></svg>`;
+
 /* Two navigations, because a signed-out visitor and a signed-in colleague
    want different things. The public one shows the product; the private one
    shows the work. Admin appears only for admins — a link that always 403s is
    worse than no link. */
 const PUBLIC_NAV = [
-  { route: '#/who',      label: () => VSTR[S.lang].whoTitle },
-  { route: '#/pipeline', label: () => VSTR[S.lang].pipeline },
-  { route: '#/estimate', label: () => VSTR[S.lang].openEstimator },
+  { group: 'product', route: '#/who',      icon: 'team',  label: () => VSTR[S.lang].whoTitle },
+  { group: 'product', route: '#/pipeline', icon: 'board', label: () => VSTR[S.lang].pipeline },
+  { group: 'product', route: '#/estimate', icon: 'spark', label: () => VSTR[S.lang].openEstimator },
 ];
 
 function appNav() {
   const me = db.state.me, d = DSTR[S.lang];
   if (!me) return [];
-  const items = [{ route: '#/home', label: () => d.home }];
+  const items = [{ group: 'work', route: '#/home', icon: 'home', label: () => d.home }];
   if (me.department_id === 'pm' || ['admin','manager'].includes(me.role)) {
-    items.push({ route: '#/new', label: () => d.newProject });
+    items.push({ group: 'work', route: '#/new', icon: 'plus', label: () => d.newProject });
   }
-  items.push({ route: '#/leads', label: () => d.leads });
-  items.push({ route: '#/docs',  label: () => d.documents });
-  if (me.role === 'admin') items.push({ route: '#/admin', label: () => d.people });
+  items.push({ group: 'work', route: '#/leads', icon: 'users', label: () => d.leads });
+  items.push({ group: 'work', route: '#/docs',  icon: 'doc',   label: () => d.documents });
+  items.push({ group: 'insight', route: '#/estimate', icon: 'spark', label: () => VSTR[S.lang].openEstimator });
+  items.push({ group: 'insight', route: '#/pipeline', icon: 'board', label: () => VSTR[S.lang].pipeline });
+  if (me.role === 'admin') items.push({ group: 'workspace', route: '#/admin', icon: 'team', label: () => d.people });
   return items;
 }
 
-function header(r) {
-  const { h1, sub } = headTitle(r);
-  const v = VSTR[S.lang];
+const GROUP_LABEL = {
+  en: { product: 'Product', work: 'Work', insight: 'Insight', workspace: 'Workspace' },
+  ar: { product: 'المنتج', work: 'العمل', insight: 'التحليل', workspace: 'مساحة العمل' },
+};
+
+/* The active item is the LONGEST matching route, not the first. With
+   `startsWith`, `#/` matches everything and every row lights up at once. */
+function isOn(route) {
+  const h = location.hash || '#/';
+  return h === route || h.startsWith(route + '/');
+}
+
+function sidebar() {
+  const items = db.state.session ? appNav() : PUBLIC_NAV;
+  const me = db.state.me;
+  const groups = [];
+  for (const it of items) {
+    const g = groups.find(x => x.key === it.group);
+    (g || (groups[groups.push({ key: it.group, items: [] }) - 1])).items.push(it);
+  }
+
   return `
-  <header class="head">
-    <button class="brand" data-act="go" data-route="#/" aria-label="expand — home">
+  <aside class="side">
+    <button class="side__brand" data-act="go" data-route="#/" aria-label="expand — home">
       <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true">
         <circle cx="7" cy="12" r="5.4" fill="none" stroke="var(--brand)" stroke-width="2.4"/>
-        <rect x="4.4" y="10.6" width="5.2" height="2.8" fill="var(--bg)"/>
+        <rect x="4.4" y="10.6" width="5.2" height="2.8" fill="var(--s-1)"/>
         <circle cx="7" cy="12" r="1.6" fill="var(--brand)"/>
       </svg>
       <span class="wordmark">expand</span>
     </button>
-    <span class="sep"></span>
+
+    ${groups.map(g => `
+      <div class="side__label">${esc(GROUP_LABEL[S.lang][g.key] || g.key)}</div>
+      <nav class="side__nav">
+        ${g.items.map(n => `
+          <button class="navbtn${isOn(n.route) ? ' is-on' : ''}" data-act="go" data-route="${n.route}">
+            ${icon(n.icon)}<span>${esc(n.label())}</span>
+          </button>`).join('')}
+      </nav>`).join('')}
+
+    <div class="side__foot${me ? '' : ' side__foot--cta'}">
+      ${me ? `
+        <div class="mecard">
+          <span class="ava">${esc((me.full_name || me.email || '?').trim().slice(0, 1).toUpperCase())}</span>
+          <span class="mecard__t">
+            <span class="mecard__n">${esc(me.full_name || me.email || '')}</span>
+            <span class="mecard__r">${esc(me.role || '')}</span>
+          </span>
+        </div>`
+      : `<button class="btn btn--primary" style="width:100%" data-act="go" data-route="#/signin">${esc(DSTR[S.lang].signIn)}</button>`}
+    </div>
+  </aside>`;
+}
+
+/* Only routes that actually render a filterable table get a search box. A
+   search field that filters nothing is worse than no search field. */
+const SEARCHABLE = ['home', 'leads', 'docs', 'admin'];
+
+function topbar(r) {
+  const { h1, sub } = headTitle(r);
+  const d = DSTR[S.lang];
+  return `
+  <header class="head">
     <div class="headtext"><div class="h1">${esc(h1)}</div>${sub ? `<div class="sub">${esc(sub)}</div>` : ''}</div>
-    <nav class="nav">
-      ${(db.state.session ? appNav() : PUBLIC_NAV).map(n => `<button class="navbtn${location.hash.startsWith(n.route) ? ' is-on' : ''}"
-        data-act="go" data-route="${n.route}">${esc(n.label ? n.label() : v[n.key])}</button>`).join('')}
-    </nav>
+    ${SEARCHABLE.includes(r.name) ? `
+    <div class="search">
+      ${icon('search')}
+      <input id="q" type="search" autocomplete="off" placeholder="${esc(d.searchPlaceholder)}" value="${esc(S.q)}" />
+    </div>` : ''}
     <div class="head__actions">
-      ${db.state.me ? `<span class="whoami small muted">${esc(db.state.me.full_name || db.state.me.email || '')}</span>` : ''}
       ${r.name === 'estimate' ? `<button class="btn btn--ghost" data-act="reset">${esc(T().reset)}</button>` : ''}
       ${db.state.session
-        ? `<button class="btn btn--ghost" data-act="signout">${esc(DSTR[S.lang].signOut)}</button>`
-        : `<button class="btn btn--primary btn--sm" data-act="go" data-route="#/signin">${esc(DSTR[S.lang].signIn)}</button>`}
+        ? `<button class="btn btn--ghost" data-act="signout">${esc(d.signOut)}</button>`
+        : `<button class="btn btn--primary btn--sm" data-act="go" data-route="#/signin">${esc(d.signIn)}</button>`}
       <button class="btn btn--lang" data-act="lang">${S.lang === 'en' ? 'العربية' : 'English'}</button>
     </div>
   </header>`;
 }
+
+const shell = (r, body) => sidebar() + `<div class="main">${topbar(r)}<div class="page">${body}</div></div>`;
 
 function teamsCard() {
   return `
@@ -547,6 +625,17 @@ function wire() {
   document.querySelectorAll('[data-act="go"]').forEach(b => b.onclick = () => {
     location.hash = b.dataset.route;   // hashchange re-renders
   });
+  /* The filter runs over the rendered rows rather than re-rendering the view.
+     Re-rendering on every keystroke would rebuild the input the user is
+     typing into and throw away the caret — the classic search box that eats
+     the second character. This also means it works on every table without
+     each view having to know about it. */
+  const q = $('#q');
+  if (q) {
+    q.oninput = () => { S.q = q.value; applyFilter(); };
+    applyFilter();
+  }
+
   const act = (name, fn) => { const el = document.querySelector(`[data-act="${name}"]`); if (el) el.onclick = fn; };
   act('lang', () => { S.lang = S.lang === 'en' ? 'ar' : 'en'; render(); });
   act('signout', async () => { await db.signOut(); location.hash = '#/'; render(); });
@@ -556,6 +645,35 @@ function wire() {
     const f = readForm();
     S.pipeline.push({ id: `p${++S.seq}`, ...f });
     if (S.result) estimate(false); else render();
+  });
+}
+
+/** Hide table rows that do not contain the query, and say so when none do. */
+function applyFilter() {
+  const needle = S.q.trim().toLowerCase();
+  document.querySelectorAll('.tbl tbody').forEach(body => {
+    let shown = 0;
+    body.querySelectorAll('tr').forEach(tr => {
+      if (tr.dataset.empty) return;
+      const hit = !needle || tr.textContent.toLowerCase().includes(needle);
+      // Record WHY a row is hidden so the chip filter and the search box can
+      // both hide rows without either one un-hiding the other's.
+      tr.dataset.searchHidden = hit ? '' : '1';
+      tr.hidden = !hit || tr.dataset.chipHidden === '1';
+      if (hit) shown++;
+    });
+    // One "nothing matched" row per table, created once and reused, so
+    // repeated typing cannot stack up placeholder rows.
+    let none = body.querySelector('tr[data-empty]');
+    if (!none) {
+      none = document.createElement('tr');
+      none.dataset.empty = '1';
+      none.innerHTML = `<td class="tbl__empty" colspan="9"></td>`;
+      body.appendChild(none);
+    }
+    none.firstElementChild.textContent =
+      S.lang === 'ar' ? `لا نتائج لـ "${S.q}"` : `Nothing matches “${S.q}”`;
+    none.hidden = shown > 0 || !needle;
   });
 }
 
