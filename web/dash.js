@@ -439,7 +439,15 @@ export function pmView(lang, ctx) {
   const stages = open.flatMap(p => p.project_stages || []);
   const liveStages = stages.filter(s => s.status !== 'done');
   const unassigned = liveStages.filter(s => !s.assignee_id).length;
-  const committed = Math.round(liveStages.reduce((sum, s) => sum + (Number(s.effort_days) || 0), 0));
+
+  /* Every stage imported from Asana has a NULL effort_days — Asana has no
+     such field — so summing the column alone renders a confident zero next to
+     204 open stages. Fall back to the department's stated figure, and count
+     how many stages have neither so the tile can say what it is missing
+     rather than quietly under-reporting. */
+  const effortOf = (s) => Number(s.effort_days) || Number(db.dept(s.department_id)?.base_days) || 0;
+  const committed = Math.round(liveStages.reduce((sum, s) => sum + effortOf(s), 0));
+  const unpriced = liveStages.filter(s => !effortOf(s)).length;
 
   const leads = ctx.leads || [];
   const openLeads = leads.filter(l => !['won', 'lost'].includes(l.status)).length;
@@ -452,7 +460,14 @@ export function pmView(lang, ctx) {
   let freeFrom = null;
   try {
     const { sched } = buildScheduler(ctx.people || [], liveStages);
-    const probeStages = (db.state.departments || []).filter(d => d.is_stage).map(d => d.id);
+    /* Only stages the scheduler can actually price AND staff. `pricing` and
+       `production` are flagged as stages but have no stated effort and nobody
+       assigned, and asking the engine to schedule one throws — which took the
+       whole tile down with it and printed an em dash. */
+    const probeStages = (db.state.departments || [])
+      .filter(d => d.is_stage && Number(d.base_days) > 0)
+      .filter(d => (ctx.people || []).some(p => p.department_id === d.id))
+      .map(d => d.id);
     if (probeStages.length) {
       const { real } = estimateFor(sched, {
         name: 'probe', size: 'M', start: today(), deadline: null, stages: probeStages,
@@ -476,7 +491,9 @@ export function pmView(lang, ctx) {
   ${kpi(open.length, t.openProjects, { sub: `${projects.length} ${lang === 'ar' ? 'إجمالاً' : 'in total'}`, colour: 'var(--brand)' })}
   ${kpi(overdue, t.overdue_, { bad: overdue > 0, sub: lang === 'ar' ? 'تجاوزت موعد التقديم' : 'past their deadline', colour: 'var(--critical)' })}
   ${kpi(unassigned, t.unassigned_, { sub: `${liveStages.length} ${lang === 'ar' ? 'مرحلة مفتوحة' : 'open stages'}`, colour: 'var(--warn)' })}
-  ${kpi(committed, t.committedDays, { sub: lang === 'ar' ? 'جهد متبقٍ' : 'effort still to do', colour: 'var(--s2)' })}
+  ${kpi(committed, t.committedDays, { colour: 'var(--s2)',
+    sub: unpriced ? `${unpriced} ${lang === 'ar' ? 'مرحلة بلا رقم جهد' : 'stages have no effort figure'}`
+                  : (lang === 'ar' ? 'جهد متبقٍ' : 'effort still to do') })}
   ${kpi(openLeads, t.openLeads, { sub: `${leads.length} ${lang === 'ar' ? 'في القائمة' : 'in the list'}`, colour: 'var(--s3)' })}
   ${kpi(esc(fmt(freeFrom, lang)), t.nextFree, { date: true, sub: lang === 'ar' ? 'حجم متوسط، يبدأ اليوم' : 'medium size, starting today', colour: 'var(--s1)' })}
 </div>
