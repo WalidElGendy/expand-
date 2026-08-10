@@ -42,8 +42,7 @@ export const VSTR = {
     blocking: 'What you are holding up', blockingNone: 'Nothing is waiting on you.',
     nextDue: 'Next due', noDue: 'no due date set',
     projects: 'projects', project: 'project',
-    stageOf: 'Stage', measured: 'Measured on delivered work',
-    stated: 'stated', actual: 'median actual', elapsedNote: 'Elapsed time — effort plus waiting. Not the effort figure.',
+    stageOf: 'Stage', elapsedNote: 'Elapsed time — effort plus waiting. Not the effort figure.',
     leadsTitle: 'Leads', dealsTitle: 'Deals', wonTitle: 'Closed won',
     leadGapTitle: 'The lead list stopped',
     capacityCheck: 'What a win would cost',
@@ -51,8 +50,16 @@ export const VSTR = {
     ifWon: 'if won', addsTo: 'adds to', wouldPush: 'would push the queue to',
     owner: 'Owner', due: 'Due', daysLate: 'days late', today: 'today',
     noOne: 'unassigned',
-    noStatedEffort: 'Carrying work with no stated effort figure, so no date can be honestly computed. Ask each of these teams for their equivalent of 5 / 2 / 3.',
     misrouted: 'Filed in Asana as a 3D task but assigned to 2D — left as found.',
+    assigned: 'people assigned', assignedOne: 'person assigned',
+    noDateShort: 'no effort figure, no date',
+    statedIs: 'stated', measuredIs: 'measured', medianOf: 'median of',
+    noStatedFigure: 'no stated figure',
+    openDealsL: 'open deals', designDaysIfAll: 'design days if all close',
+    pricingGateNote: 'Three people are in pricing, but one holds price review and approval on 17 of the 19 open proposals. Adding people to this stage does not widen it — the approval is the gate, and it takes a median of 13 days against a figure nobody has stated.',
+    leadsStalledNote: 'The pipeline is being worked; the top of it is not. 48 of 70 leads are open and unassigned, and nothing has been added since 10 November 2025. Deals close from a list that stopped being fed.',
+    productionNote: 'One delivered job to measure, and nobody in Asana holding production work. The stage exists in the process and not in the record.',
+    pmNote: 'Four project managers, and not one open task assigned to any of them. The people who own delivery are the only function the workspace cannot see, so nothing they are carrying can be scheduled or chased.',
     roleTitles: {
       pm: 'Project manager', '3d': '3D designer', '2d': '2D technical designer',
       content: 'Content creator', pricing: 'Pricing', bd: 'Business developer', production: 'Production',
@@ -79,8 +86,7 @@ export const VSTR = {
     blocking: 'ما الذي تؤخّره', blockingNone: 'لا شيء ينتظرك.',
     nextDue: 'الاستحقاق القادم', noDue: 'بلا موعد',
     projects: 'مشاريع', project: 'مشروع',
-    stageOf: 'المرحلة', measured: 'مقيس على أعمال مُسلَّمة',
-    stated: 'المُعلن', actual: 'الوسيط الفعلي', elapsedNote: 'زمن منقضٍ — جهد زائد انتظار. ليس رقم الجهد.',
+    stageOf: 'المرحلة', elapsedNote: 'زمن منقضٍ — جهد زائد انتظار. ليس رقم الجهد.',
     leadsTitle: 'العملاء المحتملون', dealsTitle: 'الصفقات', wonTitle: 'صفقات مكسوبة',
     leadGapTitle: 'قائمة العملاء المحتملين توقفت',
     capacityCheck: 'ماذا يكلّف الفوز',
@@ -88,8 +94,16 @@ export const VSTR = {
     ifWon: 'عند الفوز', addsTo: 'يضيف إلى', wouldPush: 'يدفع الطابور إلى',
     owner: 'المسؤول', due: 'الاستحقاق', daysLate: 'يوماً تأخيراً', today: 'اليوم',
     noOne: 'غير مسند',
-    noStatedEffort: 'يحملون عملاً بلا رقم جهد معلن، فلا يمكن حساب موعد بصدق. اطلب من كل فريق ما يعادل ٥ / ٢ / ٣.',
     misrouted: 'مسجَّلة في أسانا كمهمة ثلاثية الأبعاد لكنها مسندة لفريق 2D — تُركت كما هي.',
+    assigned: 'أشخاص مسندون', assignedOne: 'شخص مسند',
+    noDateShort: 'بلا رقم جهد، بلا موعد',
+    statedIs: 'المُعلن', measuredIs: 'المقيس', medianOf: 'وسيط',
+    noStatedFigure: 'بلا رقم معلن',
+    openDealsL: 'صفقات مفتوحة', designDaysIfAll: 'يوم تصميم عند الفوز بالكل',
+    pricingGateNote: 'ثلاثة أشخاص في التسعير، لكن واحداً يملك مراجعة الأسعار واعتمادها في ١٧ من ١٩ عرضاً مفتوحاً. إضافة أشخاص لهذه المرحلة لا توسّعها — الاعتماد هو البوابة، ويستغرق وسيطاً قدره ١٣ يوماً مقابل رقم لم يعلنه أحد.',
+    leadsStalledNote: 'خط المبيعات يُعمل عليه، أما أعلاه فلا. ٤٨ من ٧٠ عميلاً محتملاً مفتوحون وغير مسندين، ولم يُضف شيء منذ ١٠ نوفمبر ٢٠٢٥. الصفقات تُغلق من قائمة توقّف تغذيتها.',
+    productionNote: 'عمل واحد مُسلَّم يمكن قياسه، ولا أحد في أسانا يحمل عمل التنفيذ. المرحلة موجودة في العملية وغير موجودة في السجل.',
+    pmNote: 'أربعة مديري مشاريع، ولا مهمة مفتوحة واحدة مسندة لأي منهم. مَن يملكون التسليم هم الوظيفة الوحيدة التي لا تراها مساحة العمل، فلا يمكن جدولة ما يحملونه ولا متابعته.',
     roleTitles: {
       pm: 'مدير مشاريع', '3d': 'مصمم ثلاثي الأبعاد', '2d': 'مصمم فني',
       content: 'منتج محتوى', pricing: 'التسعير', bd: 'مطور أعمال', production: 'التنفيذ',
@@ -155,19 +169,108 @@ function loadBar(days, max, colour) {
   return `<div class="loadbar"><i style="width:${pct}%;background:${colour}"></i></div>`;
 }
 
+/* Cost of a win, in design days, using the same size factors the estimator
+   uses. This is the join no CRM makes: a deal is not just a number, it is a
+   claim on two people's calendars. Module scope because both the landing
+   summary and the pipeline board price deals, and two copies of this would
+   eventually disagree. */
+export const designDays = (size) => {
+  const f = DEFAULT_SIZE_FACTORS[size] ?? 1;
+  return Math.round((DEFAULT_STAGES['3d'].baseDays + DEFAULT_STAGES['2d'].baseDays) * f);
+};
+
+/* ========================= the business, by function ======================
+   One row per department, covering every function rather than only the two
+   with a stated effort figure.
+
+   The measured medians live in these rows now instead of in a table of their
+   own. Read apart, "2D says 2 days" and "2D actually takes 5.5" are two
+   facts; read on one line they are the finding, and the departments with no
+   stated figure at all stop looking like an empty row and start looking like
+   the question they are.
+
+   What this deliberately does NOT do is multiply a measured median by a
+   project count to manufacture a delivery date for pricing or content. Those
+   medians are ELAPSED days — effort plus the wait — so multiplying them by a
+   queue counts the queue twice and would put Omar's next free slot somewhere
+   in 2027. A dash and a stated reason is the honest cell.
+   ======================================================================== */
+
+const BUSINESS_ORDER = ['3d', '2d', 'pricing', 'content', 'bd', 'pm', 'production'];
+
+export function businessRows() {
+  const openDeals = DEALS.filter(d => d.stage !== 'won');
+  const pendingDays = openDeals.reduce((s, d) => s + designDays(d.size), 0);
+
+  return BUSINESS_ORDER.map((id) => {
+    const staff = PEOPLE.filter(p => p.dept === id && !p.vacant);
+    const projects = staff.reduce((s, p) => s + p.projects, 0);
+    const priced = staff.map(p => ({ p, c: commitment(p) }))
+      .filter(x => x.c.days)
+      .sort((a, b) => b.c.days - a.c.days);
+
+    return {
+      id, staff, projects,
+      // Department days are the sum, but the free date comes from the busiest
+      // person: a stage is only clear when its most loaded member is.
+      days: priced.length ? priced.reduce((s, x) => s + x.c.days, 0) : null,
+      free: priced.length ? priced[0].c.free : null,
+      measured: MEASURED.find(m => m.stage === id) || null,
+      deals: id === 'bd' ? openDeals.length : null,
+      dealDays: id === 'bd' ? pendingDays : null,
+    };
+  });
+}
+
 /* ================================ LANDING ================================= */
 
 export function landingView(lang) {
   const t = VSTR[lang];
-  /* Everyone carrying open work, not only the two stages with a stated
-     effort figure. Leaving pricing out because nobody has given us a
-     day-count would hide the second-largest queue in the company. */
-  const all = PEOPLE
-    .filter(p => !p.vacant && p.projects > 0)
-    .map(p => ({ p, c: commitment(p) }));
-  const loads    = all.filter(x => x.c.days).sort((a, b) => b.c.days - a.c.days);
-  const unpriced = all.filter(x => !x.c.days).sort((a, b) => b.p.projects - a.p.projects);
-  const max = Math.max(...loads.map(x => x.c.days), 1);
+  const rows = businessRows();
+  const max = Math.max(...rows.map(r => r.days || 0), 1);
+
+  /* Who is in a department, named while the list is short enough to read and
+     counted once it is not. A row that says "3 people" when it could say
+     their names is hiding the thing the reader wants. */
+  const whoLine = (r) => {
+    if (!r.staff.length) return esc(t.vacant);
+    const names = r.staff.length <= 2
+      ? r.staff.map(p => p.name).join(lang === 'ar' ? ' و' : ', ')
+      : `${r.staff.length} ${t.people}`;
+    return r.projects
+      ? `${esc(names)} · ${r.projects} ${esc(r.projects === 1 ? t.project : t.projects)}`
+      : esc(names);
+  };
+
+  /* stated 5 · measured 11.5 median of 6 — the removed table, per row. */
+  const measuredLine = (m) => m ? `<span class="deptrow__m small muted">${
+    m.stated == null ? esc(t.noStatedFigure) : `${esc(t.statedIs)} ${m.stated}`
+  } · ${esc(t.measuredIs)} <b>${m.medianElapsed}</b> ${esc(t.medianOf)} ${m.n}</span>` : '';
+
+  /* The two right-hand cells differ by what a department can honestly say. */
+  const cells = (r) => {
+    if (r.days) return [
+      [r.days, t.committed],
+      [fmtDate(r.free, lang), t.freeFrom],
+    ];
+    if (r.id === 'bd') return [
+      [r.deals, t.openDealsL],
+      [r.dealDays, t.designDaysIfAll],
+    ];
+    if (r.projects) return [
+      [r.projects, t.openProposals],
+      ['—', t.noDateShort],
+    ];
+    // People but no work is a different fact from no people at all, and the
+    // cells should not read the same.
+    return [
+      [r.staff.length, r.staff.length === 1 ? t.assignedOne : t.assigned],
+      r.staff.length ? [0, t.openProposals] : ['—', t.noDateShort],
+    ];
+  };
+
+  const NOTES = { pricing: t.pricingGateNote, content: t.contentVacantNote,
+                  bd: t.leadsStalledNote, pm: t.pmNote, production: t.productionNote };
 
   return `
 <section class="hero">
@@ -187,56 +290,34 @@ export function landingView(lang) {
   </div>
 
   <div class="loadlist">
-    ${loads.map(({ p, c }) => `
-      <div class="loadlist__row">
+    ${rows.map((r) => {
+      const [[n1, l1], [n2, l2]] = cells(r);
+      const colour = DEPARTMENTS[r.id].colour;
+      return `
+      <div class="loadlist__row deptrow${r.staff.length ? '' : ' deptrow--empty'}">
         <div class="loadlist__who">
-          <strong>${esc(p.name)}</strong>
-          <span class="muted small">${esc(deptName(p.dept, lang))} · ${p.projects} ${esc(p.projects === 1 ? t.project : t.projects)}</span>
+          <strong><i class="dot" style="background:${colour}"></i>${esc(deptName(r.id, lang))}</strong>
+          <span class="muted small">${whoLine(r)}</span>
         </div>
-        ${loadBar(c.days, max, DEPARTMENTS[p.dept].colour)}
+        <div class="deptrow__mid">
+          ${r.days ? loadBar(r.days, max, colour) : ''}
+          ${measuredLine(r.measured)}
+        </div>
         <div class="loadlist__num">
-          <strong>${c.days}</strong>
-          <span class="muted small">${esc(t.committed)}</span>
+          <strong>${esc(n1)}</strong>
+          <span class="muted small">${esc(l1)}</span>
         </div>
         <div class="loadlist__num">
-          <strong>${esc(fmtDate(c.free, lang))}</strong>
-          <span class="muted small">${esc(t.freeFrom)}</span>
+          <strong>${esc(n2)}</strong>
+          <span class="muted small">${esc(l2)}</span>
         </div>
-      </div>`).join('')}
+        ${NOTES[r.id] ? `<p class="deptrow__note small">${esc(NOTES[r.id])}</p>` : ''}
+      </div>`;
+    }).join('')}
   </div>
 
-  ${unpriced.length ? `
-  <div class="unpriced">
-    <p class="unpriced__head small">${esc(t.noStatedEffort)}</p>
-    <div class="batches">
-      ${unpriced.map(({ p }) => `
-        <div class="batch">
-          <span class="batch__l muted small">${esc(p.name)}</span>
-          <span class="batch__n">${p.projects}<span class="muted small"> ${esc(p.projects === 1 ? t.project : t.projects)}</span></span>
-        </div>`).join('')}
-    </div>
-  </div>` : ''}
-
-  <p class="note">${esc(t.capacityUnconfirmed)}</p>
-</section>
-
-<section class="card">
-  <div class="card__head"><h2>${esc(t.measured)}</h2></div>
-  <table class="tbl">
-    <thead><tr>
-      <th>${esc(t.stageOf)}</th><th class="num">${esc(t.stated)}</th>
-      <th class="num">${esc(t.actual)}</th><th class="num">n</th>
-    </tr></thead>
-    <tbody>
-      ${MEASURED.map(m => `<tr>
-        <td>${esc(deptName(m.stage, lang))}</td>
-        <td class="num">${m.stated ?? '—'}</td>
-        <td class="num"><strong>${m.medianElapsed}</strong></td>
-        <td class="num muted">${m.n}</td>
-      </tr>`).join('')}
-    </tbody>
-  </table>
   <p class="note">${esc(t.elapsedNote)}</p>
+  <p class="note">${esc(t.capacityUnconfirmed)}</p>
 </section>`;
 }
 
@@ -397,14 +478,6 @@ ${p.dept === 'bd' ? pipelineView(lang, true) : `
 
 export function pipelineView(lang, embedded = false) {
   const t = VSTR[lang];
-
-  /* Cost of a win, in design days, using the same size factors the estimator
-     uses. This is the join no CRM makes: a deal is not just a number, it is
-     a claim on two people's calendars. */
-  const designDays = (size) => {
-    const f = DEFAULT_SIZE_FACTORS[size] ?? 1;
-    return Math.round((DEFAULT_STAGES['3d'].baseDays + DEFAULT_STAGES['2d'].baseDays) * f);
-  };
 
   const openDeals = DEALS.filter(d => d.stage !== 'won');
   const pendingDays = openDeals.reduce((s, d) => s + designDays(d.size), 0);

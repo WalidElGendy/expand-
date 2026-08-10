@@ -317,8 +317,27 @@ html[lang="ar"] .hero__title { letter-spacing: 0; line-height: 1.25; }
 .loadrow { display: grid; gap: 7px; margin-top: 4px; }
 @media (max-width: 780px) {
   .loadlist__row { grid-template-columns: 1fr 1fr; }
-  .loadlist__who, .loadbar { grid-column: 1 / -1; }
+  .loadlist__who, .loadbar, .deptrow__mid { grid-column: 1 / -1; }
   .loadlist__num { text-align: start; }
+}
+
+/* ---------------------- the business, by function ------------------------ */
+/* Same four-column rhythm as the load list, plus a middle cell that holds the
+   bar and the measured line, and a note that spans the row. Departments with
+   nobody assigned are dimmed rather than hidden: an empty row is the point. */
+.deptrow { row-gap: 8px; }
+.deptrow__mid { display: grid; gap: 6px; min-width: 0; }
+.deptrow__m { font-variant-numeric: tabular-nums; letter-spacing: .01em; }
+.deptrow__m b { color: var(--ink2); font-weight: 600; }
+.deptrow__note {
+  grid-column: 1 / -1; color: var(--ink3); line-height: 1.6;
+  border-inline-start: 2px solid var(--line2); padding-inline-start: 11px;
+  margin-top: 2px; max-width: 78ch;
+}
+.deptrow--empty .loadlist__who strong, .deptrow--empty .loadlist__num strong { color: var(--ink3); }
+.loadlist__who strong .dot {
+  width: 8px; height: 8px; border-radius: 3px; display: inline-block;
+  margin-inline-end: 8px; vertical-align: baseline;
 }
 
 /* ------------------------------ role picker ------------------------------ */
