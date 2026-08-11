@@ -660,6 +660,16 @@ select.btn--sm { height: 28px; padding: 0 6px; background: var(--s-2); border: 1
 
 .actions--end { justify-content: flex-end; margin-top: 0; }
 
+/* Result of an action, in the form that caused it. Green and red rather than
+   one neutral colour, because "added but not emailed" is not good news and
+   should not look like it. */
+.msg {
+  font-size: 12.5px; line-height: 1.6; border-radius: 8px; padding: 10px 12px;
+  border: 1px solid; margin: 2px 0;
+}
+.msg--ok  { color: #8ee89b; background: rgba(12,163,12,.10); border-color: rgba(12,163,12,.35); }
+.msg--bad { color: #ffb0b0; background: rgba(208,59,59,.10); border-color: rgba(208,59,59,.38); }
+
 .stagepick { display: grid; gap: 8px; }
 .stagepick__row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .chk { display: flex; align-items: center; gap: 9px; flex: 1; min-width: min(240px, 100%); font-size: 13px; }

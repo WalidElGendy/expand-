@@ -65,6 +65,10 @@ export const DSTR = {
     filesPicked: 'files selected', filePicked: 'file selected',
     noDocsYet: 'No documents yet. The first upload appears here.',
     attachments: 'Attachments',
+    sending: 'Sending…', inviteNoReason: 'the mail server gave no reason',
+    inviteSent: 'Invited {email}. They have an email with a link to set their password.',
+    inviteResent: '{email} already has an account, so we sent a sign-in link instead.',
+    inviteNoMail: '{email} can sign in with that role now, but the email did not go out: {reason}. The built-in sender allows 2 an hour — connect Resend to lift that.',
     rfpHint: 'The brief you were sent. PDF, Word, Excel or a zip.',
     refsHint: 'Photos, moodboards, anything the designers should look at first.',
     deadlineChart: 'Deadlines by month', deadlineNote: 'Open projects grouped by submission deadline. The dashed line is today, so everything to its left is already late.',
@@ -118,6 +122,10 @@ export const DSTR = {
     filesPicked: 'ملفات مختارة', filePicked: 'ملف مختار',
     noDocsYet: 'لا توجد مستندات بعد. أول رفع سيظهر هنا.',
     attachments: 'المرفقات',
+    sending: 'جارٍ الإرسال…', inviteNoReason: 'لم يذكر خادم البريد سبباً',
+    inviteSent: 'تمت دعوة {email}. وصلته رسالة فيها رابط لضبط كلمة المرور.',
+    inviteResent: '{email} لديه حساب بالفعل، فأرسلنا له رابط دخول بدلاً من ذلك.',
+    inviteNoMail: 'يستطيع {email} الدخول بهذه الصلاحية الآن، لكن الرسالة لم تُرسل: {reason}. المُرسِل المدمج يسمح برسالتين في الساعة — اربط Resend لرفع الحد.',
     rfpHint: 'الكراسة التي وصلتك. PDF أو وورد أو إكسل أو ملف مضغوط.',
     refsHint: 'صور أو لوحات إلهام، أي شيء يجب أن يراه المصممون أولاً.',
     deadlineChart: 'المواعيد حسب الشهر', deadlineNote: 'المشاريع المفتوحة مجمّعة حسب موعد التقديم. الخط المتقطع هو اليوم، وكل ما على يساره متأخر بالفعل.',
@@ -808,6 +816,7 @@ export function adminView(lang, ctx) {
         <select id="iRole">${['member', 'lead', 'manager', 'admin'].map(r => `<option value="${r}">${r}</option>`).join('')}</select></label>
     </div>
     <p class="note">${esc(t.inviteNote)}</p>
+    ${ctx.inviteMsg ? `<p class="msg ${ctx.inviteMsg.ok ? 'msg--ok' : 'msg--bad'}">${esc(ctx.inviteMsg.text)}</p>` : ''}
     <div class="actions"><button class="btn btn--primary" type="submit">${esc(t.invite)}</button></div>
   </form>
 </section>

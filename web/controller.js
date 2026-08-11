@@ -17,6 +17,7 @@ const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 export const ctx = {
   projects: [], stages: [], people: [], leads: [], files: [], invites: [],
   loading: false, error: null, authMode: 'in', authMsg: '', est: null,
+  inviteMsg: null,      // what actually happened to the last invitation
   authErr: null,        // whatever Supabase sent back in the URL fragment
 };
 
@@ -238,14 +239,32 @@ export function wireApp(lang) {
   const inv = $('#inviteForm');
   if (inv) inv.onsubmit = async (e) => {
     e.preventDefault();
+    const btn = inv.querySelector('button[type=submit]');
+    const d = V.DSTR[lang];
+    const email = $('#iEmail').value.trim();
+    btn.disabled = true; btn.textContent = d.sending;
+    ctx.inviteMsg = null;
     try {
-      await db.invite({
-        email: $('#iEmail').value, full_name: $('#iName').value.trim() || null,
+      const r = await db.invite({
+        email, full_name: $('#iName').value.trim() || null,
         department_id: $('#iDept').value, role: $('#iRole').value,
       });
+      /* Three different outcomes, and they are not the same news. Reporting
+         all of them as success is what made a silent failure look like a
+         working feature for as long as it did. */
+      ctx.inviteMsg = r?.emailed
+        ? { ok: true, text: (r.kind === 'reset' ? d.inviteResent : d.inviteSent).replace('{email}', r.email || email) }
+        : { ok: false, text: d.inviteNoMail.replace('{email}', r?.email || email)
+                              .replace('{reason}', r?.reason || d.inviteNoReason) };
       $('#iEmail').value = ''; $('#iName').value = '';
       await loadFor('admin'); rerender();
-    } catch (err) { fail(err); }
+    } catch (err) {
+      ctx.inviteMsg = { ok: false, text: err.message };
+      rerender();
+    } finally {
+      const b = $('#inviteForm button[type=submit]');
+      if (b) { b.disabled = false; b.textContent = d.invite; }
+    }
   };
 
   $$('.pDept').forEach(s => s.onchange = () =>

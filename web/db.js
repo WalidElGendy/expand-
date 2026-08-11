@@ -180,11 +180,27 @@ export const listPeople = async () => ok(await sb
 export const listInvitations = async () => ok(await sb
   .from('invitations').select('*').order('created_at', { ascending: false }));
 
-export const invite = async ({ email, full_name, department_id, role }) => ok(await sb
-  .from('invitations')
-  .upsert({ email: email.trim().toLowerCase(), full_name, department_id, role,
-            invited_by: state.me?.id }, { onConflict: 'email' })
-  .select());
+/* Inviting is a SERVER action, not a table write.
+   Writing the row is only the authorisation — it says what role this address
+   may claim. Actually telling the person needs Supabase's admin API and the
+   service_role key, which cannot be in a browser bundle. The `invite-user`
+   edge function does both and reports whether the mail actually went, so the
+   screen can say "added but not emailed" instead of implying success. */
+export const invite = async ({ email, full_name, department_id, role }) => {
+  const { data, error } = await sb.functions.invoke('invite-user', {
+    body: { email, full_name, department_id, role,
+            redirectTo: location.origin + '/#/reset' },
+  });
+  if (error) {
+    // functions.invoke reports a non-2xx as a generic FunctionsHttpError and
+    // hides the body. The body is where the useful sentence lives.
+    let msg = error.message;
+    try { const body = await error.context?.json?.(); if (body?.error) msg = body.error; } catch { /* keep msg */ }
+    throw new Error(msg);
+  }
+  if (data?.error) throw new Error(data.error);
+  return data;
+};
 
 /** Adding someone to the roster without a login — the Asana import shape.
     Useful for a person who is assigned work but has not been invited yet. */
