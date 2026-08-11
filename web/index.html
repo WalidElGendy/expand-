@@ -670,6 +670,34 @@ select.btn--sm { height: 28px; padding: 0 6px; background: var(--s-2); border: 1
 .msg--ok  { color: #8ee89b; background: rgba(12,163,12,.10); border-color: rgba(12,163,12,.35); }
 .msg--bad { color: #ffb0b0; background: rgba(208,59,59,.10); border-color: rgba(208,59,59,.38); }
 
+/* ------------------------------ who is here ------------------------------
+   The pulse is deliberately slow and small. A fast blink reads as an alarm,
+   and "Ameen has the app open" is not an alarm. */
+.live { position: relative; display: inline-flex; width: 9px; height: 9px; flex: none; }
+.live i {
+  position: absolute; inset: 0; border-radius: 50%; background: var(--ok);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 70%, transparent);
+  animation: pulse 2.4s ease-out infinite;
+}
+@keyframes pulse {
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 65%, transparent); }
+  70%  { box-shadow: 0 0 0 7px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+/* Anyone who has asked not to see motion gets a plain dot. */
+@media (prefers-reduced-motion: reduce) { .live i { animation: none; } }
+
+.st--live { gap: 7px; }
+.kpi__n .live { margin-inline-end: 9px; vertical-align: middle; }
+
+.who { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.who__t { display: grid; min-width: 0; }
+.who__t b { font-size: 13px; font-weight: 600; }
+.ava--sm { width: 26px; height: 26px; border-radius: 8px; font-size: 11px; }
+/* A ring on the avatar as well as the pill, so the row reads as "here" at a
+   glance without having to find the status column. */
+.ava--live { box-shadow: 0 0 0 2px var(--s-1), 0 0 0 3.5px var(--ok); }
+
 .stagepick { display: grid; gap: 8px; }
 .stagepick__row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .chk { display: flex; align-items: center; gap: 9px; flex: 1; min-width: min(240px, 100%); font-size: 13px; }

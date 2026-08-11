@@ -65,6 +65,16 @@ export const DSTR = {
     filesPicked: 'files selected', filePicked: 'file selected',
     noDocsYet: 'No documents yet. The first upload appears here.',
     attachments: 'Attachments',
+    onlineNow: 'Online now', onlineNowSub: 'with the app open right now',
+    waitingApproval: 'Waiting for approval', waitingSub: 'signed up, cannot get in yet',
+    waitingNone: 'nobody is blocked',
+    invitedNotIn: 'Invited, not signed up', invitedSub: 'the email went out, they have not used it',
+    rosterOnly: 'On the roster only', rosterSub: 'imported from Asana, no login',
+    canSignIn: 'Can sign in', approve: 'Approve', revoke: 'Revoke',
+    lastSeen: 'Last seen', now: 'now', never: 'never',
+    minsAgo: '{n}m ago', hoursAgo: '{n}h ago', daysAgo: '{n}d ago',
+    approved: '{name} can sign in now.', revoked: '{name} can no longer sign in.',
+    roles: { member: 'Member', lead: 'Lead', manager: 'Manager', admin: 'Admin' },
     sending: 'Sending…', inviteNoReason: 'the mail server gave no reason',
     inviteSent: 'Invited {email}. They have an email with a link to set their password.',
     inviteResent: '{email} already has an account, so we sent a sign-in link instead.',
@@ -122,6 +132,16 @@ export const DSTR = {
     filesPicked: 'ملفات مختارة', filePicked: 'ملف مختار',
     noDocsYet: 'لا توجد مستندات بعد. أول رفع سيظهر هنا.',
     attachments: 'المرفقات',
+    onlineNow: 'متصل الآن', onlineNowSub: 'التطبيق مفتوح لديهم الآن',
+    waitingApproval: 'بانتظار الموافقة', waitingSub: 'سجّلوا ولا يستطيعون الدخول بعد',
+    waitingNone: 'لا أحد معطَّل',
+    invitedNotIn: 'مدعو، لم يسجّل', invitedSub: 'أُرسلت الرسالة ولم يستخدمها',
+    rosterOnly: 'في القائمة فقط', rosterSub: 'مستورد من أسانا، بلا حساب',
+    canSignIn: 'يستطيع الدخول', approve: 'اعتماد', revoke: 'إلغاء',
+    lastSeen: 'آخر ظهور', now: 'الآن', never: 'أبداً',
+    minsAgo: 'قبل {n} د', hoursAgo: 'قبل {n} س', daysAgo: 'قبل {n} ي',
+    approved: 'يستطيع {name} الدخول الآن.', revoked: 'لم يعد {name} يستطيع الدخول.',
+    roles: { member: 'عضو', lead: 'قائد', manager: 'مدير', admin: 'مسؤول' },
     sending: 'جارٍ الإرسال…', inviteNoReason: 'لم يذكر خادم البريد سبباً',
     inviteSent: 'تمت دعوة {email}. وصلته رسالة فيها رابط لضبط كلمة المرور.',
     inviteResent: '{email} لديه حساب بالفعل، فأرسلنا له رابط دخول بدلاً من ذلك.',
@@ -183,6 +203,19 @@ const ST_COLOUR = {
   delivered:   'var(--ok)',
   archived:    'var(--ink4)',
 };
+
+/* "3 minutes ago" rather than a timestamp: nobody reads 2026-08-11T09:12Z and
+   thinks "that was this morning". Falls back to the date once it is old
+   enough that the elapsed time stops being the useful part. */
+function sinceText(iso_, lang, t) {
+  if (!iso_) return t.never;
+  const mins = Math.floor((Date.now() - new Date(iso_).getTime()) / 60000);
+  if (mins < 1)    return t.now;
+  if (mins < 60)   return t.minsAgo.replace('{n}', mins);
+  if (mins < 1440) return t.hoursAgo.replace('{n}', Math.floor(mins / 60));
+  if (mins < 10080) return t.daysAgo.replace('{n}', Math.floor(mins / 1440));
+  return fmt(iso_.slice(0, 10), lang);
+}
 
 export function statusPill(status, lang) {
   if (!status) return '';
@@ -802,8 +835,69 @@ export function adminView(lang, ctx) {
   const people = ctx.people || [];
   const invites = ctx.invites || [];
   const depts = db.state.departments;
+  const online = db.state.online || new Set();
+  const invitedEmails = new Set(invites.map(i => (i.email || '').toLowerCase()));
+
+  /* Five states, and they are genuinely different situations rather than
+     shades of one. The one that matters is `waiting`: somebody created a
+     login and is sitting on the sign-in screen until an admin says yes. */
+  const keyOf = (p) => {
+    if (p.user_id && online.has(p.id)) return 'online';
+    if (p.user_id && !p.is_active)     return 'waiting';
+    if (p.user_id)                     return 'active';
+    if (invitedEmails.has((p.email || '').toLowerCase())) return 'invited';
+    return 'roster';
+  };
+
+  const waiting = people.filter(p => keyOf(p) === 'waiting');
+  const invited = people.filter(p => keyOf(p) === 'invited');
+  const roster  = people.filter(p => keyOf(p) === 'roster');
+  const onlineNow = people.filter(p => keyOf(p) === 'online').length;
+
+  const stateOf = (p) => {
+    const key = keyOf(p);
+    const pill = {
+      online:  `<span class="st st--live" style="--c:var(--ok)"><span class="live"><i></i></span>${esc(t.onlineNow)}</span>`,
+      waiting: `<span class="st" style="--c:var(--warn)"><i></i>${esc(t.waitingApproval)}</span>`,
+      active:  `<span class="st" style="--c:var(--ink3)"><i></i>${esc(t.canSignIn)}</span>`,
+      invited: `<span class="st" style="--c:var(--info)"><i></i>${esc(t.invitedNotIn)}</span>`,
+      roster:  `<span class="st" style="--c:var(--ink4)"><i></i>${esc(t.rosterOnly)}</span>`,
+    }[key];
+    // Approve is the only action that changes someone's access, so it is the
+    // only one given a button. Everything else is a dropdown that saves itself.
+    const action = key === 'waiting'
+      ? `<button class="btn btn--primary btn--sm" data-approve="${esc(p.id)}">${esc(t.approve)}</button>`
+      : (key === 'active' || key === 'online')
+        ? `<button class="btn btn--sm" data-revoke="${esc(p.id)}">${esc(t.revoke)}</button>` : '';
+    return { key, pill, action, seen: key === 'online' ? t.now : sinceText(p.last_seen_at, lang, t) };
+  };
+
+  /* Whoever needs a decision goes first. A screen that sorts alphabetically
+     buries the one person who is blocked behind forty who are not. */
+  const RANK = { waiting: 0, online: 1, active: 2, invited: 3, roster: 4 };
+  const sorted = people.slice().sort((a, b) =>
+    (RANK[keyOf(a)] - RANK[keyOf(b)]) ||
+    String(a.full_name || '').localeCompare(String(b.full_name || '')));
+
+  const GROUPS = [
+    { key: 'all',     label: t.allRows,        n: people.length },
+    { key: 'waiting', label: t.waitingApproval, n: waiting.length },
+    { key: 'online',  label: t.onlineNow,      n: onlineNow },
+    { key: 'active',  label: t.canSignIn,      n: people.filter(p => keyOf(p) === 'active').length },
+    { key: 'invited', label: t.invitedNotIn,   n: invited.length },
+    { key: 'roster',  label: t.rosterOnly,     n: roster.length },
+  ].filter(g => g.n || g.key === 'all');
 
   return `
+<div class="kpis kpis--4">
+  ${kpi(`<span class="live"><i></i></span>${onlineNow}`, t.onlineNow, {
+    colour: 'var(--ok)', sub: t.onlineNowSub })}
+  ${kpi(waiting.length, t.waitingApproval, { bad: waiting.length > 0, colour: 'var(--warn)',
+    sub: waiting.length ? t.waitingSub : t.waitingNone })}
+  ${kpi(invited.length, t.invitedNotIn, { colour: 'var(--info)', sub: t.invitedSub })}
+  ${kpi(roster.length, t.rosterOnly, { colour: 'var(--ink3)', sub: t.rosterSub })}
+</div>
+
 <section class="card">
   <div class="card__head"><h2>${esc(t.invite)}</h2></div>
   <form id="inviteForm" class="inlineform">
@@ -813,7 +907,7 @@ export function adminView(lang, ctx) {
       <label class="f"><span>${esc(t.department)}</span>
         <select id="iDept">${depts.map(d => `<option value="${esc(d.id)}">${esc(lang === 'ar' ? d.name_ar : d.name_en)}</option>`).join('')}</select></label>
       <label class="f"><span>${esc(t.role)}</span>
-        <select id="iRole">${['member', 'lead', 'manager', 'admin'].map(r => `<option value="${r}">${r}</option>`).join('')}</select></label>
+        <select id="iRole">${['member', 'lead', 'manager', 'admin'].map(r => `<option value="${r}">${esc(t.roles[r] || r)}</option>`).join('')}</select></label>
     </div>
     <p class="note">${esc(t.inviteNote)}</p>
     ${ctx.inviteMsg ? `<p class="msg ${ctx.inviteMsg.ok ? 'msg--ok' : 'msg--bad'}">${esc(ctx.inviteMsg.text)}</p>` : ''}
@@ -822,27 +916,46 @@ export function adminView(lang, ctx) {
 </section>
 
 <section class="card">
-  <div class="card__head"><h2>${esc(t.people)}</h2><span class="muted small">${people.length}</span></div>
-  <table class="tbl">
-    <thead><tr>
-      <th>${esc(t.name)}</th><th>${esc(t.email)}</th><th>${esc(t.department)}</th>
-      <th>${esc(t.role)}</th><th class="num">${esc(t.active)}</th>
-    </tr></thead>
-    <tbody>
-      ${people.map(p => `<tr>
-        <td>${esc(p.full_name || '—')}
-          ${!p.user_id ? `<span class="muted small block">${esc(invites.some(i => i.email === p.email) ? t.pending : t.noLogin)}</span>` : ''}</td>
-        <td class="muted small">${esc(p.email || '—')}</td>
-        <td><select class="pDept btn--sm" data-p="${esc(p.id)}">
-          <option value="">—</option>
-          ${depts.map(d => `<option value="${esc(d.id)}"${d.id === p.department_id ? ' selected' : ''}>${esc(lang === 'ar' ? d.name_ar : d.name_en)}</option>`).join('')}
-        </select></td>
-        <td><select class="pRole btn--sm" data-p="${esc(p.id)}">
-          ${['member', 'lead', 'manager', 'admin'].map(r => `<option value="${r}"${r === p.role ? ' selected' : ''}>${r}</option>`).join('')}
-        </select></td>
-        <td class="num"><input type="checkbox" class="pActive" data-p="${esc(p.id)}" ${p.is_active ? 'checked' : ''} /></td>
-      </tr>`).join('')}
-    </tbody>
-  </table>
+  <div class="card__head">
+    <h2>${esc(t.people)}</h2>
+    <span class="muted small">${people.length}</span>
+  </div>
+  <div class="chipbar">
+    ${GROUPS.map(g => `<button class="chip chip--btn${g.key === 'all' ? ' is-on' : ''}" data-who="${g.key}">${esc(g.label)} ${g.n}</button>`).join('')}
+  </div>
+  <div class="tblwrap">
+    <table class="tbl">
+      <thead><tr>
+        <th>${esc(t.name)}</th><th>${esc(t.status)}</th><th>${esc(t.department)}</th>
+        <th>${esc(t.role)}</th><th>${esc(t.lastSeen)}</th><th class="num"></th>
+      </tr></thead>
+      <tbody>
+        ${sorted.map(p => {
+          const st = stateOf(p);
+          return `<tr data-who="${st.key}">
+            <td>
+              <span class="who">
+                <span class="ava ava--sm${st.key === 'online' ? ' ava--live' : ''}" style="--c:${esc(db.dept(p.department_id)?.colour || 'var(--ink4)')}">${esc((p.full_name || p.email || '?').trim().slice(0, 1).toUpperCase())}</span>
+                <span class="who__t">
+                  <b>${esc(p.full_name || '—')}</b>
+                  <span class="muted small">${esc(p.email || '—')}</span>
+                </span>
+              </span>
+            </td>
+            <td>${st.pill}</td>
+            <td><select class="pDept btn--sm" data-p="${esc(p.id)}">
+              <option value="">—</option>
+              ${depts.map(d => `<option value="${esc(d.id)}"${d.id === p.department_id ? ' selected' : ''}>${esc(lang === 'ar' ? d.name_ar : d.name_en)}</option>`).join('')}
+            </select></td>
+            <td><select class="pRole btn--sm" data-p="${esc(p.id)}">
+              ${['member', 'lead', 'manager', 'admin'].map(r => `<option value="${r}"${r === p.role ? ' selected' : ''}>${esc(t.roles[r] || r)}</option>`).join('')}
+            </select></td>
+            <td class="muted small">${esc(st.seen)}</td>
+            <td class="num">${st.action}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  </div>
 </section>`;
 }

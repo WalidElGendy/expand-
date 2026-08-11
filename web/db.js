@@ -47,6 +47,7 @@ export const state = {
   session: null,
   me: null,          // the profiles row for the signed-in user
   departments: [],
+  online: new Set(), // profile ids with the app open RIGHT NOW — see joinPresence
 };
 
 /** Throws with the server's message rather than a generic one, because
@@ -75,6 +76,58 @@ async function loadMe() {
 }
 
 export const onAuthChange = (fn) => sb?.auth.onAuthStateChange(fn);
+
+/* ---------------------------------------------------------------- presence
+   "Online now" is a claim that has to be true at the moment it is read, so it
+   comes from a Realtime presence channel rather than a timestamp. Everyone
+   signed in joins the channel; the server tells every member who else is on
+   it, and drops them within seconds of the tab closing. Nothing is stored, so
+   there is no stale row to clean up and no way for the dot to lie.
+
+   `last_seen_at` answers the other question — when was this person last here
+   at all — and is written by a heartbeat below. Presence without it leaves
+   every offline row blank, which is most rows most of the time. */
+
+let presenceChan = null;
+const onlineWatchers = new Set();
+export const onOnlineChange = (fn) => { onlineWatchers.add(fn); return () => onlineWatchers.delete(fn); };
+
+export function joinPresence() {
+  if (!sb || !state.me || presenceChan) return;
+  // Keyed by PROFILE id, not auth id: the roster is keyed on profiles, so the
+  // admin screen can look a row up without a second mapping.
+  presenceChan = sb.channel('app-presence', { config: { presence: { key: state.me.id } } });
+
+  presenceChan
+    .on('presence', { event: 'sync' }, () => {
+      state.online = new Set(Object.keys(presenceChan.presenceState()));
+      onlineWatchers.forEach(fn => { try { fn(state.online); } catch { /* a bad watcher must not kill presence */ } });
+    })
+    .subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        await presenceChan.track({ name: state.me.full_name || state.me.email, at: new Date().toISOString() });
+      }
+    });
+
+  touchLastSeen();
+  // Only while the tab is visible: a laptop shut with the tab open should
+  // stop claiming the person is here.
+  setInterval(() => { if (document.visibilityState === 'visible') touchLastSeen(); }, 120000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') touchLastSeen();
+  });
+}
+
+export function leavePresence() {
+  if (!presenceChan) return;
+  try { sb.removeChannel(presenceChan); } catch { /* already gone */ }
+  presenceChan = null;
+  state.online = new Set();
+}
+
+/* Fire and forget. A failed heartbeat is not worth an error on screen — the
+   worst case is one stale "last seen", and the presence dot is unaffected. */
+const touchLastSeen = () => { sb?.rpc('touch_last_seen').then(() => {}, () => {}); };
 
 export async function signIn(email, password) {
   const { data, error } = await sb.auth.signInWithPassword({ email: email.trim(), password });
@@ -174,7 +227,7 @@ export const dept = (id) => state.departments.find(d => d.id === id) || null;
 
 export const listPeople = async () => ok(await sb
   .from('profiles')
-  .select('id, full_name, email, department_id, role, is_active, asana_gid, user_id')
+  .select('id, full_name, email, department_id, role, is_active, asana_gid, user_id, last_seen_at')
   .order('full_name'));
 
 export const listInvitations = async () => ok(await sb

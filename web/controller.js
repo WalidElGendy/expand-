@@ -267,12 +267,41 @@ export function wireApp(lang) {
     }
   };
 
+  /* --- approve / revoke ---
+     The one action on this screen that changes whether a person can get in,
+     so it is a button rather than a checkbox nobody notices, and it reports
+     back by name. Reloads because approving moves the row to a different
+     group and changes four counters. */
+  const setActive = async (id, on) => {
+    const who = (ctx.people || []).find(p => p.id === id);
+    try {
+      await db.setPerson(id, { is_active: on });
+      const d = V.DSTR[lang];
+      ctx.inviteMsg = { ok: on, text: (on ? d.approved : d.revoked)
+        .replace('{name}', who?.full_name || who?.email || '') };
+      await loadFor('admin'); rerender();
+    } catch (e) { fail(e); }
+  };
+  $$('[data-approve]').forEach(b => b.onclick = () => setActive(b.dataset.approve, true));
+  $$('[data-revoke]').forEach(b => b.onclick = () => setActive(b.dataset.revoke, false));
+
+  /* Group chips on the People screen, composing with the top-bar search the
+     same way the project ones do. */
+  const whoChips = $$('[data-who]').filter(el => el.tagName === 'BUTTON');
+  whoChips.forEach(c => c.onclick = () => {
+    whoChips.forEach(x => x.classList.toggle('is-on', x === c));
+    const want = c.dataset.who;
+    $$('.tbl tbody tr').forEach(tr => {
+      if (tr.dataset.empty) return;
+      tr.dataset.chipHidden = (want !== 'all' && tr.dataset.who !== want) ? '1' : '';
+      tr.hidden = !!tr.dataset.chipHidden || tr.dataset.searchHidden === '1';
+    });
+  });
+
   $$('.pDept').forEach(s => s.onchange = () =>
     db.setPerson(s.dataset.p, { department_id: s.value || null }).catch(fail));
   $$('.pRole').forEach(s => s.onchange = () =>
     db.setPerson(s.dataset.p, { role: s.value }).catch(fail));
-  $$('.pActive').forEach(c => c.onchange = () =>
-    db.setPerson(c.dataset.p, { is_active: c.checked }).catch(fail));
 
   /* --- new project --- */
   const pf = $('#projForm');

@@ -638,7 +638,7 @@ function wire() {
 
   const act = (name, fn) => { const el = document.querySelector(`[data-act="${name}"]`); if (el) el.onclick = fn; };
   act('lang', () => { S.lang = S.lang === 'en' ? 'ar' : 'en'; render(); });
-  act('signout', async () => { await db.signOut(); location.hash = '#/'; render(); });
+  act('signout', async () => { db.leavePresence(); await db.signOut(); location.hash = '#/'; render(); });
   act('reset', () => { S.pipeline = []; S.result = null; S.whatIf = null; S.seq = 0; render(); });
   act('estimate', () => estimate(true));
   act('add', () => {
@@ -760,7 +760,18 @@ function estimate(fromForm) {
        they have just tapped a link in an email. The shell is renderable from
        local state alone, so render it, then reconcile. */
     render();
-    db.loadSession().then(go).catch(() => go());
+    db.loadSession().then(async (session) => {
+      /* Join the presence channel as soon as there is a session, on EVERY
+         screen — not just the admin one. Presence only knows about people who
+         joined it, so if a designer never opened the People tab they would
+         never appear online to the admin who did. */
+      if (session) {
+        db.joinPresence();
+        // A repaint when somebody arrives or leaves, but only where it shows.
+        db.onOnlineChange(() => { if (currentRoute().name === 'admin') render(); });
+      }
+      await go();
+    }).catch(() => go());
   } else {
     render();
   }
