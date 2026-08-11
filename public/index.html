@@ -670,6 +670,34 @@ select.btn--sm { height: 28px; padding: 0 6px; background: var(--s-2); border: 1
 .msg--ok  { color: #8ee89b; background: rgba(12,163,12,.10); border-color: rgba(12,163,12,.35); }
 .msg--bad { color: #ffb0b0; background: rgba(208,59,59,.10); border-color: rgba(208,59,59,.38); }
 
+/* ------------------------------ who is here ------------------------------
+   The pulse is deliberately slow and small. A fast blink reads as an alarm,
+   and "Ameen has the app open" is not an alarm. */
+.live { position: relative; display: inline-flex; width: 9px; height: 9px; flex: none; }
+.live i {
+  position: absolute; inset: 0; border-radius: 50%; background: var(--ok);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 70%, transparent);
+  animation: pulse 2.4s ease-out infinite;
+}
+@keyframes pulse {
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 65%, transparent); }
+  70%  { box-shadow: 0 0 0 7px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+/* Anyone who has asked not to see motion gets a plain dot. */
+@media (prefers-reduced-motion: reduce) { .live i { animation: none; } }
+
+.st--live { gap: 7px; }
+.kpi__n .live { margin-inline-end: 9px; vertical-align: middle; }
+
+.who { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.who__t { display: grid; min-width: 0; }
+.who__t b { font-size: 13px; font-weight: 600; }
+.ava--sm { width: 26px; height: 26px; border-radius: 8px; font-size: 11px; }
+/* A ring on the avatar as well as the pill, so the row reads as "here" at a
+   glance without having to find the status column. */
+.ava--live { box-shadow: 0 0 0 2px var(--s-1), 0 0 0 3.5px var(--ok); }
+
 .stagepick { display: grid; gap: 8px; }
 .stagepick__row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .chk { display: flex; align-items: center; gap: 9px; flex: 1; min-width: min(240px, 100%); font-size: 13px; }
@@ -22181,7 +22209,9 @@ var state = {
   session: null,
   me: null,
   // the profiles row for the signed-in user
-  departments: []
+  departments: [],
+  online: /* @__PURE__ */ new Set()
+  // profile ids with the app open RIGHT NOW — see joinPresence
 };
 var ok = ({ data, error }) => {
   if (error) throw new Error(error.message);
@@ -22200,6 +22230,50 @@ async function loadMe() {
   return data;
 }
 var onAuthChange = (fn) => sb?.auth.onAuthStateChange(fn);
+var presenceChan = null;
+var onlineWatchers = /* @__PURE__ */ new Set();
+var onOnlineChange = (fn) => {
+  onlineWatchers.add(fn);
+  return () => onlineWatchers.delete(fn);
+};
+function joinPresence() {
+  if (!sb || !state.me || presenceChan) return;
+  presenceChan = sb.channel("app-presence", { config: { presence: { key: state.me.id } } });
+  presenceChan.on("presence", { event: "sync" }, () => {
+    state.online = new Set(Object.keys(presenceChan.presenceState()));
+    onlineWatchers.forEach((fn) => {
+      try {
+        fn(state.online);
+      } catch {
+      }
+    });
+  }).subscribe(async (status) => {
+    if (status === "SUBSCRIBED") {
+      await presenceChan.track({ name: state.me.full_name || state.me.email, at: (/* @__PURE__ */ new Date()).toISOString() });
+    }
+  });
+  touchLastSeen();
+  setInterval(() => {
+    if (document.visibilityState === "visible") touchLastSeen();
+  }, 12e4);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") touchLastSeen();
+  });
+}
+function leavePresence() {
+  if (!presenceChan) return;
+  try {
+    sb.removeChannel(presenceChan);
+  } catch {
+  }
+  presenceChan = null;
+  state.online = /* @__PURE__ */ new Set();
+}
+var touchLastSeen = () => {
+  sb?.rpc("touch_last_seen").then(() => {
+  }, () => {
+  });
+};
 async function signIn(email, password) {
   const { data, error } = await sb.auth.signInWithPassword({ email: email.trim(), password });
   if (error) throw new Error(error.message);
@@ -22261,7 +22335,7 @@ async function loadDepartments() {
   return state.departments;
 }
 var dept = (id) => state.departments.find((d) => d.id === id) || null;
-var listPeople = async () => ok(await sb.from("profiles").select("id, full_name, email, department_id, role, is_active, asana_gid, user_id").order("full_name"));
+var listPeople = async () => ok(await sb.from("profiles").select("id, full_name, email, department_id, role, is_active, asana_gid, user_id, last_seen_at").order("full_name"));
 var listInvitations = async () => ok(await sb.from("invitations").select("*").order("created_at", { ascending: false }));
 var invite = async ({ email, full_name, department_id, role }) => {
   const { data, error } = await sb.functions.invoke("invite-user", {
@@ -22446,6 +22520,27 @@ var DSTR = {
     filePicked: "file selected",
     noDocsYet: "No documents yet. The first upload appears here.",
     attachments: "Attachments",
+    onlineNow: "Online now",
+    onlineNowSub: "with the app open right now",
+    waitingApproval: "Waiting for approval",
+    waitingSub: "signed up, cannot get in yet",
+    waitingNone: "nobody is blocked",
+    invitedNotIn: "Invited, not signed up",
+    invitedSub: "the email went out, they have not used it",
+    rosterOnly: "On the roster only",
+    rosterSub: "imported from Asana, no login",
+    canSignIn: "Can sign in",
+    approve: "Approve",
+    revoke: "Revoke",
+    lastSeen: "Last seen",
+    now: "now",
+    never: "never",
+    minsAgo: "{n}m ago",
+    hoursAgo: "{n}h ago",
+    daysAgo: "{n}d ago",
+    approved: "{name} can sign in now.",
+    revoked: "{name} can no longer sign in.",
+    roles: { member: "Member", lead: "Lead", manager: "Manager", admin: "Admin" },
     sending: "Sending\u2026",
     inviteNoReason: "the mail server gave no reason",
     inviteSent: "Invited {email}. They have an email with a link to set their password.",
@@ -22575,6 +22670,27 @@ var DSTR = {
     filePicked: "\u0645\u0644\u0641 \u0645\u062E\u062A\u0627\u0631",
     noDocsYet: "\u0644\u0627 \u062A\u0648\u062C\u062F \u0645\u0633\u062A\u0646\u062F\u0627\u062A \u0628\u0639\u062F. \u0623\u0648\u0644 \u0631\u0641\u0639 \u0633\u064A\u0638\u0647\u0631 \u0647\u0646\u0627.",
     attachments: "\u0627\u0644\u0645\u0631\u0641\u0642\u0627\u062A",
+    onlineNow: "\u0645\u062A\u0635\u0644 \u0627\u0644\u0622\u0646",
+    onlineNowSub: "\u0627\u0644\u062A\u0637\u0628\u064A\u0642 \u0645\u0641\u062A\u0648\u062D \u0644\u062F\u064A\u0647\u0645 \u0627\u0644\u0622\u0646",
+    waitingApproval: "\u0628\u0627\u0646\u062A\u0638\u0627\u0631 \u0627\u0644\u0645\u0648\u0627\u0641\u0642\u0629",
+    waitingSub: "\u0633\u062C\u0651\u0644\u0648\u0627 \u0648\u0644\u0627 \u064A\u0633\u062A\u0637\u064A\u0639\u0648\u0646 \u0627\u0644\u062F\u062E\u0648\u0644 \u0628\u0639\u062F",
+    waitingNone: "\u0644\u0627 \u0623\u062D\u062F \u0645\u0639\u0637\u064E\u0651\u0644",
+    invitedNotIn: "\u0645\u062F\u0639\u0648\u060C \u0644\u0645 \u064A\u0633\u062C\u0651\u0644",
+    invitedSub: "\u0623\u064F\u0631\u0633\u0644\u062A \u0627\u0644\u0631\u0633\u0627\u0644\u0629 \u0648\u0644\u0645 \u064A\u0633\u062A\u062E\u062F\u0645\u0647\u0627",
+    rosterOnly: "\u0641\u064A \u0627\u0644\u0642\u0627\u0626\u0645\u0629 \u0641\u0642\u0637",
+    rosterSub: "\u0645\u0633\u062A\u0648\u0631\u062F \u0645\u0646 \u0623\u0633\u0627\u0646\u0627\u060C \u0628\u0644\u0627 \u062D\u0633\u0627\u0628",
+    canSignIn: "\u064A\u0633\u062A\u0637\u064A\u0639 \u0627\u0644\u062F\u062E\u0648\u0644",
+    approve: "\u0627\u0639\u062A\u0645\u0627\u062F",
+    revoke: "\u0625\u0644\u063A\u0627\u0621",
+    lastSeen: "\u0622\u062E\u0631 \u0638\u0647\u0648\u0631",
+    now: "\u0627\u0644\u0622\u0646",
+    never: "\u0623\u0628\u062F\u0627\u064B",
+    minsAgo: "\u0642\u0628\u0644 {n} \u062F",
+    hoursAgo: "\u0642\u0628\u0644 {n} \u0633",
+    daysAgo: "\u0642\u0628\u0644 {n} \u064A",
+    approved: "\u064A\u0633\u062A\u0637\u064A\u0639 {name} \u0627\u0644\u062F\u062E\u0648\u0644 \u0627\u0644\u0622\u0646.",
+    revoked: "\u0644\u0645 \u064A\u0639\u062F {name} \u064A\u0633\u062A\u0637\u064A\u0639 \u0627\u0644\u062F\u062E\u0648\u0644.",
+    roles: { member: "\u0639\u0636\u0648", lead: "\u0642\u0627\u0626\u062F", manager: "\u0645\u062F\u064A\u0631", admin: "\u0645\u0633\u0624\u0648\u0644" },
     sending: "\u062C\u0627\u0631\u064D \u0627\u0644\u0625\u0631\u0633\u0627\u0644\u2026",
     inviteNoReason: "\u0644\u0645 \u064A\u0630\u0643\u0631 \u062E\u0627\u062F\u0645 \u0627\u0644\u0628\u0631\u064A\u062F \u0633\u0628\u0628\u0627\u064B",
     inviteSent: "\u062A\u0645\u062A \u062F\u0639\u0648\u0629 {email}. \u0648\u0635\u0644\u062A\u0647 \u0631\u0633\u0627\u0644\u0629 \u0641\u064A\u0647\u0627 \u0631\u0627\u0628\u0637 \u0644\u0636\u0628\u0637 \u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631.",
@@ -22635,6 +22751,15 @@ var ST_COLOUR = {
   delivered: "var(--ok)",
   archived: "var(--ink4)"
 };
+function sinceText(iso_, lang, t) {
+  if (!iso_) return t.never;
+  const mins = Math.floor((Date.now() - new Date(iso_).getTime()) / 6e4);
+  if (mins < 1) return t.now;
+  if (mins < 60) return t.minsAgo.replace("{n}", mins);
+  if (mins < 1440) return t.hoursAgo.replace("{n}", Math.floor(mins / 60));
+  if (mins < 10080) return t.daysAgo.replace("{n}", Math.floor(mins / 1440));
+  return fmt(iso_.slice(0, 10), lang);
+}
 function statusPill(status, lang) {
   if (!status) return "";
   const label = DSTR[lang].st[status] || String(status).replace(/_/g, " ");
@@ -23146,7 +23271,56 @@ function adminView(lang, ctx2) {
   const people = ctx2.people || [];
   const invites = ctx2.invites || [];
   const depts = state.departments;
+  const online = state.online || /* @__PURE__ */ new Set();
+  const invitedEmails = new Set(invites.map((i) => (i.email || "").toLowerCase()));
+  const keyOf = (p) => {
+    if (p.user_id && online.has(p.id)) return "online";
+    if (p.user_id && !p.is_active) return "waiting";
+    if (p.user_id) return "active";
+    if (invitedEmails.has((p.email || "").toLowerCase())) return "invited";
+    return "roster";
+  };
+  const waiting = people.filter((p) => keyOf(p) === "waiting");
+  const invited = people.filter((p) => keyOf(p) === "invited");
+  const roster = people.filter((p) => keyOf(p) === "roster");
+  const onlineNow = people.filter((p) => keyOf(p) === "online").length;
+  const stateOf = (p) => {
+    const key = keyOf(p);
+    const pill = {
+      online: `<span class="st st--live" style="--c:var(--ok)"><span class="live"><i></i></span>${esc2(t.onlineNow)}</span>`,
+      waiting: `<span class="st" style="--c:var(--warn)"><i></i>${esc2(t.waitingApproval)}</span>`,
+      active: `<span class="st" style="--c:var(--ink3)"><i></i>${esc2(t.canSignIn)}</span>`,
+      invited: `<span class="st" style="--c:var(--info)"><i></i>${esc2(t.invitedNotIn)}</span>`,
+      roster: `<span class="st" style="--c:var(--ink4)"><i></i>${esc2(t.rosterOnly)}</span>`
+    }[key];
+    const action = key === "waiting" ? `<button class="btn btn--primary btn--sm" data-approve="${esc2(p.id)}">${esc2(t.approve)}</button>` : key === "active" || key === "online" ? `<button class="btn btn--sm" data-revoke="${esc2(p.id)}">${esc2(t.revoke)}</button>` : "";
+    return { key, pill, action, seen: key === "online" ? t.now : sinceText(p.last_seen_at, lang, t) };
+  };
+  const RANK = { waiting: 0, online: 1, active: 2, invited: 3, roster: 4 };
+  const sorted = people.slice().sort((a, b) => RANK[keyOf(a)] - RANK[keyOf(b)] || String(a.full_name || "").localeCompare(String(b.full_name || "")));
+  const GROUPS = [
+    { key: "all", label: t.allRows, n: people.length },
+    { key: "waiting", label: t.waitingApproval, n: waiting.length },
+    { key: "online", label: t.onlineNow, n: onlineNow },
+    { key: "active", label: t.canSignIn, n: people.filter((p) => keyOf(p) === "active").length },
+    { key: "invited", label: t.invitedNotIn, n: invited.length },
+    { key: "roster", label: t.rosterOnly, n: roster.length }
+  ].filter((g) => g.n || g.key === "all");
   return `
+<div class="kpis kpis--4">
+  ${kpi(`<span class="live"><i></i></span>${onlineNow}`, t.onlineNow, {
+    colour: "var(--ok)",
+    sub: t.onlineNowSub
+  })}
+  ${kpi(waiting.length, t.waitingApproval, {
+    bad: waiting.length > 0,
+    colour: "var(--warn)",
+    sub: waiting.length ? t.waitingSub : t.waitingNone
+  })}
+  ${kpi(invited.length, t.invitedNotIn, { colour: "var(--info)", sub: t.invitedSub })}
+  ${kpi(roster.length, t.rosterOnly, { colour: "var(--ink3)", sub: t.rosterSub })}
+</div>
+
 <section class="card">
   <div class="card__head"><h2>${esc2(t.invite)}</h2></div>
   <form id="inviteForm" class="inlineform">
@@ -23156,7 +23330,7 @@ function adminView(lang, ctx2) {
       <label class="f"><span>${esc2(t.department)}</span>
         <select id="iDept">${depts.map((d) => `<option value="${esc2(d.id)}">${esc2(lang === "ar" ? d.name_ar : d.name_en)}</option>`).join("")}</select></label>
       <label class="f"><span>${esc2(t.role)}</span>
-        <select id="iRole">${["member", "lead", "manager", "admin"].map((r) => `<option value="${r}">${r}</option>`).join("")}</select></label>
+        <select id="iRole">${["member", "lead", "manager", "admin"].map((r) => `<option value="${r}">${esc2(t.roles[r] || r)}</option>`).join("")}</select></label>
     </div>
     <p class="note">${esc2(t.inviteNote)}</p>
     ${ctx2.inviteMsg ? `<p class="msg ${ctx2.inviteMsg.ok ? "msg--ok" : "msg--bad"}">${esc2(ctx2.inviteMsg.text)}</p>` : ""}
@@ -23165,28 +23339,47 @@ function adminView(lang, ctx2) {
 </section>
 
 <section class="card">
-  <div class="card__head"><h2>${esc2(t.people)}</h2><span class="muted small">${people.length}</span></div>
-  <table class="tbl">
-    <thead><tr>
-      <th>${esc2(t.name)}</th><th>${esc2(t.email)}</th><th>${esc2(t.department)}</th>
-      <th>${esc2(t.role)}</th><th class="num">${esc2(t.active)}</th>
-    </tr></thead>
-    <tbody>
-      ${people.map((p) => `<tr>
-        <td>${esc2(p.full_name || "\u2014")}
-          ${!p.user_id ? `<span class="muted small block">${esc2(invites.some((i) => i.email === p.email) ? t.pending : t.noLogin)}</span>` : ""}</td>
-        <td class="muted small">${esc2(p.email || "\u2014")}</td>
-        <td><select class="pDept btn--sm" data-p="${esc2(p.id)}">
-          <option value="">\u2014</option>
-          ${depts.map((d) => `<option value="${esc2(d.id)}"${d.id === p.department_id ? " selected" : ""}>${esc2(lang === "ar" ? d.name_ar : d.name_en)}</option>`).join("")}
-        </select></td>
-        <td><select class="pRole btn--sm" data-p="${esc2(p.id)}">
-          ${["member", "lead", "manager", "admin"].map((r) => `<option value="${r}"${r === p.role ? " selected" : ""}>${r}</option>`).join("")}
-        </select></td>
-        <td class="num"><input type="checkbox" class="pActive" data-p="${esc2(p.id)}" ${p.is_active ? "checked" : ""} /></td>
-      </tr>`).join("")}
-    </tbody>
-  </table>
+  <div class="card__head">
+    <h2>${esc2(t.people)}</h2>
+    <span class="muted small">${people.length}</span>
+  </div>
+  <div class="chipbar">
+    ${GROUPS.map((g) => `<button class="chip chip--btn${g.key === "all" ? " is-on" : ""}" data-who="${g.key}">${esc2(g.label)} ${g.n}</button>`).join("")}
+  </div>
+  <div class="tblwrap">
+    <table class="tbl">
+      <thead><tr>
+        <th>${esc2(t.name)}</th><th>${esc2(t.status)}</th><th>${esc2(t.department)}</th>
+        <th>${esc2(t.role)}</th><th>${esc2(t.lastSeen)}</th><th class="num"></th>
+      </tr></thead>
+      <tbody>
+        ${sorted.map((p) => {
+    const st = stateOf(p);
+    return `<tr data-who="${st.key}">
+            <td>
+              <span class="who">
+                <span class="ava ava--sm${st.key === "online" ? " ava--live" : ""}" style="--c:${esc2(dept(p.department_id)?.colour || "var(--ink4)")}">${esc2((p.full_name || p.email || "?").trim().slice(0, 1).toUpperCase())}</span>
+                <span class="who__t">
+                  <b>${esc2(p.full_name || "\u2014")}</b>
+                  <span class="muted small">${esc2(p.email || "\u2014")}</span>
+                </span>
+              </span>
+            </td>
+            <td>${st.pill}</td>
+            <td><select class="pDept btn--sm" data-p="${esc2(p.id)}">
+              <option value="">\u2014</option>
+              ${depts.map((d) => `<option value="${esc2(d.id)}"${d.id === p.department_id ? " selected" : ""}>${esc2(lang === "ar" ? d.name_ar : d.name_en)}</option>`).join("")}
+            </select></td>
+            <td><select class="pRole btn--sm" data-p="${esc2(p.id)}">
+              ${["member", "lead", "manager", "admin"].map((r) => `<option value="${r}"${r === p.role ? " selected" : ""}>${esc2(t.roles[r] || r)}</option>`).join("")}
+            </select></td>
+            <td class="muted small">${esc2(st.seen)}</td>
+            <td class="num">${st.action}</td>
+          </tr>`;
+  }).join("")}
+      </tbody>
+    </table>
+  </div>
 </section>`;
 }
 
@@ -23459,9 +23652,32 @@ function wireApp(lang) {
       }
     }
   };
+  const setActive = async (id, on) => {
+    const who = (ctx.people || []).find((p) => p.id === id);
+    try {
+      await setPerson(id, { is_active: on });
+      const d = DSTR[lang];
+      ctx.inviteMsg = { ok: on, text: (on ? d.approved : d.revoked).replace("{name}", who?.full_name || who?.email || "") };
+      await loadFor("admin");
+      rerender();
+    } catch (e) {
+      fail(e);
+    }
+  };
+  $$("[data-approve]").forEach((b) => b.onclick = () => setActive(b.dataset.approve, true));
+  $$("[data-revoke]").forEach((b) => b.onclick = () => setActive(b.dataset.revoke, false));
+  const whoChips = $$("[data-who]").filter((el) => el.tagName === "BUTTON");
+  whoChips.forEach((c) => c.onclick = () => {
+    whoChips.forEach((x) => x.classList.toggle("is-on", x === c));
+    const want = c.dataset.who;
+    $$(".tbl tbody tr").forEach((tr) => {
+      if (tr.dataset.empty) return;
+      tr.dataset.chipHidden = want !== "all" && tr.dataset.who !== want ? "1" : "";
+      tr.hidden = !!tr.dataset.chipHidden || tr.dataset.searchHidden === "1";
+    });
+  });
   $$(".pDept").forEach((s) => s.onchange = () => setPerson(s.dataset.p, { department_id: s.value || null }).catch(fail));
   $$(".pRole").forEach((s) => s.onchange = () => setPerson(s.dataset.p, { role: s.value }).catch(fail));
-  $$(".pActive").forEach((c) => c.onchange = () => setPerson(c.dataset.p, { is_active: c.checked }).catch(fail));
   const pf = $("#projForm");
   if (pf) wireNewProject(lang, pf);
 }
@@ -24141,6 +24357,7 @@ function wire() {
     render();
   });
   act("signout", async () => {
+    leavePresence();
     await signOut();
     location.hash = "#/";
     render();
@@ -24240,7 +24457,15 @@ function estimate(fromForm) {
       render();
     });
     render();
-    loadSession().then(go).catch(() => go());
+    loadSession().then(async (session) => {
+      if (session) {
+        joinPresence();
+        onOnlineChange(() => {
+          if (currentRoute().name === "admin") render();
+        });
+      }
+      await go();
+    }).catch(() => go());
   } else {
     render();
   }
