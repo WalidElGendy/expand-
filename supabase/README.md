@@ -52,6 +52,21 @@ kicking the tyres on a new project, not for onboarding a team, and the cap is
 per project, not per recipient. Two invitations and the third person waits an
 hour with no error anyone can see. Custom SMTP is not optional here.
 
+### Inviting people
+
+`supabase/functions/invite-user` is the only way an invitation is sent. The
+admin screen used to write a row into `invitations` and stop — that row is an
+authorisation (what role this address may claim), not an invitation, and
+nobody was ever told. Sending needs the admin API and the service_role key,
+which cannot be in a browser bundle, so it runs as an edge function where
+Supabase injects that key as an environment variable.
+
+It verifies the caller's own JWT and requires `role = 'admin'`, writes the
+invitation row first so the authorisation survives a mail failure, then sends
+— and returns whether the mail actually went. The screen reports all three
+outcomes separately: invited, already-had-an-account-so-sent-a-reset, and
+added-but-not-emailed. Deploy with `supabase functions deploy invite-user`.
+
 ### Resend
 
 Under **Authentication → Emails → SMTP Settings**, with a verified sending
