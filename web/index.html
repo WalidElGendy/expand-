@@ -502,6 +502,12 @@ html[dir="rtl"] .deal__ar { direction: rtl; }
 
 .btn--sm { height: 28px; padding: 0 10px; font-size: 12px; border-radius: 6px; }
 select.btn--sm { height: 28px; padding: 0 6px; background: var(--s-2); border: 1px solid var(--line2); border-radius: 6px; font-size: 12px; }
+/* Two actions can share a row cell — approve/revoke, and "send link". They
+   stay on one line and end-align with the column so the eye still finds one
+   edge, and wrap rather than widen the table on a narrow screen. */
+.rowacts { display: inline-flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+.rowacts .btn--ghost { border: 1px solid var(--line2); }
+
 .whoami { margin-inline-end: 4px; }
 .subhead { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink3); margin: 20px 0 10px; font-weight: 600; }
 
