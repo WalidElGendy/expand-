@@ -14,9 +14,24 @@ Supabase region to Riyadh, about 1,500 km nearer than Frankfurt.
 | 005 | split "a person" from "a login" so the Asana roster could exist without accounts |
 | 006 | let the guard trigger pass for server-side connections, so a first admin can exist |
 | 007 | fix ownership checks that compared a profile id to a login id |
+| 008 | `profiles.last_seen_at` + `touch_last_seen()` for the People screen |
 
 Pull them into this repo with `supabase link` + `supabase db pull` when you
 want them under version control locally.
+
+## Who is online
+
+"Online now" on the People screen is a Realtime **presence** channel, not a
+column. Every signed-in tab joins `app-presence` keyed by profile id; the dot
+goes out within seconds of the tab closing, so it cannot claim someone is here
+when they are not. Nothing is stored, so there is no stale row to sweep up.
+
+`profiles.last_seen_at` answers the other question — when was this person here
+at all — and is written by `touch_last_seen()`, a SECURITY DEFINER function
+called on load and every two minutes while the tab is visible. It is a
+function rather than a policy on purpose: a policy letting people update their
+own profile row would also let them edit their own `role`, which is the exact
+escalation the invitations table exists to prevent.
 
 ## Two decisions worth knowing
 
@@ -78,18 +93,16 @@ domain in Resend:
 | port | `465` |
 | username | `resend` |
 | password | the Resend API key |
-| sender email | `no-reply@send.meshnet.co` (must be on the verified domain) |
+| sender email | `no-reply@meshnet.co` (must be on the verified domain) |
 | sender name | Expand |
 
 Then raise the rate limit under **Auth → Rate Limits**; it stays at the
 built-in default until it is changed, so a working SMTP server still delivers
 two emails an hour.
 
-Verifying the domain means adding the MX and TXT records Resend generates to
-`meshnet.co` in GoDaddy. The DKIM value is unique per domain, so it cannot be
-written down in advance here. Until a domain is verified, Resend will only
-deliver to the address that owns the Resend account — enough to prove the
-plumbing works, not enough to invite anyone.
+`meshnet.co` is already verified in Resend, so no DNS records are needed.
+Enabling custom SMTP raises the auth email limit from 2 an hour to 30, and it
+can be raised further under **Auth → Rate Limits**.
 
 The API key is a secret and does not belong in this repository. It is typed
 once into the Supabase dashboard by whoever owns the Resend account.
