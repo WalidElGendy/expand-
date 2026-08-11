@@ -103,15 +103,19 @@ export function wireAuth(lang) {
         await db.updatePassword(pass);
         ctx.authErr = null;
         ctx.authMsg = V.DSTR[lang].passwordSaved;
+        /* The one moment "your account is ready" is a true sentence. Not
+           awaited: the person is already signed in and looking at the app, so
+           a courtesy email must not be able to hold up the door. */
+        db.announceAccount();
         location.hash = '#/home';
-      } else if (ctx.authMode === 'forgot') {
-        await db.resetPassword(email);
+      } else if (ctx.authMode === 'forgot' || ctx.authMode === 'up') {
+        /* Both buttons ask the same question — is this address known here —
+           and get the same answer whether or not it is. A different reply for
+           an unknown address would turn this box into a way to find out who
+           works at Expand. */
+        await db.requestAccess(email);
         ctx.authErr = null;
-        ctx.authMsg = V.DSTR[lang].checkInbox;
-      } else if (ctx.authMode === 'up') {
-        await db.signUp(email, pass);
-        ctx.authMsg = V.DSTR[lang].checkInbox;
-        ctx.authMode = 'in';
+        ctx.authMsg = V.DSTR[lang].linkOnTheWay;
       } else {
         await db.signIn(email, pass);
         location.hash = '#/home';
@@ -284,6 +288,33 @@ export function wireApp(lang) {
   };
   $$('[data-approve]').forEach(b => b.onclick = () => setActive(b.dataset.approve, true));
   $$('[data-revoke]').forEach(b => b.onclick = () => setActive(b.dataset.revoke, false));
+
+  /* --- send somebody a link ---
+     Covers both "they are locked out" and "they never got the invitation",
+     because on this screen those look the same and the fix is the same. The
+     outcome is reported rather than assumed: an admin who clicks this walks
+     away believing a person has been emailed, and that belief has to be
+     earned by the mail server, not by the button. */
+  $$('[data-sendlink]').forEach(b => b.onclick = async () => {
+    const d = V.DSTR[lang];
+    const id = b.dataset.sendlink;
+    const was = b.textContent;
+    b.disabled = true; b.textContent = d.sendingLink;
+    ctx.resetMsg = null;
+    try {
+      const r = await db.sendResetLink(id);
+      ctx.resetMsg = r?.emailed
+        ? { ok: true,  text: d.linkSent.replace('{email}', r.email || '') }
+        : { ok: false, text: d.linkFailed.replace('{email}', r?.email || '')
+                             .replace('{reason}', r?.reason || d.inviteNoReason) };
+      await loadFor('admin'); rerender();
+    } catch (e) {
+      ctx.resetMsg = { ok: false, text: e.message };
+      rerender();
+    } finally {
+      if (b.isConnected) { b.disabled = false; b.textContent = was; }
+    }
+  });
 
   /* Group chips on the People screen, composing with the top-bar search the
      same way the project ones do. */
