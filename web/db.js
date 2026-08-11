@@ -137,34 +137,42 @@ export async function signIn(email, password) {
   return state.me;
 }
 
-/** First-time sign-up. Only works if an admin has already added an
-    invitation for this email — otherwise the account is created inactive
-    and can see nothing, which is the intended failure. */
-export async function signUp(email, password) {
-  const { error } = await sb.auth.signUp({
-    email: email.trim(), password,
-    // Land inside the app, not on the marketing page. A confirmed user is a
-    // signed-in user; dropping them on the landing page makes them hunt for
-    // the door they just unlocked.
-    options: { emailRedirectTo: location.origin + '/#/home' },
+/** Every edge-function call in this file, because they all fail the same way.
+    functions.invoke reports a non-2xx as a generic FunctionsHttpError and
+    hides the body — and the body is where the useful sentence lives. */
+async function callFn(name, body) {
+  const { data, error } = await sb.functions.invoke(name, {
+    body: { ...body, redirectTo: location.origin + '/#/reset' },
   });
-  if (error) throw new Error(error.message);
+  if (error) {
+    let msg = error.message;
+    try { const b = await error.context?.json?.(); if (b?.error) msg = b.error; } catch { /* keep msg */ }
+    throw new Error(msg);
+  }
+  if (data?.error) throw new Error(data.error);
+  return data;
 }
 
-export async function resetPassword(email) {
-  const { error } = await sb.auth.resetPasswordForEmail(email.trim(), {
-    // The slash matters: location.origin has no trailing one, so 'origin#/reset'
-    // produces https://host#/reset — which Supabase's allow-list matching and
-    // some mail clients treat differently from a normal path.
-    redirectTo: location.origin + '/#/reset',
-  });
-  if (error) throw new Error(error.message);
-}
+/** "First time here?" and "Forgot your password?" are the same request with
+    two different sentences on the button, so they are one function.
+
+    Neither one takes a password. A password typed before the address is
+    proven means whoever types first owns the address — and this product
+    decides someone's role from their address, via the invitations table. The
+    server replies identically whether or not it recognised the address, so
+    this box cannot be used to find out who works here. */
+export const requestAccess = async (email) =>
+  callFn('request-access', { email: String(email || '').trim().toLowerCase() });
 
 export async function updatePassword(password) {
   const { error } = await sb.auth.updateUser({ password });
   if (error) throw new Error(error.message);
 }
+
+/** "Your account is ready", sent once, after the password actually exists.
+    Fire and forget: the person is already signed in and standing in front of
+    the app, so a failed courtesy email must not become an error on screen. */
+export const announceAccount = () => callFn('account-ready', {}).catch(() => {});
 
 export async function signOut() {
   await sb.auth.signOut();
@@ -239,21 +247,13 @@ export const listInvitations = async () => ok(await sb
    service_role key, which cannot be in a browser bundle. The `invite-user`
    edge function does both and reports whether the mail actually went, so the
    screen can say "added but not emailed" instead of implying success. */
-export const invite = async ({ email, full_name, department_id, role }) => {
-  const { data, error } = await sb.functions.invoke('invite-user', {
-    body: { email, full_name, department_id, role,
-            redirectTo: location.origin + '/#/reset' },
-  });
-  if (error) {
-    // functions.invoke reports a non-2xx as a generic FunctionsHttpError and
-    // hides the body. The body is where the useful sentence lives.
-    let msg = error.message;
-    try { const body = await error.context?.json?.(); if (body?.error) msg = body.error; } catch { /* keep msg */ }
-    throw new Error(msg);
-  }
-  if (data?.error) throw new Error(data.error);
-  return data;
-};
+export const invite = async ({ email, full_name, department_id, role }) =>
+  callFn('invite-user', { email, full_name, department_id, role });
+
+/** Send somebody a fresh link from the People screen. An admin cannot set a
+    password — not here and not anywhere — so this is the whole of what the
+    button does: cause a link to be sent. The person still chooses. */
+export const sendResetLink = async (id) => callFn('admin-reset', { id });
 
 /** Adding someone to the roster without a login — the Asana import shape.
     Useful for a person who is assigned work but has not been invited yet. */
