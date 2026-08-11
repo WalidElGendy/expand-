@@ -24,6 +24,11 @@ export const DSTR = {
   en: {
     signIn: 'Sign in', signOut: 'Sign out', email: 'Email', password: 'Password',
     firstTime: 'First time here?', setPassword: 'Create your password',
+    firstTimeTitle: 'Getting in for the first time',
+    firstTimePrompt: 'Enter your work email. If you are on the team, we will send you a link to choose your password. You do not need one yet.',
+    forgotPrompt: 'Enter your work email and we will send you a link to set a new password.',
+    emailMeLink: 'Email me a link',
+    linkOnTheWay: 'If that address belongs to someone here, a link is on its way. It expires in 24 hours.',
     forgot: 'Forgot your password?', sendReset: 'Email me a reset link',
     backToSignIn: 'Back to sign in', checkInbox: 'Check your inbox.',
     newPassword: 'Choose a new password', setIt: 'Save my new password',
@@ -74,6 +79,10 @@ export const DSTR = {
     lastSeen: 'Last seen', now: 'now', never: 'never',
     minsAgo: '{n}m ago', hoursAgo: '{n}h ago', daysAgo: '{n}d ago',
     approved: '{name} can sign in now.', revoked: '{name} can no longer sign in.',
+    sendLink: 'Send link', sendingLink: 'Sending…',
+    linkSent: 'Emailed {email} a link to set a password.',
+    linkFailed: 'Could not email {email}: {reason}',
+    resetHint: 'Nobody can set a password for somebody else, so the button emails them a link and they choose it themselves.',
     roles: { member: 'Member', lead: 'Lead', manager: 'Manager', admin: 'Admin' },
     sending: 'Sending…', inviteNoReason: 'the mail server gave no reason',
     inviteSent: 'Invited {email}. They have an email with a link to set their password.',
@@ -91,6 +100,11 @@ export const DSTR = {
   ar: {
     signIn: 'تسجيل الدخول', signOut: 'تسجيل الخروج', email: 'البريد الإلكتروني', password: 'كلمة المرور',
     firstTime: 'أول مرة هنا؟', setPassword: 'أنشئ كلمة المرور',
+    firstTimeTitle: 'الدخول لأول مرة',
+    firstTimePrompt: 'أدخل بريد العمل. إن كنت ضمن الفريق سنرسل لك رابطاً لاختيار كلمة المرور. لا تحتاج كلمة مرور الآن.',
+    forgotPrompt: 'أدخل بريد العمل وسنرسل لك رابطاً لضبط كلمة مرور جديدة.',
+    emailMeLink: 'أرسل لي رابطاً',
+    linkOnTheWay: 'إن كان هذا البريد يخص أحداً هنا، فالرابط في طريقه إليك. تنتهي صلاحيته خلال ٢٤ ساعة.',
     forgot: 'نسيت كلمة المرور؟', sendReset: 'أرسل لي رابط إعادة التعيين',
     backToSignIn: 'رجوع لتسجيل الدخول', checkInbox: 'تحقق من بريدك.',
     newPassword: 'اختر كلمة مرور جديدة', setIt: 'حفظ كلمة المرور',
@@ -141,6 +155,10 @@ export const DSTR = {
     lastSeen: 'آخر ظهور', now: 'الآن', never: 'أبداً',
     minsAgo: 'قبل {n} د', hoursAgo: 'قبل {n} س', daysAgo: 'قبل {n} ي',
     approved: 'يستطيع {name} الدخول الآن.', revoked: 'لم يعد {name} يستطيع الدخول.',
+    sendLink: 'أرسل رابطاً', sendingLink: 'جارٍ الإرسال…',
+    linkSent: 'أُرسل إلى {email} رابط لضبط كلمة المرور.',
+    linkFailed: 'تعذّر الإرسال إلى {email}: {reason}',
+    resetHint: 'لا أحد يضبط كلمة مرور نيابة عن غيره، لذا يرسل الزر رابطاً ويختارها صاحبها بنفسه.',
     roles: { member: 'عضو', lead: 'قائد', manager: 'مدير', admin: 'مسؤول' },
     sending: 'جارٍ الإرسال…', inviteNoReason: 'لم يذكر خادم البريد سبباً',
     inviteSent: 'تمت دعوة {email}. وصلته رسالة فيها رابط لضبط كلمة المرور.',
@@ -408,10 +426,21 @@ export function estimateFor(sched, { name, size, start, deadline, stages }) {
 
 export function signInView(lang, mode = 'in', msg = '', authErr = null) {
   const t = DSTR[lang];
-  const title = mode === 'up' ? t.setPassword
+  const title = mode === 'up' ? t.firstTimeTitle
               : mode === 'forgot' ? t.forgot
               : mode === 'reset' ? t.newPassword
               : t.signIn;
+
+  /* 'up' and 'forgot' ask for an address and send a link; only 'in' and
+     'reset' involve a password at all. The first-time screen used to take a
+     password too, which meant whoever typed an address first owned it — and
+     an address is what decides a role here. */
+  const wantsPassword = mode === 'in' || mode === 'reset';
+  const prompt = mode === 'up' ? t.firstTimePrompt : mode === 'forgot' ? t.forgotPrompt : '';
+  const go = mode === 'reset' ? t.setIt
+           : mode === 'up' ? t.emailMeLink
+           : mode === 'forgot' ? t.sendReset
+           : t.signIn;
 
   /* An expired link is the single most likely way to arrive here, and the
      only useful response is a new link — so the panel carries the button
@@ -431,19 +460,20 @@ export function signInView(lang, mode = 'in', msg = '', authErr = null) {
     ${errPanel}
     <form id="authForm" class="authform" autocomplete="on">
       ${mode === 'reset' ? `<p class="small muted">${esc(t.recoverPrompt)}</p>` : `
+      ${prompt ? `<p class="small muted">${esc(prompt)}</p>` : ''}
       <label class="f f--wide">
         <span>${esc(t.email)}</span>
         <input id="aEmail" type="email" name="email" required autocomplete="username"
                placeholder="you@expandexpo.com" />
       </label>`}
-      ${mode === 'forgot' ? '' : `
+      ${!wantsPassword ? '' : `
       <label class="f f--wide">
         <span>${esc(mode === 'reset' ? t.newPassword : t.password)}</span>
         <input id="aPass" type="password" name="password" required minlength="8"
-               autocomplete="${mode === 'up' || mode === 'reset' ? 'new-password' : 'current-password'}" />
+               autocomplete="${mode === 'reset' ? 'new-password' : 'current-password'}" />
       </label>`}
       ${msg ? `<p class="authmsg ${/^!/.test(msg) ? 'bad' : ''}">${esc(msg.replace(/^!/, ''))}</p>` : ''}
-      <button class="btn btn--primary" type="submit" id="aGo">${esc(mode === 'reset' ? t.setIt : title)}</button>
+      <button class="btn btn--primary" type="submit" id="aGo">${esc(go)}</button>
       <div class="authlinks small">
         ${mode === 'reset' ? ''
           : mode === 'in'
@@ -844,6 +874,11 @@ export function adminView(lang, ctx) {
   const keyOf = (p) => {
     if (p.user_id && online.has(p.id)) return 'online';
     if (p.user_id && !p.is_active)     return 'waiting';
+    /* An account exists but nobody has ever opened the app with it. Minting a
+       sign-in link creates the auth user immediately, so "has a login" stopped
+       being the same question as "has arrived" — and an admin watching this
+       screen after inviting five people needs the second one. */
+    if (p.user_id && !p.last_seen_at)  return 'invited';
     if (p.user_id)                     return 'active';
     if (invitedEmails.has((p.email || '').toLowerCase())) return 'invited';
     return 'roster';
@@ -864,11 +899,18 @@ export function adminView(lang, ctx) {
       roster:  `<span class="st" style="--c:var(--ink4)"><i></i>${esc(t.rosterOnly)}</span>`,
     }[key];
     // Approve is the only action that changes someone's access, so it is the
-    // only one given a button. Everything else is a dropdown that saves itself.
-    const action = key === 'waiting'
+    // only one given a filled button. Everything else is a dropdown that saves
+    // itself, or a quiet secondary.
+    const access = key === 'waiting'
       ? `<button class="btn btn--primary btn--sm" data-approve="${esc(p.id)}">${esc(t.approve)}</button>`
       : (key === 'active' || key === 'online')
         ? `<button class="btn btn--sm" data-revoke="${esc(p.id)}">${esc(t.revoke)}</button>` : '';
+    /* Sending a link is the whole of what an admin can do about a password.
+       Useless without an address, so it is absent rather than disabled — a
+       disabled button asks the reader to work out why. */
+    const link = p.email
+      ? `<button class="btn btn--sm btn--ghost" data-sendlink="${esc(p.id)}">${esc(t.sendLink)}</button>` : '';
+    const action = `<span class="rowacts">${access}${link}</span>`;
     return { key, pill, action, seen: key === 'online' ? t.now : sinceText(p.last_seen_at, lang, t) };
   };
 
@@ -920,6 +962,7 @@ export function adminView(lang, ctx) {
     <h2>${esc(t.people)}</h2>
     <span class="muted small">${people.length}</span>
   </div>
+  ${ctx.resetMsg ? `<p class="msg ${ctx.resetMsg.ok ? 'msg--ok' : 'msg--bad'}">${esc(ctx.resetMsg.text)}</p>` : ''}
   <div class="chipbar">
     ${GROUPS.map(g => `<button class="chip chip--btn${g.key === 'all' ? ' is-on' : ''}" data-who="${g.key}">${esc(g.label)} ${g.n}</button>`).join('')}
   </div>
@@ -957,5 +1000,6 @@ export function adminView(lang, ctx) {
       </tbody>
     </table>
   </div>
+  <p class="note">${esc(t.resetHint)}</p>
 </section>`;
 }
