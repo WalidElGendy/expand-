@@ -29,9 +29,23 @@ Deno.serve(async (req) => {
     if (!id) return json({ error: 'no person given' }, 400);
 
     const { data: person } = await admin.from('profiles')
-      .select('id, email, full_name, department_id, role, user_id').eq('id', id).maybeSingle();
+      .select('id, email, full_name, department_id, role, user_id, link_sent_at').eq('id', id).maybeSingle();
     if (!person) return json({ error: 'no such person' }, 404);
     if (!person.email) return json({ error: 'that person has no email address on file' }, 400);
+
+    /* Supabase keeps one token per person, so minting a link cancels the one
+       before it. An admin clicking this while somebody is mid-way through the
+       email they were already sent would break exactly the thing they are
+       trying to help with — and the person sees "expired or already used",
+       which reads as a bug. Two minutes is long enough to stop the pile-up
+       and short enough that a real retry is not blocked. */
+    const since = person.link_sent_at ? Date.now() - new Date(person.link_sent_at).getTime() : Infinity;
+    if (since < 120_000) {
+      return json({
+        emailed: false, email: person.email, name: person.full_name,
+        reason: `a link went to this address ${Math.round(since / 1000)}s ago — sending another would cancel it, so give them a minute`,
+      });
+    }
 
     const redirectTo = typeof body.redirectTo === 'string' && body.redirectTo.startsWith('http')
       ? body.redirectTo : `${APP}/#/reset`;
