@@ -339,6 +339,60 @@ check(/^\d{4}-\d{2}-\d{2}$/.test(est.real.delivery || ''),
   `the estimator produced no delivery date (got ${JSON.stringify(est.real.delivery)})`);
 check(/\d{4}/.test(D.estimateBox('en', est)), 'the estimate box renders without a date in it');
 
+/* ------------------------- getting in, and getting back in ----------------
+   The first-time screen used to take an email AND a password and hand both
+   to signUp() from the browser. Two things went wrong with that: it needed
+   Supabase's SMTP to send a confirmation, so a mail-server failure surfaced
+   to a new joiner as a blank error; and typing a password before proving the
+   address means whoever types first owns the address, which is what decides
+   a person's role here. Both screens now ask for an address and send a link. */
+for (const lang of ['en', 'ar']) {
+  const t = D.DSTR[lang];
+  const up = D.signInView(lang, 'up');
+  check(!up.includes('id="aPass"'), `${lang}: the first-time screen still asks for a password`);
+  check(up.includes('id="aEmail"'), `${lang}: the first-time screen has no email field`);
+  check(up.includes(t.emailMeLink), `${lang}: the first-time button does not offer a link`);
+
+  const forgot = D.signInView(lang, 'forgot');
+  check(!forgot.includes('id="aPass"'), `${lang}: the forgot screen asks for a password`);
+
+  // Signing in and choosing a new one are the only two that involve typing a
+  // password, and both must still have the field.
+  for (const m of ['in', 'reset']) {
+    check(D.signInView(lang, m).includes('id="aPass"'),
+      `${lang}: the "${m}" screen lost its password field`);
+  }
+}
+
+/* ------------------------------- the People screen ----------------------- */
+const people = [
+  { id: 'a', full_name: 'Arrived',  email: 'a@x.com', user_id: 'ua', is_active: true,  last_seen_at: '2026-08-11T09:00:00Z', department_id: '3d', role: 'member' },
+  { id: 'b', full_name: 'Invited',  email: 'b@x.com', user_id: 'ub', is_active: true,  last_seen_at: null, department_id: '3d', role: 'member' },
+  { id: 'c', full_name: 'Waiting',  email: 'c@x.com', user_id: 'uc', is_active: false, last_seen_at: null, department_id: '2d', role: 'member' },
+  { id: 'd', full_name: 'Roster',   email: null,      user_id: null, is_active: false, last_seen_at: null, department_id: '2d', role: 'member' },
+];
+for (const lang of ['en', 'ar']) {
+  const t = D.DSTR[lang];
+  const html = D.adminView(lang, { people, invites: [] });
+
+  /* Minting a sign-in link creates the auth user there and then, so "has a
+     login" stopped being the same question as "has arrived". An admin who has
+     just invited five people needs the second one. */
+  check(/<tr data-who="invited"/.test(html), `${lang}: somebody with an account who has never opened the app is not shown as invited`);
+  check((html.match(/<tr data-who="active"/g) || []).length === 1, `${lang}: wrong number of arrived people`);
+  check(/<tr data-who="waiting"/.test(html), `${lang}: the waiting-for-approval row vanished`);
+
+  // Three of the four have an address; the fourth cannot be emailed at all,
+  // and gets no button rather than a disabled one.
+  check((html.match(/data-sendlink=/g) || []).length === 3,
+    `${lang}: the send-link button is not on exactly the rows that have an email`);
+  check(html.includes(t.resetHint), `${lang}: no explanation of why an admin cannot just set a password`);
+}
+/* An outcome must be reported, not assumed — the whole bug class here was a
+   button that looked like it had done something. */
+check(D.adminView('en', { people, invites: [], resetMsg: { ok: false, text: 'nope' } }).includes('msg--bad'),
+  'a failed reset link is not reported on the People screen');
+
 /* --------------------------------- report --------------------------------- */
 await browser.close();
 server.close();
