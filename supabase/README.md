@@ -15,6 +15,8 @@ Supabase region to Riyadh, about 1,500 km nearer than Frankfurt.
 | 006 | let the guard trigger pass for server-side connections, so a first admin can exist |
 | 007 | fix ownership checks that compared a profile id to a login id |
 | 008 | `profiles.last_seen_at` + `touch_last_seen()` for the People screen |
+| 009 | `profiles.welcomed_at`, `profiles.link_sent_at`, `invitations.last_link_at` |
+| 010 | `invitations.last_error`, `profiles.last_link_error` — why a link did not go |
 
 Pull them into this repo with `supabase link` + `supabase db pull` when you
 want them under version control locally.
@@ -50,10 +52,11 @@ produces a useless account rather than an administrator.
 
 ## Email
 
-Every account in this product starts with an email: an admin invites someone,
-Supabase sends them a link, and they choose their own password. Nobody ever
-types a password on someone else's behalf. That makes the mail sender a
-load-bearing part of the login system rather than a nicety.
+Every account in this product starts with an email: somebody is invited or
+asks for a link, they click it, and they choose their own password. Nobody
+ever types a password on someone else's behalf — not an admin, not us. That
+makes the mail sender a load-bearing part of the login system rather than a
+nicety, which is why it is worth the two pages below.
 
 **Authentication → URL Configuration** must point at production. It shipped
 pointing at `http://localhost:3000`, which is why the first confirmation links
@@ -62,50 +65,93 @@ came back `otp_expired` against a page that did not exist:
 - Site URL: `https://expand.meshnet.co`
 - Redirect URLs: `https://expand.meshnet.co/**`, `https://expand-liart.vercel.app/**`
 
-**The built-in sender is capped at 2 emails per hour.** It is meant for
-kicking the tyres on a new project, not for onboarding a team, and the cap is
-per project, not per recipient. Two invitations and the third person waits an
-hour with no error anyone can see. Custom SMTP is not optional here.
+### Mail does not go through Supabase's SMTP setting
 
-### Inviting people
+Supabase mints the links; the edge functions deliver them through **Resend's
+HTTP API**. Two reasons, and neither is taste.
 
-`supabase/functions/invite-user` is the only way an invitation is sent. The
-admin screen used to write a row into `invitations` and stop — that row is an
-authorisation (what role this address may claim), not an invitation, and
-nobody was ever told. Sending needs the admin API and the service_role key,
-which cannot be in a browser bundle, so it runs as an edge function where
-Supabase injects that key as an environment variable.
+Supabase's mailer has exactly three templates — confirm, invite, recover — and
+no way to add a fourth, so "your account is ready" could never have been one
+of them.
 
-It verifies the caller's own JWT and requires `role = 'admin'`, writes the
-invitation row first so the authorisation survives a mail failure, then sends
-— and returns whether the mail actually went. The screen reports all three
-outcomes separately: invited, already-had-an-account-so-sent-a-reset, and
-added-but-not-emailed. Deploy with `supabase functions deploy invite-user`.
+And an SMTP misconfiguration here is invisible. When the stored password was
+not a valid Resend key, the server answered `535 Authentication credentials
+invalid`, Supabase surfaced "Error sending invite email", and Resend's log
+stayed **empty** — the connection never got far enough to be a request, so
+there was nothing to look at on either side. Over the API, every attempt,
+including every failure, is a row in <https://resend.com/logs> with a reason.
 
-### Resend
-
-Under **Authentication → Emails → SMTP Settings**, with a verified sending
-domain in Resend:
-
-| field | value |
-|---|---|
-| host | `smtp.resend.com` |
-| port | `465` |
-| username | `resend` |
-| password | the Resend API key |
-| sender email | `no-reply@meshnet.co` (must be on the verified domain) |
-| sender name | Expand |
-
-Then raise the rate limit under **Auth → Rate Limits**; it stays at the
-built-in default until it is changed, so a working SMTP server still delivers
-two emails an hour.
+The one secret this needs is `RESEND_API_KEY`, under **Edge Functions →
+Secrets**. Optional overrides: `MAIL_FROM` (default
+`Expand <no-reply@meshnet.co>`, must be on a domain verified in Resend) and
+`APP_URL`. The key does not belong in this repository and is never returned to
+a caller or written to a log.
 
 `meshnet.co` is already verified in Resend, so no DNS records are needed.
-Enabling custom SMTP raises the auth email limit from 2 an hour to 30, and it
-can be raised further under **Auth → Rate Limits**.
 
-The API key is a secret and does not belong in this repository. It is typed
-once into the Supabase dashboard by whoever owns the Resend account.
+The SMTP settings page can be left configured or left empty; nothing in this
+product depends on it any more. Password sign-in itself sends no mail at all.
+
+### The four functions
+
+All of them share `functions/_shared/http.ts` (CORS, service_role client, and
+`whoIsAsking`, which verifies the caller's own token instead of believing a
+role posted in the request body) and `functions/_shared/mail.ts` (the Resend
+call and every template, in English and Arabic in one message).
+
+| function | JWT | who may call it | what it does |
+|---|---|---|---|
+| `invite-user` | yes | admin | writes the `invitations` row, then mails an invite — or a recovery link if they already have an account |
+| `request-access` | **no** | anyone | "First time here?" and "Forgot your password?" |
+| `admin-reset` | yes | admin | the "Send link" button on a People row |
+| `account-ready` | yes | the person themselves | "your account is ready", once |
+
+Deploy with `supabase functions deploy <name>`.
+
+**`invite-user`** writes the authorisation row *first*, deliberately not
+atomically, so it survives a mail server having a bad day and the person can
+still be let in later. Then it mails, and returns whether the mail actually
+went. The screen reports all three outcomes separately: invited,
+already-had-an-account-so-sent-a-reset, and added-but-not-emailed.
+
+**`request-access`** runs without a JWT, because the person asking has no
+account yet. It sends a link to an address with an invitation row (they arrive
+active, with the role that row names) or an address already on the roster
+(they arrive inactive and appear under "Waiting for approval"). Everyone else
+gets nothing. **The reply is identical in all three cases** — telling an
+anonymous caller "no such person" turns the box into a way to test whether an
+address works here. A two-minute cooldown per address, held in
+`profiles.link_sent_at` and `invitations.last_link_at`, stops it being used to
+flood an inbox.
+
+Because it cannot tell the caller anything, it writes the outcome next to the
+address instead: `invitations.last_error` and `profiles.last_link_error`, null
+when the last attempt worked. Without that a failed send left no trace an admin
+could reach. The cooldown starts only on success, so a failure no longer blocks
+the retry that would have worked.
+
+This replaced a browser-side `signUp()` that took an email *and* a password.
+A password typed before the address is proven means whoever types first owns
+the address — and in this product an address decides a person's role.
+
+**`admin-reset`** exists because the honest answer to "reset this person's
+password" is that nobody can. A password an admin can set is a password an
+admin knows, and then "who did this" stops having an answer. The button causes
+a link to be sent; the person still chooses.
+
+**`account-ready`** is called by the app after a password is saved, which is
+the first moment "your account is ready" is a true sentence — sending it at
+invitation time would be a lie for everyone who never clicks.
+`profiles.welcomed_at` is stamped *before* the send, so a retry cannot produce
+a second welcome. A duplicate is worse than a missing one: the recipient reads
+it as something having just happened to their account.
+
+### Who has arrived
+
+The People screen distinguishes "has a login" from "has ever opened the app",
+because minting a link creates the auth user immediately — so an admin who has
+just invited five people would otherwise see all five as active. A row with a
+`user_id` and no `last_seen_at` is *invited, not in yet*.
 
 ## Testing
 
