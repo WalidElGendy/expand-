@@ -86,6 +86,24 @@ const ar = (s: string) => `<p dir="rtl" style="margin:0 0 12px;font:400 15px/1.7
 
 const hi = (name?: string | null) => name ? `Hi ${esc(name.split(' ')[0])},` : 'Hi,';
 
+/* Two facts that caused every "the link is broken" report, so they are said
+   out loud in every letter rather than assumed.
+
+   A DAY. MAILER_OTP_EXP was 3600 seconds while these emails promised 24
+   hours, which is how a working system gets reported as broken. The setting
+   is now 86400 — a day — and the wording matches it. It is not "never":
+   a link that never dies is a standing key to the app sitting in an inbox,
+   and forwarded mail outlives the person it was sent to.
+
+   AND EACH LINK CANCELS THE LAST. Supabase keeps one token per person, so
+   asking again — from the invite form, from "First time here?", from the
+   People screen — silently kills the earlier email. Three links arrived four
+   minutes apart once, and clicking the oldest gave "expired or already used",
+   which reads as a bug rather than as arithmetic. */
+const ONCE_EN = 'The link works once and lasts a day. Asking for another one cancels it, so always open the newest email — an older link will say it has expired.';
+const ONCE_AR = 'الرابط يعمل مرة واحدة وصالح ليوم كامل. طلب رابط جديد يُلغي السابق، لذا افتح دائماً أحدث رسالة — الرابط الأقدم سيقول إنه منتهي.';
+const ONCE_TXT = 'The link works once and lasts a day. Asking for another one cancels it, so always open the newest email.';
+
 /* Both languages in one message rather than guessing. The roster is Arabic
    and English speaking and an invitation is the one email that must not be
    unreadable — there is no "resend in my language" button on a sign-in page. */
@@ -95,10 +113,11 @@ export const inviteMail = (name: string | null, link: string, dept: string, role
   html: layout('You have been added to Expand', [
     p(hi(name)),
     p(`You have been added to <b>Expand</b> as <b>${esc(role)}</b>${dept ? ` in ${esc(dept)}` : ''}. Choose a password and you are in.`),
-    p('The link works once and expires in 24 hours. Nobody, including us, can see the password you pick.'),
-    ar('تمت إضافتك إلى Expand. اضغط الزر لاختيار كلمة المرور الخاصة بك. الرابط يعمل مرة واحدة وينتهي خلال ٢٤ ساعة.'),
+    p(`${ONCE_EN} Nobody, including us, can see the password you pick.`),
+    p('<b>Finish in one sitting.</b> The link signs you in and asks for a password — until you save one there is no password to sign in with later.'),
+    ar(`تمت إضافتك إلى Expand. اضغط الزر لاختيار كلمة المرور الخاصة بك. ${ONCE_AR} أكمل الخطوة في نفس الجلسة: الرابط يسجّل دخولك ويطلب كلمة المرور، وقبل حفظها لا توجد كلمة مرور تدخل بها لاحقاً.`),
   ].join(''), { href: link, label: 'Create your password' }),
-  text: `${name ? `Hi ${name.split(' ')[0]},` : 'Hi,'}\n\nYou have been added to Expand as ${role}${dept ? ` in ${dept}` : ''}.\nCreate your password: ${link}\n\nThe link works once and expires in 24 hours.\n\nExpand — ${APP}`,
+  text: `${name ? `Hi ${name.split(' ')[0]},` : 'Hi,'}\n\nYou have been added to Expand as ${role}${dept ? ` in ${dept}` : ''}.\nCreate your password: ${link}\n\n${ONCE_TXT}\nFinish in one sitting: until you save a password there is none to sign in with later.\n\nExpand — ${APP}`,
 });
 
 export const resetMail = (name: string | null, link: string, byAdmin: boolean) => ({
@@ -108,10 +127,10 @@ export const resetMail = (name: string | null, link: string, byAdmin: boolean) =
     byAdmin
       ? p('An administrator asked us to send you a fresh link for <b>Expand</b>. Use it to set a new password.')
       : p('Somebody asked for a password reset on your <b>Expand</b> account.'),
-    p('The link works once and expires in 24 hours. If this was not expected you can ignore it — your current password keeps working until a new one is set.'),
-    ar('اضغط الزر لاختيار كلمة مرور جديدة. الرابط يعمل مرة واحدة وينتهي خلال ٢٤ ساعة. إن لم تطلب ذلك يمكنك تجاهل الرسالة.'),
+    p(`${ONCE_EN} If this was not expected you can ignore it — your current password keeps working until a new one is set.`),
+    ar(`اضغط الزر لاختيار كلمة مرور جديدة. ${ONCE_AR} إن لم تطلب ذلك يمكنك تجاهل الرسالة.`),
   ].join(''), { href: link, label: 'Set a new password' }),
-  text: `${name ? `Hi ${name.split(' ')[0]},` : 'Hi,'}\n\nSet a new Expand password: ${link}\n\nThe link works once and expires in 24 hours.\n\nExpand — ${APP}`,
+  text: `${name ? `Hi ${name.split(' ')[0]},` : 'Hi,'}\n\nSet a new Expand password: ${link}\n\n${ONCE_TXT}\n\nExpand — ${APP}`,
 });
 
 export const welcomeMail = (name: string | null, dept: string, role: string) => ({
