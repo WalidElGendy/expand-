@@ -32,7 +32,8 @@ import { CORS, json, EMAIL, APP, adminClient, actionLink } from '../_shared/http
 import { send, inviteMail, resetMail } from '../_shared/mail.ts';
 
 // One link every two minutes per address. Enough that a mistyped click does
-// not fire twice, low enough that this cannot be used to bomb an inbox.
+// not fire twice, low enough that this cannot be used to bomb an inbox — and
+// it stops a second link cancelling the first while somebody is reading it.
 const COOLDOWN_MS = 120_000;
 const fresh = (iso: string | null) =>
   !!iso && Date.now() - new Date(iso).getTime() < COOLDOWN_MS;
