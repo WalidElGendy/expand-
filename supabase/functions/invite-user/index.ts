@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
       ? resetMail(full_name, link, true)
       : inviteMail(full_name, link, dept, role);
     const sent = await send(email, letter.subject, letter.html, letter.text);
-    if (sent.ok) await admin.from('invitations').update({ last_link_at: new Date().toISOString() }).eq('email', email);
+    if (sent.ok) await admin.from('invitations').update({ last_link_at: new Date().toISOString(), last_error: null }).eq('email', email);
 
     return json({ invited: true, emailed: sent.ok, kind, email, reason: sent.reason ?? null });
   } catch (e) {
