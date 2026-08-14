@@ -167,6 +167,9 @@ function currentRoute() {
   if (h.startsWith('#/reset'))    return { name: 'signin' };   // recovery lands here
   if (h.startsWith('#/home'))     return { name: 'home' };
   if (h.startsWith('#/projects')) return { name: 'projects' };
+  // Must be tested before '#/p' would ever be reached by a prefix match, and
+  // after '#/projects' for the same reason — '#/projects' starts with '#/p'.
+  if (h.startsWith('#/p/'))       return { name: 'project', id: h.slice(4) };
   if (h.startsWith('#/new'))      return { name: 'new' };
   if (h.startsWith('#/leads'))    return { name: 'leads' };
   if (h.startsWith('#/docs'))     return { name: 'docs' };
@@ -174,13 +177,21 @@ function currentRoute() {
   return { name: 'landing' };
 }
 
+/* The signed-in routes, named once. This used to be two hardcoded lists —
+   the one render() guards on and the one the boot/hashchange handler loads
+   data for — and they had already drifted: 'projects' was in the first and
+   missing from the second, so the screen only ever had rows if you happened
+   to arrive from a page that had loaded them. A deep link or a refresh
+   showed an empty table and called it zero projects. */
+const APP_ROUTES = ['home', 'projects', 'project', 'new', 'leads', 'docs', 'admin'];
+
 function render() {
   document.documentElement.lang = S.lang;
   document.documentElement.dir = S.lang === 'ar' ? 'rtl' : 'ltr';
   const r = currentRoute();
   document.body.dataset.route = r.name;
 
-  const APP = ['home', 'projects', 'new', 'leads', 'docs', 'admin'];
+  const APP = APP_ROUTES;
   // An app route with no session is not an error, it is a sign-in prompt.
   // Redirecting instead of rendering an empty dashboard means a deep link
   // survives the login rather than dumping the user on a blank home.
@@ -196,7 +207,7 @@ function render() {
 
   const body =
     r.name === 'signin'   ? signInView(S.lang, C.ctx.authMode, C.ctx.authMsg, C.ctx.authErr)
-  : APP.includes(r.name)  ? C.appBody(S.lang, r.name)
+  : APP.includes(r.name)  ? C.appBody(S.lang, r.name, r.id)
   : r.name === 'who'      ? whoView(S.lang)
   : r.name === 'profile'  ? profileView(S.lang, r.id)
   : r.name === 'pipeline' ? pipelineView(S.lang)
@@ -737,8 +748,8 @@ function estimate(fromForm) {
     if (urlErr) { C.ctx.authErr = urlErr; C.ctx.authMode = 'in'; }
     render();                       // paint the shell immediately
     const r = currentRoute();
-    if (['home','new','leads','docs','admin'].includes(r.name) && db.state.session) {
-      await C.loadFor(r.name);
+    if (APP_ROUTES.includes(r.name) && db.state.session) {
+      await C.loadFor(r.name, r.id);
       render();
     }
   };
