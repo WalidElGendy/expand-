@@ -213,7 +213,7 @@ export const DSTR = {
     filters: 'التصفية', clearFilters: 'مسح',
     anyOwner: 'كل المسؤولين', anyTeam: 'كل الفرق', anyStatus: 'كل الحالات', anyDue: 'كل المواعيد',
     unassignedOwner: 'بلا مسؤول', sortBy: 'الترتيب',
-    sortRecent: 'الأحدث', sortDueSoon: 'الموعد، الأقرب', sortDueLate: 'الموعد، الأبعح',
+    sortRecent: 'الأحدث', sortDueSoon: 'الموعد، الأقرب', sortDueLate: 'الموعد، الأبعد',
     sortName: 'الاسم', dueOverdue: 'متأخر', due30: 'خلال ٣٠ يوماً', due90: 'خلال ٩٠ يوماً',
     dueNone: 'بلا موعد', showingN: 'يعرض {n} من {t}',
     noMatch: 'لا يوجد مشروع يطابق هذه التصفية.',
