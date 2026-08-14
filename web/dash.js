@@ -20,6 +20,14 @@ const esc = (x) => String(x ?? '').replace(/[&<>"']/g, c =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const today = () => iso(CAL.nextWorking(new Date()));
 
+/* The same rule the database enforces in can_plan(): active, and either a
+   manager/admin or in PM. It lives here so the sidebar, the "New project"
+   button and the row actions cannot drift apart from each other — or from
+   the policy, which is the only one of the four that actually decides. */
+export const canPlan = (me = db.state.me) =>
+  !!me && me.is_active !== false &&
+  (['admin', 'manager'].includes(me.role) || me.department_id === 'pm');
+
 export const DSTR = {
   en: {
     signIn: 'Sign in', signOut: 'Sign out', email: 'Email', password: 'Password',
@@ -616,7 +624,7 @@ ${deadlineChart(lang, open)}
   <div class="card__head">
     <h2>${esc(t.projects)}</h2>
     <span class="muted small">${open.length} ${esc(lang === 'ar' ? 'مفتوح' : 'open')} · ${projects.length} ${esc(lang === 'ar' ? 'إجمالاً' : 'total')}</span>
-    <button class="btn btn--primary btn--sm" style="margin-inline-start:auto" data-act="go" data-route="#/new">${esc(t.newProject)}</button>
+    ${canPlan() ? `<button class="btn btn--primary btn--sm" style="margin-inline-start:auto" data-act="go" data-route="#/new">${esc(t.newProject)}</button>` : ''}
   </div>
   ${flagged ? `<div class="chipbar">
     <button class="chip chip--btn is-on" data-rows="all">${esc(t.allRows)} ${open.length}</button>
