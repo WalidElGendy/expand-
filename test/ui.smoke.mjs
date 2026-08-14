@@ -295,9 +295,13 @@ dbmod.state.departments = [
 ];
 dbmod.state.me = { id: 'u1', full_name: 'Test', role: 'admin', department_id: 'pm', is_active: true };
 
-const proj = (i, due, status, flag, est = null) => ({
+const proj = (i, due, status, flag, est = null, owner = null) => ({
   id: 'p' + i, name: 'Project ' + i, status, due_on: due, estimated_delivery: est,
   import_flags: flag ? ['size guessed'] : null,
+  owner_id: owner, owner: owner ? { id: owner, full_name: 'Owner ' + owner } : null,
+  // Ordered newest-first by default, so the fixture needs distinguishable
+  // timestamps or the "most recent" sort has nothing to prove.
+  created_at: `2026-0${(i % 9) + 1}-0${(i % 9) + 1}T00:00:00Z`,
   project_stages: [
     { id: 's' + i, department_id: '3d', status: 'pending', assignee_id: null, effort_days: 5, sort: 1 },
     { id: 't' + i, department_id: '2d', status: 'done', assignee_id: 'u3', effort_days: 2, sort: 2 },
@@ -338,6 +342,123 @@ const est = D.estimateFor(sched, { name: 'x', size: 'M', start: '2026-08-10', de
 check(/^\d{4}-\d{2}-\d{2}$/.test(est.real.delivery || ''),
   `the estimator produced no delivery date (got ${JSON.stringify(est.real.delivery)})`);
 check(/\d{4}/.test(D.estimateBox('en', est)), 'the estimate box renders without a date in it');
+
+/* ------------------- filters, and the Etemad status flow -------------------
+   filterProjects is the single rule the table body, the "showing n of t"
+   count and these tests all read. When the count and the rows are computed
+   separately the header starts claiming a number the body does not show. */
+{
+  const F = (pf, rows = fixtures) => D.filterProjects(rows, pf);
+  const fixtures = [
+    proj(1, '2020-01-01', 'in_design', false, null, 'o1'),   // long overdue
+    proj(2, '2099-01-01', 'submitted', false, null, 'o1'),
+    proj(3, null,         'won',       false, null, 'o2'),
+    proj(4, '2099-01-01', 'delivered', false, null, null),
+    proj(5, '2099-01-01', 'archived',  false, null, null),
+    proj(6, '2099-01-01', 'lost',      false, null, 'o2'),
+  ];
+
+  check(F({}).length === 3, 'the default view is not the three open projects');
+  check(F({ closed: true }).length === 6, '"include closed" did not bring the closed ones back');
+  /* The bug this guards: open-only is a DEFAULT, not a veto. Asking for
+     Delivered and being told there are none is worse than no filter. */
+  check(F({ status: 'delivered' }).length === 1,
+    'picking a closed status returns nothing because open-only overruled it');
+  check(F({ status: 'archived' }).length === 1, 'archived is unreachable by name');
+
+  check(F({ owner: 'o1' }).length === 2, 'the owner filter does not match on owner_id');
+  check(F({ owner: '~none' }).length === 0, 'no-owner matched a closed project the default hides');
+  check(F({ owner: '~none', closed: true }).length === 2, 'the no-owner option finds nothing');
+  check(F({ team: '3d' }).length === 3, 'the team filter does not read project_stages');
+  check(F({ team: 'content' }).length === 0, 'the team filter matched a team nobody is on');
+
+  check(F({ due: 'overdue' }).map(p => p.id).join() === 'p1', 'the overdue window is wrong');
+  check(F({ due: 'none' }).map(p => p.id).join() === 'p3', 'the "no deadline" window is wrong');
+  check(F({ due: 'd30' }).length === 0, 'a 2099 deadline landed inside the next 30 days');
+
+  /* Undated rows sort LAST in both directions. Treating a missing deadline
+     as either end of time buries the dated rows you asked to see. */
+  const byDue = F({ sort: 'due', closed: true }).map(p => p.id);
+  check(byDue[0] === 'p1' && byDue.at(-1) === 'p3', `deadline sort put nulls first: ${byDue}`);
+  const byLate = F({ sort: 'duelate', closed: true }).map(p => p.id);
+  check(byLate.at(-1) === 'p3', `reverse deadline sort put the undated row somewhere else: ${byLate}`);
+  check(F({ sort: 'name', closed: true })[0].name === 'Project 1', 'name sort is not alphabetical');
+  check(D.filterProjects([{ ...fixtures[0], is_crm_list: true }], {}).length === 0,
+    'a CRM list row leaked into the projects table');
+
+  // The filter bar itself, and the owner column that only appears with data.
+  const withOwners = D.pmView('en', { ...dctx, projects: fixtures, pf: undefined });
+  check(withOwners.includes('data-pf="owner"') && withOwners.includes('data-pf="due"'),
+    'the filter bar is missing controls');
+  check(withOwners.includes('Owner o1'), 'the owner column did not render a known owner');
+  check(!D.pmView('en', dctx).includes('data-pf-clear'),
+    'the Clear button shows even though no filter is set');
+  check(D.pmView('en', { ...dctx, pf: { ...D.PF_DEFAULT, owner: 'o1' } }).includes('data-pf-clear'),
+    'the Clear button is missing while a filter is active');
+  check(D.pmView('en', { ...dctx, projects: fixtures, pf: { ...D.PF_DEFAULT, team: 'content' } })
+    .includes(D.DSTR.en.noMatch), 'an empty result renders an empty table instead of saying so');
+}
+
+/* The flow the company actually runs: a tender goes to Etemad, comes back
+   accepted or rejected, and an accepted one is handed to production. */
+{
+  const N = dbmod.NEXT_STATUS;
+  check(N.submitted.join() === 'won,lost', 'Etemad has an outcome other than accepted or rejected');
+  check(N.won.includes('in_production'), 'an accepted tender cannot reach production');
+  check(!N.intake.includes('delivered'),
+    'a project can be marked delivered straight from intake, which makes the pipeline fiction');
+  check(N.lost.join() === 'archived', 'a rejected tender can be resurrected in place');
+  check(N.archived.length === 0, 'archived is not terminal');
+
+  for (const lang of ['en', 'ar']) {
+    const p = { ...proj(7, '2026-09-01', 'submitted', false, null, 'o1'),
+                description: 'A brief.', client: 'SIDF', size: 'L',
+                created_at: '2026-01-01T00:00:00Z', updated_at: '2026-02-01T00:00:00Z' };
+    const html = D.projectView(lang, {
+      project: p,
+      projectFiles: [{ id: 'f1', title: 'RFP.pdf', filename: 'RFP.pdf', purpose: 'rfp', size_bytes: 2048 }],
+      projectTasks: [{ id: 't1', name: 'Model the stand', completed: false }],
+      projectEvents: [{ id: 'e1', kind: 'status', to_status: 'submitted',
+                        created_at: '2026-02-01T00:00:00Z', author: { full_name: 'W' } }],
+    });
+    check(html.includes('A brief.'), `${lang}: the description is missing from the project page`);
+    check(html.includes('RFP.pdf') && html.includes('data-file="f1"'),
+      `${lang}: uploaded documents are not listed or not openable`);
+    check(html.includes('Model the stand'), `${lang}: the task list is missing`);
+    check(html.includes('id="stForm"'), `${lang}: there is no way to move the status`);
+    check(html.includes('value="won"') && html.includes('value="lost"'),
+      `${lang}: the Etemad verdict is not offered`);
+    check(!/>submitted</.test(html) && !/>won</.test(html),
+      `${lang}: a raw status enum reached the project page`);
+    check(html.includes(D.DSTR[lang].st.submitted),
+      `${lang}: the page does not say the project is submitted on Etemad`);
+    check(html.includes('class="timeline"'), `${lang}: the history did not render`);
+  }
+
+  // Accepted must warn that production is about to be opened for a team.
+  const accepted = D.projectView('en', { project: { ...proj(8, null, 'won'), project_stages: [] } });
+  check(accepted.includes(D.DSTR.en.toProduction),
+    'moving an accepted project does not say a production stage will be created');
+
+  // Archived is the end of the line, and the page must say so rather than
+  // offering an empty dropdown.
+  const done = D.projectView('en', { project: { ...proj(9, null, 'archived'), project_stages: [] } });
+  check(!done.includes('id="stForm"') && done.includes(D.DSTR.en.terminal),
+    'an archived project still offers a status move');
+
+  // A deep link to something that is not there must not render a blank shell.
+  check(D.projectView('en', { project: null }).includes(D.DSTR.en.notFound),
+    'a missing project renders an empty page instead of saying it is missing');
+
+  // A designer can read the project but must not be handed controls that 403.
+  const was = dbmod.state.me;
+  dbmod.state.me = { id: 'u9', role: 'member', department_id: '3d', is_active: true };
+  const readOnly = D.projectView('en', { project: { ...proj(10, null, 'submitted'), project_stages: [] } });
+  check(!readOnly.includes('id="stForm"') && !readOnly.includes('id="noteForm"'),
+    'a designer is offered project controls the database will refuse');
+  check(readOnly.includes('Project 10'), 'a designer cannot see the project at all');
+  dbmod.state.me = was;
+}
 
 /* --------------------------- the Projects screen --------------------------
    Projects is now in the sidebar for everyone: the read policy already lets
