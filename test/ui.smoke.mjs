@@ -339,6 +339,38 @@ check(/^\d{4}-\d{2}-\d{2}$/.test(est.real.delivery || ''),
   `the estimator produced no delivery date (got ${JSON.stringify(est.real.delivery)})`);
 check(/\d{4}/.test(D.estimateBox('en', est)), 'the estimate box renders without a date in it');
 
+/* --------------------------- the Projects screen --------------------------
+   Projects is now in the sidebar for everyone: the read policy already lets
+   any active user see them, and a designer who cannot find the project their
+   stage belongs to is being kept from context, not from data. What must NOT
+   follow everyone around is the write action — canPlan mirrors the database's
+   can_plan(), and a "New project" button that 403s is worse than no button. */
+check(D.canPlan({ role: 'admin',   department_id: '3d', is_active: true }), 'an admin cannot plan');
+check(D.canPlan({ role: 'manager', department_id: '3d', is_active: true }), 'a manager cannot plan');
+check(D.canPlan({ role: 'member',  department_id: 'pm', is_active: true }), 'PM cannot plan');
+check(!D.canPlan({ role: 'member', department_id: '3d', is_active: true }), 'a designer can plan');
+check(!D.canPlan({ role: 'admin',  department_id: 'pm', is_active: false }), 'a revoked admin can still plan');
+check(!D.canPlan(null), 'a signed-out visitor can plan');
+
+{
+  const planner = { id: 'u1', full_name: 'P', role: 'admin', department_id: 'pm', is_active: true };
+  const designer = { id: 'u2', full_name: 'D', role: 'member', department_id: '3d', is_active: true };
+  const was = dbmod.state.me;
+
+  dbmod.state.me = planner;
+  const forPlanner = D.pmView('en', dctx);
+  check(forPlanner.includes('data-route="#/new"'), 'a planner is not offered New project');
+
+  dbmod.state.me = designer;
+  const forDesigner = D.pmView('en', dctx);
+  check(!forDesigner.includes('data-route="#/new"'), 'a designer is offered a New project button they cannot use');
+  // The screen itself must still be the screen — same table, same rows.
+  check(forDesigner.includes('class="kpis"') && (forDesigner.match(/class="st"/g) || []).length >= many.length,
+    'the Projects screen loses its content for anyone who cannot plan');
+
+  dbmod.state.me = was;
+}
+
 /* ------------------------- getting in, and getting back in ----------------
    The first-time screen used to take an email AND a password and hand both
    to signUp() from the browser. Two things went wrong with that: it needed
