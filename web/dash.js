@@ -100,10 +100,37 @@ export const DSTR = {
     refsHint: 'Photos, moodboards, anything the designers should look at first.',
     deadlineChart: 'Deadlines by month', deadlineNote: 'Open projects grouped by submission deadline. The dashed line is today, so everything to its left is already late.',
     noneYet: 'Nothing here yet.', today_: 'today',
-    st: { in_design: 'In design', submitted: 'Submitted', won: 'Won', lost: 'Lost',
+    /* `submitted` has always meant "submitted on Etemad" here, and `won`/`lost`
+       are that platform's verdict coming back. The column names stay — 79 rows
+       depend on them — but nobody should have to be told that "Won" is what
+       the screen calls an acceptance. */
+    st: { intake: 'Intake', in_design: 'In design', pricing: 'Pricing',
+          submitted: 'Submitted on Etemad', won: 'Accepted', lost: 'Rejected',
+          in_production: 'In production',
           delivered: 'Delivered', archived: 'Archived', draft: 'Draft', pending: 'Pending',
           in_progress: 'In progress', done: 'Done', blocked: 'Blocked', new: 'New',
           contacted: 'Contacted', qualified: 'Qualified', proposal: 'Proposal' },
+
+    /* --- Projects screen: filters and detail ------------------------------ */
+    filters: 'Filters', clearFilters: 'Clear',   // owner/team/status/due already exist above
+    anyOwner: 'Any owner', anyTeam: 'Any team', anyStatus: 'Any status', anyDue: 'Any deadline',
+    unassignedOwner: 'No owner', sortBy: 'Sort',
+    sortRecent: 'Most recent', sortDueSoon: 'Deadline, soonest', sortDueLate: 'Deadline, latest',
+    sortName: 'Name', dueOverdue: 'Overdue', due30: 'Next 30 days', due90: 'Next 90 days',
+    dueNone: 'No deadline set', showingN: 'Showing {n} of {t}',
+    noMatch: 'No project matches these filters.',
+    openOnly: 'Open only', includeClosed: 'Include delivered and archived',
+    backToProjects: 'Projects', notFound: 'That project is not here.',
+    overview: 'Overview', history: 'History', addNote: 'Add a note', post: 'Post',
+    noHistory: 'Nothing recorded yet. Status changes from this page will show up here.',
+    noDocuments: 'No files uploaded for this project.',
+    tasksHead: 'Tasks', noTasks: 'No tasks on this project.',
+    stagesHead: 'Teams and stages', noStages: 'No stages on this project yet.',
+    moveTo: 'Move to', statusNote: 'Why (optional)', movedBy: '{who} moved it to {to}',
+    createdOn: 'Created', updatedOn: 'Last change', noDescription: 'No description was written.',
+    toProduction: 'Accepted — this opens a production stage for the production team.',
+    terminal: 'This project is archived. Nothing follows it.',
+    openInAsana: 'Open in Asana', sizeBand: 'Size', uploadedBy: 'by {who}',
   },
   ar: {
     signIn: 'تسجيل الدخول', signOut: 'تسجيل الخروج', email: 'البريد الإلكتروني', password: 'كلمة المرور',
@@ -176,10 +203,32 @@ export const DSTR = {
     refsHint: 'صور أو لوحات إلهام، أي شيء يجب أن يراه المصممون أولاً.',
     deadlineChart: 'المواعيد حسب الشهر', deadlineNote: 'المشاريع المفتوحة مجمّعة حسب موعد التقديم. الخط المتقطع هو اليوم، وكل ما على يساره متأخر بالفعل.',
     noneYet: 'لا شيء هنا بعد.', today_: 'اليوم',
-    st: { in_design: 'قيد التصميم', submitted: 'مُقدَّم', won: 'مكسوب', lost: 'خاسر',
+    st: { intake: 'استلام', in_design: 'قيد التصميم', pricing: 'التسعير',
+          submitted: 'مُقدَّم على اعتماد', won: 'مقبول', lost: 'مرفوض',
+          in_production: 'قيد التنفيذ الفعلي',
           delivered: 'مُسلَّم', archived: 'مؤرشف', draft: 'مسودة', pending: 'بانتظار',
           in_progress: 'قيد التنفيذ', done: 'منجز', blocked: 'متوقف', new: 'جديد',
           contacted: 'تم التواصل', qualified: 'مؤهل', proposal: 'عرض' },
+
+    filters: 'التصفية', clearFilters: 'مسح',
+    anyOwner: 'كل المسؤولين', anyTeam: 'كل الفرق', anyStatus: 'كل الحالات', anyDue: 'كل المواعيد',
+    unassignedOwner: 'بلا مسؤول', sortBy: 'الترتيب',
+    sortRecent: 'الأحدث', sortDueSoon: 'الموعد، الأقرب', sortDueLate: 'الموعد، الأبعح',
+    sortName: 'الاسم', dueOverdue: 'متأخر', due30: 'خلال ٣٠ يوماً', due90: 'خلال ٩٠ يوماً',
+    dueNone: 'بلا موعد', showingN: 'يعرض {n} من {t}',
+    noMatch: 'لا يوجد مشروع يطابق هذه التصفية.',
+    openOnly: 'المفتوحة فقط', includeClosed: 'تضمين المُسلَّمة والمؤرشفة',
+    backToProjects: 'المشاريع', notFound: 'هذا المشروع غير موجود.',
+    overview: 'نظرة عامة', history: 'السجل', addNote: 'أضف ملاحظة', post: 'نشر',
+    noHistory: 'لا شيء مسجل بعد. تغييرات الحالة من هذه الصفحة ستظهر هنا.',
+    noDocuments: 'لا توجد ملفات مرفوعة لهذا المشروع.',
+    tasksHead: 'المهام', noTasks: 'لا توجد مهام على هذا المشروع.',
+    stagesHead: 'الفرق والمراحل', noStages: 'لا توجد مراحل على هذا المشروع بعد.',
+    moveTo: 'انقل إلى', statusNote: 'السبب (اختياري)', movedBy: '{who} نقله إلى {to}',
+    createdOn: 'أُنشئ', updatedOn: 'آخر تغيير', noDescription: 'لم يُكتب وصف.',
+    toProduction: 'مقبول — سيفتح هذا مرحلة تنفيذ لفريق الإنتاج.',
+    terminal: 'هذا المشروع مؤرشف. لا شيء يليه.',
+    openInAsana: 'افتح في أسانا', sizeBand: 'الحجم', uploadedBy: 'بواسطة {who}',
   },
 };
 
@@ -213,9 +262,15 @@ const STAGE_LABEL = { pending: 'pending', in_progress: 'started', done: 'done', 
    the same purple makes the reader work out which is which. Status uses the
    reserved status slots plus one info blue that is not in the series set. */
 const ST_COLOUR = {
+  intake:      'var(--ink3)',
   in_design:   'var(--info)',
   in_progress: 'var(--info)',
   qualified:   'var(--info)',
+  pricing:     'var(--s2)',
+  /* Accepted is a good outcome but not the finish line, so it must not wear
+     the same green as `delivered`. It gets the second series hue: clearly
+     positive, clearly not done. */
+  in_production: 'var(--s1)',
   submitted:   'var(--warn)',
   proposal:    'var(--warn)',
   contacted:   'var(--warn)',
@@ -549,10 +604,129 @@ export function queueView(lang, ctx) {
 
 /* ------------------------------------ PM ---------------------------------- */
 
+/* -------------------------------------------------------------- filtering
+
+   A pure function over (projects, filters) so the table, the counts and the
+   tests all read the same rule. The moment "how many match" is computed in
+   one place and "which rows to draw" in another, the header starts claiming
+   a number the body does not show.                                        */
+
+export const CLOSED_STATUS = ['delivered', 'archived', 'lost'];
+const DAY = 86400000;
+
+export const PF_DEFAULT = {
+  owner: '', team: '', status: '', due: '', sort: 'recent', closed: false,
+};
+
+export function filterProjects(projects, pf = {}) {
+  const f = { ...PF_DEFAULT, ...pf };
+  const midnight = new Date(); midnight.setHours(0, 0, 0, 0);
+  const inDays = (d) => Math.round((parse(d) - midnight) / DAY);
+
+  let rows = (projects || []).filter(p => !p.is_crm_list);
+
+  /* Asking for a closed status explicitly must not be overruled by the
+     open-only default, or picking "Delivered" would return nothing and the
+     screen would insist there are no delivered projects. */
+  if (!f.closed && !CLOSED_STATUS.includes(f.status)) {
+    rows = rows.filter(p => !CLOSED_STATUS.includes(p.status));
+  }
+  if (f.status) rows = rows.filter(p => p.status === f.status);
+  // '~none' rather than '' — an empty value already means "any owner", and
+  // the two questions are different ones.
+  if (f.owner) rows = f.owner === '~none'
+    ? rows.filter(p => !p.owner_id)
+    : rows.filter(p => p.owner_id === f.owner);
+  if (f.team) rows = rows.filter(p => (p.project_stages || [])
+    .some(s => s.department_id === f.team));
+
+  if (f.due === 'overdue') rows = rows.filter(p => p.due_on && inDays(p.due_on) < 0);
+  else if (f.due === 'd30') rows = rows.filter(p => p.due_on && inDays(p.due_on) >= 0 && inDays(p.due_on) <= 30);
+  else if (f.due === 'd90') rows = rows.filter(p => p.due_on && inDays(p.due_on) >= 0 && inDays(p.due_on) <= 90);
+  else if (f.due === 'none') rows = rows.filter(p => !p.due_on);
+
+  /* Undated projects sort last in both directions. Treating a missing
+     deadline as either the beginning or the end of time puts 274 blanks on
+     top of whichever end you asked to see. */
+  const byDue = (dir) => (a, b) => {
+    if (!a.due_on && !b.due_on) return 0;
+    if (!a.due_on) return 1;
+    if (!b.due_on) return -1;
+    return dir * (parse(a.due_on) - parse(b.due_on));
+  };
+  const sorters = {
+    recent:  (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0),
+    due:     byDue(1),
+    duelate: byDue(-1),
+    name:    (a, b) => String(a.name).localeCompare(String(b.name)),
+  };
+  return rows.slice().sort(sorters[f.sort] || sorters.recent);
+}
+
+/* The filter bar. Selects rather than chips: five independent questions with
+   long answer lists (23 owners) do not fit a chip row, and a chip row that
+   scrolls sideways hides its own options. */
+function filterBar(lang, ctx, all) {
+  const t = DSTR[lang];
+  const f = { ...PF_DEFAULT, ...(ctx.pf || {}) };
+  const people = ctx.people || [];
+
+  /* Only offer owners who actually own something here, sorted by how much.
+     A dropdown listing all 47 colleagues, 27 of whom can never match, is a
+     list of dead ends. */
+  const counts = new Map();
+  all.forEach(p => { if (p.owner_id) counts.set(p.owner_id, (counts.get(p.owner_id) || 0) + 1); });
+  const owners = [...counts.entries()]
+    .map(([id, n]) => ({ id, n, name: people.find(x => x.id === id)?.full_name
+                                    || all.find(p => p.owner_id === id)?.owner?.full_name || id }))
+    .sort((a, b) => b.n - a.n || String(a.name).localeCompare(String(b.name)));
+  const noOwner = all.filter(p => !p.owner_id).length;
+
+  const teams = (db.state.departments || []).filter(d => d.is_stage)
+    .map(d => ({ id: d.id, name: lang === 'ar' ? d.name_ar : d.name_en,
+                 n: all.filter(p => (p.project_stages || []).some(s => s.department_id === d.id)).length }))
+    .filter(d => d.n > 0);
+
+  const statuses = [...new Set(all.map(p => p.status))]
+    .sort((a, b) => STATUS_ORDER.indexOf(a) - STATUS_ORDER.indexOf(b));
+
+  const sel = (key, label, options) => `
+    <label class="f f--sm"><span>${esc(label)}</span>
+      <select data-pf="${esc(key)}">
+        ${options.map(o => `<option value="${esc(o.v)}"${o.v === f[key] ? ' selected' : ''}>${esc(o.l)}</option>`).join('')}
+      </select></label>`;
+
+  const active = ['owner', 'team', 'status', 'due'].some(k => f[k]) || f.closed || f.sort !== 'recent';
+
+  return `
+<div class="filterbar">
+  ${sel('owner', t.owner, [{ v: '', l: t.anyOwner },
+    ...owners.map(o => ({ v: o.id, l: `${o.name} (${o.n})` })),
+    ...(noOwner ? [{ v: '~none', l: `${t.unassignedOwner} (${noOwner})` }] : [])])}
+  ${sel('team', t.team, [{ v: '', l: t.anyTeam },
+    ...teams.map(d => ({ v: d.id, l: `${d.name} (${d.n})` }))])}
+  ${sel('status', t.status, [{ v: '', l: t.anyStatus },
+    ...statuses.map(s => ({ v: s, l: t.st[s] || String(s).replace(/_/g, ' ') }))])}
+  ${sel('due', t.due, [{ v: '', l: t.anyDue },
+    { v: 'overdue', l: t.dueOverdue }, { v: 'd30', l: t.due30 },
+    { v: 'd90', l: t.due90 }, { v: 'none', l: t.dueNone }])}
+  ${sel('sort', t.sortBy, [{ v: 'recent', l: t.sortRecent }, { v: 'due', l: t.sortDueSoon },
+    { v: 'duelate', l: t.sortDueLate }, { v: 'name', l: t.sortName }])}
+  <label class="chk chk--inline">
+    <input type="checkbox" data-pf="closed"${f.closed ? ' checked' : ''} />
+    <span>${esc(t.includeClosed)}</span>
+  </label>
+  ${active ? `<button class="btn btn--sm" data-pf-clear="1">${esc(t.clearFilters)}</button>` : ''}
+</div>`;
+}
+
+const STATUS_ORDER = ['intake', 'in_design', 'pricing', 'submitted', 'won',
+                      'in_production', 'delivered', 'lost', 'archived'];
+
 export function pmView(lang, ctx) {
   const t = DSTR[lang];
   const projects = (ctx.projects || []).filter(p => !p.is_crm_list);
-  const open = projects.filter(p => !['delivered', 'archived', 'lost'].includes(p.status));
+  const open = projects.filter(p => !CLOSED_STATUS.includes(p.status));
 
   /* --- the numbers above the table ------------------------------------- */
   const overdue = open.filter(p => lateBy(p.due_on)).length;
@@ -596,15 +770,21 @@ export function pmView(lang, ctx) {
     }
   } catch { freeFrom = null; }
 
+  /* The tiles describe the business, the table answers your query. Keeping
+     the tiles on the unfiltered open set means picking one owner does not
+     make the company look like it has three projects. */
+  const matched = filterProjects(projects, ctx.pf);
+  const rows = matched.slice(0, 120);
+
   /* Only offer the review filter if there is something to review, and count
-     it over everything rather than the visible page. */
-  const flagged = open.filter(p => p.import_flags?.length).length;
-  const rows = open.slice(0, 80);
+     it over the matched set rather than the visible page. */
+  const flagged = matched.filter(p => p.import_flags?.length).length;
 
   /* The estimate column earned its place only if any row can fill it. When
      every cell is an em dash the column is not information, it is furniture
      that makes the table look broken. */
   const anyEstimate = rows.some(p => p.estimated_delivery);
+  const anyOwner = rows.some(p => p.owner?.full_name);
 
   return `
 <div class="kpis">
@@ -623,39 +803,172 @@ ${deadlineChart(lang, open)}
 <section class="card">
   <div class="card__head">
     <h2>${esc(t.projects)}</h2>
-    <span class="muted small">${open.length} ${esc(lang === 'ar' ? 'مفتوح' : 'open')} · ${projects.length} ${esc(lang === 'ar' ? 'إجمالاً' : 'total')}</span>
+    <span class="muted small">${esc(t.showingN.replace('{n}', matched.length).replace('{t}', projects.length))}</span>
     ${canPlan() ? `<button class="btn btn--primary btn--sm" style="margin-inline-start:auto" data-act="go" data-route="#/new">${esc(t.newProject)}</button>` : ''}
   </div>
+  ${filterBar(lang, ctx, projects)}
   ${flagged ? `<div class="chipbar">
-    <button class="chip chip--btn is-on" data-rows="all">${esc(t.allRows)} ${open.length}</button>
+    <button class="chip chip--btn is-on" data-rows="all">${esc(t.allRows)} ${matched.length}</button>
     <button class="chip chip--btn" data-rows="flagged">${esc(t.needsReview)} ${flagged}</button>
   </div>` : ''}
   <div class="tblwrap">
     <table class="tbl">
       <thead><tr>
-        <th>${esc(t.name)}</th><th>${esc(t.teamsCol)}</th>
+        <th>${esc(t.name)}</th>
+        ${anyOwner ? `<th>${esc(t.owner)}</th>` : ''}
+        <th>${esc(t.teamsCol)}</th>
         ${anyEstimate ? `<th class="num">${esc(t.estimate)}</th>` : ''}
         <th class="num">${esc(t.due)}</th><th>${esc(t.status)}</th>
       </tr></thead>
       <tbody>
-        ${rows.map(p => {
+        ${rows.length ? rows.map(p => {
           const late = lateBy(p.due_on);
           const st = (p.project_stages || []).slice().sort((a, b) => a.sort - b.sort);
           return `<tr${p.import_flags?.length ? ' data-flagged="1"' : ''}>
             <td><button class="link" data-act="go" data-route="#/p/${esc(p.id)}">${esc(p.name)}</button></td>
+            ${anyOwner ? `<td class="small ${p.owner ? '' : 'muted'}">${esc(p.owner?.full_name || t.unassignedOwner)}</td>` : ''}
             <td class="small"><span class="stagecell">${st.map(s => `<span class="pill" style="--c:${esc(db.dept(s.department_id)?.colour || '#555')}">${esc(deptName(s.department_id, lang))}${s.status === 'done' ? ' ✓' : ''}</span>`).join('')}</span></td>
             ${anyEstimate ? `<td class="num">${esc(fmt(p.estimated_delivery, lang))}</td>` : ''}
             <td class="num ${late ? 'bad' : 'muted'}">${esc(fmt(p.due_on, lang))}
               ${late ? `<span class="block small">${late} ${esc(t.overdue)}</span>` : ''}</td>
             <td>${statusPill(p.status, lang)}</td>
           </tr>`;
-        }).join('')}
+        }).join('')
+        : `<tr><td class="tbl__empty" colspan="6">${esc(t.noMatch)}</td></tr>`}
       </tbody>
     </table>
   </div>
-  ${open.length > rows.length ? `<p class="note">${esc(lang === 'ar'
-    ? `تعرض ${rows.length} من ${open.length} مشروعاً مفتوحاً. استخدم البحث في الأعلى للوصول إلى البقية.`
-    : `Showing ${rows.length} of ${open.length} open projects. Use the search above to reach the rest.`)}</p>` : ''}
+  ${matched.length > rows.length ? `<p class="note">${esc(lang === 'ar'
+    ? `تعرض ${rows.length} من ${matched.length} مشروعاً مطابقاً. ضيّق التصفية أو استخدم البحث في الأعلى.`
+    : `Showing ${rows.length} of ${matched.length} matching projects. Narrow the filters or use the search above.`)}</p>` : ''}
+</section>`;
+}
+
+/* ========================================================================
+   One project.
+
+   The row link in the table has pointed at #/p/<id> since the table was
+   written, and nothing answered it — clicking a project name did nothing at
+   all. This is that page: what the project is, who owns it, which teams are
+   on it, what has been uploaded, and the one control that moves it forward.
+   ======================================================================== */
+
+export function projectView(lang, ctx) {
+  const t = DSTR[lang];
+  const p = ctx.project;
+  if (!p) {
+    return `
+<nav class="crumb"><button class="link" data-act="go" data-route="#/projects">← ${esc(t.backToProjects)}</button></nav>
+<section class="card"><div class="card__head"><h2>${esc(t.notFound)}</h2></div></section>`;
+  }
+
+  const stages = (p.project_stages || []).slice().sort((a, b) => a.sort - b.sort);
+  const files = ctx.projectFiles || [];
+  const tasks = ctx.projectTasks || [];
+  const events = ctx.projectEvents || [];
+  const late = lateBy(p.due_on);
+  const next = db.NEXT_STATUS[p.status] || [];
+  const mayMove = canPlan() && next.length > 0;
+
+  const fact = (label, value, cls = '') =>
+    `<div class="fact"><span class="fact__l">${esc(label)}</span><span class="fact__v ${cls}">${value}</span></div>`;
+
+  return `
+<nav class="crumb"><button class="link" data-act="go" data-route="#/projects">← ${esc(t.backToProjects)}</button></nav>
+
+<section class="card">
+  <div class="card__head">
+    <h2>${esc(p.name)}</h2>
+    ${statusPill(p.status, lang)}
+    ${p.asana_url ? `<a class="link" style="margin-inline-start:auto" href="${esc(p.asana_url)}" target="_blank" rel="noopener">${esc(t.openInAsana)} ↗</a>` : ''}
+  </div>
+
+  <div class="factgrid">
+    ${fact(t.client, esc(p.client || '—'))}
+    ${fact(t.owner, esc(p.owner?.full_name || t.unassignedOwner), p.owner ? '' : 'muted')}
+    ${fact(t.sizeBand, esc(p.size || '—'))}
+    ${fact(t.start, esc(fmt(p.start_on, lang)))}
+    ${fact(t.due, `${esc(fmt(p.due_on, lang))}${late ? ` <span class="bad small">${late} ${esc(t.overdue)}</span>` : ''}`)}
+    ${fact(t.estimate, esc(fmt(p.estimated_delivery, lang)))}
+    ${fact(t.createdOn, esc(fmt((p.created_at || '').slice(0, 10), lang)))}
+    ${fact(t.updatedOn, esc(fmt((p.updated_at || '').slice(0, 10), lang)))}
+  </div>
+
+  <h3 class="subhead">${esc(t.description)}</h3>
+  <p class="prose${p.description ? '' : ' muted'}">${esc(p.description || t.noDescription)}</p>
+</section>
+
+${mayMove ? `
+<section class="card">
+  <div class="card__head"><h2>${esc(t.moveTo)}</h2></div>
+  <form id="stForm" class="inlineform">
+    <div class="fields">
+      <label class="f"><span>${esc(t.status)}</span>
+        <select id="stNext">
+          ${next.map(s => `<option value="${esc(s)}">${esc(t.st[s] || s)}</option>`).join('')}
+        </select></label>
+      <label class="f f--wide"><span>${esc(t.statusNote)}</span><input id="stNote" /></label>
+    </div>
+    ${next.includes('in_production') ? `<p class="note note--lead">${esc(t.toProduction)}</p>` : ''}
+    <div class="actions"><button type="submit" class="btn btn--primary btn--sm" id="stGo">${esc(t.moveTo)}</button></div>
+  </form>
+</section>` : (canPlan() ? `<section class="card"><p class="note">${esc(t.terminal)}</p></section>` : '')}
+
+<section class="card">
+  <div class="card__head"><h2>${esc(t.stagesHead)}</h2><span class="muted small">${stages.length}</span></div>
+  ${stages.length ? `<div class="tblwrap"><table class="tbl tbl--tight">
+    <thead><tr><th>${esc(t.team)}</th><th>${esc(t.owner)}</th>
+      <th class="num">${esc(t.due)}</th><th>${esc(t.status)}</th></tr></thead>
+    <tbody>${stages.map(s => `<tr>
+      <td><span class="pill" style="--c:${esc(db.dept(s.department_id)?.colour || '#555')}">${esc(deptName(s.department_id, lang))}</span></td>
+      <td class="small ${s.assignee ? '' : 'muted'}">${esc(s.assignee?.full_name || t.unassigned)}</td>
+      <!-- planned_end, not due_on: a stage has a plan, the project has a deadline -->
+
+      <td class="num muted">${esc(fmt(s.planned_end, lang))}</td>
+      <td>${statusPill(s.status, lang)}</td></tr>`).join('')}</tbody>
+  </table></div>` : `<p class="note">${esc(t.noStages)}</p>`}
+</section>
+
+<section class="card">
+  <div class="card__head"><h2>${esc(t.documents)}</h2><span class="muted small">${files.length}</span></div>
+  ${files.length ? `<ul class="filelist">${files.map(f => `
+    <li class="filerow">
+      <button class="link" data-file="${esc(f.id)}">${esc(f.title || f.filename)}</button>
+      <span class="muted small">${esc(f.purpose)}${f.size_bytes ? ` · ${Math.max(1, Math.round(f.size_bytes / 1024))} KB` : ''}
+        ${f.uploader?.full_name ? ` · ${esc(t.uploadedBy.replace('{who}', f.uploader.full_name))}` : ''}</span>
+    </li>`).join('')}</ul>` : `<p class="note">${esc(t.noDocuments)}</p>`}
+</section>
+
+${tasks.length ? `
+<section class="card">
+  <div class="card__head"><h2>${esc(t.tasksHead)}</h2>
+    <span class="muted small">${tasks.filter(x => !x.completed).length} / ${tasks.length}</span></div>
+  <div class="tblwrap"><table class="tbl tbl--tight"><tbody>
+    ${tasks.slice(0, 60).map(x => `<tr>
+      <td class="${x.completed ? 'muted' : ''}">${x.completed ? '✓ ' : ''}${esc(x.name)}</td>
+      <td class="small muted">${esc(x.section_name || '')}</td>
+      <td class="small muted">${esc(x.assignee?.full_name || '')}</td>
+      <td class="num muted">${esc(fmt(x.due_on, lang))}</td></tr>`).join('')}
+  </tbody></table></div>
+</section>` : ''}
+
+<section class="card">
+  <div class="card__head"><h2>${esc(t.history)}</h2></div>
+  ${canPlan() ? `<form id="noteForm" class="inlineform">
+    <div class="fields">
+      <label class="f f--wide"><span>${esc(t.addNote)}</span><input id="noteBody" required /></label>
+    </div>
+    <div class="actions"><button type="submit" class="btn btn--sm">${esc(t.post)}</button></div>
+  </form>` : ''}
+  ${events.length ? `<ul class="timeline">${events.map(e => `
+    <li class="timeline__i">
+      <span class="timeline__d">${esc(sinceText(e.created_at, lang, t))}</span>
+      <span class="timeline__b">${e.kind === 'status'
+        ? esc(t.movedBy.replace('{who}', e.author?.full_name || '—')
+                       .replace('{to}', t.st[e.to_status] || e.to_status || '—'))
+        : `<b>${esc(e.author?.full_name || '—')}</b> — ${esc(e.body || '')}`}
+        ${e.kind === 'status' && e.body ? `<span class="block muted small">${esc(e.body)}</span>` : ''}</span>
+    </li>`).join('')}</ul>` : `<p class="note">${esc(t.noHistory)}</p>`}
 </section>`;
 }
 
