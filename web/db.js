@@ -271,15 +271,22 @@ export const setPerson = async (id, patch) => ok(await sb
 const PROJECT_COLS = `
   id, name, client, description, size, status, start_on, due_on, delivered_on,
   estimated_delivery, estimate_meta, is_crm_list, import_flags, asana_url,
-  owner:owner_id ( id, full_name ),
+  created_at, updated_at, owner_id,
+  owner:owner_id ( id, full_name, department_id ),
   project_stages ( id, department_id, assignee_id, effort_days, planned_start,
                    planned_end, started_at, completed_at, status, sort,
                    assignee:assignee_id ( id, full_name, department_id ) )`;
 
-export const listProjects = async ({ limit = 200, crm = false } = {}) => ok(await sb
+/* 200 was under the real count (369), so the Projects header read "200 total"
+   and the filters below it silently searched a truncated set — the worst
+   kind of wrong, because a filter that finds nothing looks like an answer.
+   Ordered newest-first now that "most recent" is a sort the screen offers;
+   the table re-sorts client-side, but the cut-off, if one is ever hit again,
+   should at least keep the projects people are actually working on. */
+export const listProjects = async ({ limit = 1000, crm = false } = {}) => ok(await sb
   .from('projects').select(PROJECT_COLS)
   .eq('is_crm_list', crm)
-  .order('due_on', { ascending: true, nullsFirst: false })
+  .order('created_at', { ascending: false })
   .limit(limit));
 
 export const getProject = async (id) => ok(await sb
@@ -292,6 +299,88 @@ export const createProject = async (p) => ok(await sb
 
 export const updateProject = async (id, patch) => ok(await sb
   .from('projects').update(patch).eq('id', id).select().single());
+
+/* ---------------------------------------------------------- project history
+
+   The status column holds one value, so every move overwrites the last and
+   "when did this go to Etemad, and who sent it?" becomes unanswerable the
+   moment it is answered. project_events keeps the trail; the table has no
+   update or delete policy, because history you can edit is not history. */
+
+export const listProjectEvents = async (project_id) => ok(await sb
+  .from('project_events')
+  .select('id, kind, from_status, to_status, body, created_at, author:created_by ( id, full_name )')
+  .eq('project_id', project_id)
+  .order('created_at', { ascending: false })
+  .limit(200));
+
+export const addProjectNote = async (project_id, body) => ok(await sb
+  .from('project_events')
+  .insert({ project_id, kind: 'note', body, created_by: state.me?.id })
+  .select().single());
+
+/** The order the company works in. `won`/`lost` are the Etemad verdict and
+    keep their column values; only their labels say Accepted and Rejected. */
+export const STATUS_FLOW = ['intake', 'in_design', 'pricing', 'submitted',
+                            'won', 'lost', 'in_production', 'delivered', 'archived'];
+
+/** What may follow what. A free-for-all dropdown lets someone mark a project
+    delivered that was never submitted, and then the pipeline numbers are
+    fiction. `lost` is terminal on purpose — a rejected tender that gets
+    re-submitted is a NEW submission, and flattening the two would hide that
+    the first attempt failed. */
+export const NEXT_STATUS = {
+  intake:        ['in_design', 'archived'],
+  in_design:     ['pricing', 'submitted', 'archived'],
+  pricing:       ['submitted', 'in_design', 'archived'],
+  submitted:     ['won', 'lost'],
+  won:           ['in_production', 'delivered', 'archived'],
+  in_production: ['delivered', 'archived'],
+  lost:          ['archived'],
+  delivered:     ['archived'],
+  archived:      [],
+};
+
+/**
+ * Move a project, record who moved it, and — on the way into production —
+ * make sure the production team actually has a stage to stand in.
+ *
+ * The event is written AFTER the update rather than before: if the update is
+ * refused by RLS, no history is invented for something that did not happen.
+ * The reverse order would leave a log entry claiming a move the database
+ * rejected, which is worse than no log at all.
+ */
+export async function setProjectStatus(id, to, { from = null, note = '' } = {}) {
+  const patch = { status: to };
+  // Delivered has a date column of its own; leaving it null while the status
+  // says delivered is how a "delivered on" report ends up empty.
+  if (to === 'delivered') patch.delivered_on = new Date().toISOString().slice(0, 10);
+  const project = await updateProject(id, patch);
+
+  if (to === 'in_production') await ensureProductionStage(id);
+
+  await sb.from('project_events').insert({
+    project_id: id, kind: 'status', from_status: from, to_status: to,
+    body: note || null, created_by: state.me?.id,
+  });
+  return project;
+}
+
+/** Accepted means the production team owns it now. Saying so in the status
+    while no production stage exists leaves them with nothing on their queue,
+    so the handover is a row, not just a word. Idempotent: the unique
+    (project_id, department_id) constraint makes a second call a no-op. */
+export async function ensureProductionStage(project_id) {
+  const existing = ok(await sb.from('project_stages')
+    .select('id').eq('project_id', project_id).eq('department_id', 'production'));
+  if (existing.length) return existing[0];
+  const sorts = ok(await sb.from('project_stages')
+    .select('sort').eq('project_id', project_id).order('sort', { ascending: false }).limit(1));
+  return ok(await sb.from('project_stages').insert({
+    project_id, department_id: 'production', status: 'pending',
+    sort: (sorts[0]?.sort ?? 0) + 1,
+  }).select().single());
+}
 
 export const setStages = async (project_id, stages) => ok(await sb
   .from('project_stages')
