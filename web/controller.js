@@ -19,6 +19,15 @@ export const ctx = {
   loading: false, error: null, authMode: 'in', authMsg: '', est: null,
   inviteMsg: null,      // what actually happened to the last invitation
   authErr: null,        // whatever Supabase sent back in the URL fragment
+
+  // One project, its attachments, its tasks and its history.
+  project: null, projectFiles: [], projectTasks: [], projectEvents: [],
+
+  /* Filter state for the Projects table. It lives here rather than in the
+     URL because these are a working session's questions, not addresses worth
+     sharing — and rather than inside the view because the view is a pure
+     function of (lang, ctx) and re-runs on every render. */
+  pf: { ...V.PF_DEFAULT },
 };
 
 let rerender = () => {};
@@ -34,7 +43,7 @@ const fail = (e) => {
 
 /* ------------------------------------------------------------------ loading */
 
-export async function loadFor(route) {
+export async function loadFor(route, id) {
   if (!db.sb) return;
   ctx.loading = true; ctx.error = null;
   try {
@@ -43,12 +52,26 @@ export async function loadFor(route) {
     if (!me) return;
 
     const jobs = [];
+
+    /* One project. Fetched by id rather than picked out of ctx.projects,
+       because a deep link arrives with that list empty and finding nothing
+       in it would render "not here" for a project that exists. The four
+       requests go together: a detail page that paints its header and then
+       pops in its documents a second later reads as broken. */
+    if (route === 'project' && id) {
+      ctx.project = null; ctx.projectFiles = []; ctx.projectTasks = []; ctx.projectEvents = [];
+      jobs.push(db.getProject(id).then(p => { ctx.project = p; }).catch(() => { ctx.project = null; }));
+      jobs.push(db.listFiles({ project_id: id }).then(f => { ctx.projectFiles = f; }).catch(() => {}));
+      jobs.push(db.listProjectTasks(id).then(x => { ctx.projectTasks = x; }).catch(() => {}));
+      jobs.push(db.listProjectEvents(id).then(e => { ctx.projectEvents = e; }).catch(() => {}));
+      jobs.push(db.listPeople().then(p => { ctx.people = p; }).catch(() => {}));
+    }
     /* The Projects screen is open to everyone, so it needs the projects,
        the roster (the free-capacity tile runs the scheduler over it) and the
        leads (there is an open-leads tile). Loading only some of that renders
        a confident zero, which is a lie an absent tile would not tell. */
     const wantsProjects = route === 'projects' ||
-      (['home', 'new', 'project'].includes(route) && V.canPlan(me));
+      (['home', 'new'].includes(route) && V.canPlan(me));
     const isDesigner = !['pm', 'bd', 'content'].includes(me.department_id);
 
     if (wantsProjects || route === 'new') {
@@ -146,6 +169,58 @@ export function wireApp(lang) {
       tr.dataset.chipHidden = onlyFlagged && !tr.dataset.flagged ? '1' : '';
       tr.hidden = !!tr.dataset.chipHidden || tr.dataset.searchHidden === '1';
     });
+  });
+
+  /* --- Projects: the filter bar ---
+     Re-render only. The whole project list is already in memory, so a filter
+     that went back to the server would be slower AND would show a different
+     set than the tiles above it were computed from. */
+  $$('[data-pf]').forEach(el => {
+    const key = el.dataset.pf;
+    const read = () => (el.type === 'checkbox' ? el.checked : el.value);
+    el.onchange = () => { ctx.pf = { ...ctx.pf, [key]: read() }; rerender(); };
+  });
+  const clearPf = $('[data-pf-clear]');
+  if (clearPf) clearPf.onclick = () => { ctx.pf = { ...V.PF_DEFAULT }; rerender(); };
+
+  /* --- one project: move it along the Etemad flow --- */
+  const stForm = $('#stForm');
+  if (stForm) stForm.onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = $('#stGo'); const to = $('#stNext').value;
+    const from = ctx.project?.status || null;
+    btn.disabled = true;
+    try {
+      await db.setProjectStatus(ctx.project.id, to, { from, note: $('#stNote').value.trim() });
+      // Reload rather than patch in place: moving to production creates a
+      // stage row, and a screen that shows the new status but not the new
+      // stage is telling half the truth.
+      await loadFor('project', ctx.project.id);
+      rerender();
+    } catch (err) { fail(err); btn.disabled = false; }
+  };
+
+  const noteForm = $('#noteForm');
+  if (noteForm) noteForm.onsubmit = async (e) => {
+    e.preventDefault();
+    const body = $('#noteBody').value.trim();
+    if (!body) return;
+    const btn = noteForm.querySelector('button[type=submit]');
+    btn.disabled = true;
+    try {
+      await db.addProjectNote(ctx.project.id, body);
+      ctx.projectEvents = await db.listProjectEvents(ctx.project.id);
+      rerender();
+    } catch (err) { fail(err); btn.disabled = false; }
+  };
+
+  // The detail page has its own file list, held in a different slice of ctx
+  // than the Documents screen's.
+  $$('[data-file]').forEach(b => b.onclick = async () => {
+    const f = (ctx.projectFiles || []).find(x => x.id === b.dataset.file);
+    if (!f) return;
+    try { window.open(await db.fileUrl(f.bucket, f.path), '_blank', 'noopener'); }
+    catch (e) { fail(e); }
   });
 
   /* --- designer: move a stage along --- */
@@ -417,18 +492,19 @@ function wireNewProject(lang, form) {
 
 /* --------------------------------------------------------------- rendering */
 
-export function appBody(lang, route) {
+export function appBody(lang, route, id) {
   if (ctx.error) {
     return `<section class="card"><div class="card__head"><h2>Error</h2></div>
       <p class="note bad">${String(ctx.error).replace(/[&<>]/g, '')}</p></section>`
-      + bodyFor(lang, route);
+      + bodyFor(lang, route, id);
   }
-  return bodyFor(lang, route);
+  return bodyFor(lang, route, id);
 }
 
-function bodyFor(lang, route) {
+function bodyFor(lang, route, id) {
   if (route === 'new')      return V.newProjectView(lang, ctx);
   if (route === 'projects') return V.pmView(lang, ctx);
+  if (route === 'project')  return V.projectView(lang, ctx);
   if (route === 'leads') return V.leadsView(lang, ctx);
   if (route === 'docs')  return V.docsView(lang, ctx);
   if (route === 'admin') return V.adminView(lang, ctx);
