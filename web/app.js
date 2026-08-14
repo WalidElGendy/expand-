@@ -15,7 +15,7 @@ import { landingView, whoView, profileView, pipelineView, VSTR } from './views.j
 import { byId } from '../data/snapshot.js';
 import * as db from './db.js';
 import * as C from './controller.js';
-import { DSTR, signInView } from './dash.js';
+import { DSTR, signInView, canPlan } from './dash.js';
 
 /* ------------------------------ translations ----------------------------- */
 
@@ -166,6 +166,7 @@ function currentRoute() {
   if (h.startsWith('#/signin'))   return { name: 'signin' };
   if (h.startsWith('#/reset'))    return { name: 'signin' };   // recovery lands here
   if (h.startsWith('#/home'))     return { name: 'home' };
+  if (h.startsWith('#/projects')) return { name: 'projects' };
   if (h.startsWith('#/new'))      return { name: 'new' };
   if (h.startsWith('#/leads'))    return { name: 'leads' };
   if (h.startsWith('#/docs'))     return { name: 'docs' };
@@ -179,7 +180,7 @@ function render() {
   const r = currentRoute();
   document.body.dataset.route = r.name;
 
-  const APP = ['home', 'new', 'leads', 'docs', 'admin'];
+  const APP = ['home', 'projects', 'new', 'leads', 'docs', 'admin'];
   // An app route with no session is not an error, it is a sign-in prompt.
   // Redirecting instead of rendering an empty dashboard means a deep link
   // survives the login rather than dumping the user on a blank home.
@@ -265,13 +266,20 @@ function appNav() {
   const me = db.state.me, d = DSTR[S.lang];
   if (!me) return [];
   const items = [{ group: 'work', route: '#/home', icon: 'home', label: () => d.home }];
-  if (me.department_id === 'pm' || ['admin','manager'].includes(me.role)) {
+  /* Everyone gets Projects. What the company is building is not privileged
+     information here — the read policy already lets any active user see it,
+     and a designer who cannot find the project their stage belongs to is
+     being kept from context rather than from data. Only the people who can
+     actually create one see "New project"; a link that 403s is worse than
+     no link. */
+  items.push({ group: 'work', route: '#/projects', icon: 'board', label: () => d.projects });
+  if (canPlan(me)) {
     items.push({ group: 'work', route: '#/new', icon: 'plus', label: () => d.newProject });
   }
   items.push({ group: 'work', route: '#/leads', icon: 'users', label: () => d.leads });
   items.push({ group: 'work', route: '#/docs',  icon: 'doc',   label: () => d.documents });
   items.push({ group: 'insight', route: '#/estimate', icon: 'spark', label: () => VSTR[S.lang].openEstimator });
-  items.push({ group: 'insight', route: '#/pipeline', icon: 'board', label: () => VSTR[S.lang].pipeline });
+  items.push({ group: 'insight', route: '#/pipeline', icon: 'chart', label: () => VSTR[S.lang].pipeline });
   if (me.role === 'admin') items.push({ group: 'workspace', route: '#/admin', icon: 'team', label: () => d.people });
   return items;
 }
