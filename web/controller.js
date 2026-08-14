@@ -43,8 +43,12 @@ export async function loadFor(route) {
     if (!me) return;
 
     const jobs = [];
-    const wantsProjects = ['home', 'new', 'project'].includes(route) &&
-      (me.department_id === 'pm' || ['admin', 'manager'].includes(me.role));
+    /* The Projects screen is open to everyone, so it needs the projects,
+       the roster (the free-capacity tile runs the scheduler over it) and the
+       leads (there is an open-leads tile). Loading only some of that renders
+       a confident zero, which is a lie an absent tile would not tell. */
+    const wantsProjects = route === 'projects' ||
+      (['home', 'new', 'project'].includes(route) && V.canPlan(me));
     const isDesigner = !['pm', 'bd', 'content'].includes(me.department_id);
 
     if (wantsProjects || route === 'new') {
@@ -423,7 +427,8 @@ export function appBody(lang, route) {
 }
 
 function bodyFor(lang, route) {
-  if (route === 'new')   return V.newProjectView(lang, ctx);
+  if (route === 'new')      return V.newProjectView(lang, ctx);
+  if (route === 'projects') return V.pmView(lang, ctx);
   if (route === 'leads') return V.leadsView(lang, ctx);
   if (route === 'docs')  return V.docsView(lang, ctx);
   if (route === 'admin') return V.adminView(lang, ctx);
