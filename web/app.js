@@ -170,6 +170,9 @@ function currentRoute() {
   // Must be tested before '#/p' would ever be reached by a prefix match, and
   // after '#/projects' for the same reason — '#/projects' starts with '#/p'.
   if (h.startsWith('#/p/'))       return { name: 'project', id: h.slice(4) };
+  // Before '#/leads' is irrelevant (different prefix), but the trailing slash
+  // still matters: '#/l/' must not swallow a future '#/list'.
+  if (h.startsWith('#/l/'))       return { name: 'lead', id: h.slice(4) };
   if (h.startsWith('#/new'))      return { name: 'new' };
   if (h.startsWith('#/leads'))    return { name: 'leads' };
   if (h.startsWith('#/docs'))     return { name: 'docs' };
@@ -183,7 +186,7 @@ function currentRoute() {
    missing from the second, so the screen only ever had rows if you happened
    to arrive from a page that had loaded them. A deep link or a refresh
    showed an empty table and called it zero projects. */
-const APP_ROUTES = ['home', 'projects', 'project', 'new', 'leads', 'docs', 'admin'];
+const APP_ROUTES = ['home', 'projects', 'project', 'new', 'leads', 'lead', 'docs', 'admin'];
 
 function render() {
   document.documentElement.lang = S.lang;
