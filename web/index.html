@@ -762,7 +762,11 @@ select.btn--sm { height: 28px; padding: 0 6px; background: var(--s-2); border: 1
 .drop--tall .drop__ico { width: 26px; height: 26px; }
 .drop--tall .drop__h { max-width: 44ch; }
 
-.dropgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+/* The picker and its queue are one unit. `align-content: start` keeps the
+   target its natural height when the column beside it grows a longer list —
+   without it a field with one file stretches to match a field with nine. */
+.dropwrap { display: grid; align-content: start; gap: 8px; }
+.dropgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
 @media (max-width: 760px) {
   .dropgrid { grid-template-columns: 1fr; }
   .drop--tall {
@@ -771,6 +775,49 @@ select.btn--sm { height: 28px; padding: 0 6px; background: var(--s-2); border: 1
   }
   .drop--tall .drop__ico { width: 22px; height: 22px; }
 }
+
+/* --------------------------- the queue under a picker ----------------------
+   What is about to be uploaded, and the way out of it. Rows are a 3-column
+   grid rather than flex so the sizes line up in a column and the × buttons
+   sit on one edge — a ragged right margin on a list of controls reads as a
+   mistake. `minmax(0, 1fr)` on the name is what lets a long filename
+   ellipsize instead of pushing the button off the card. */
+.pend__head {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+  font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--ink3); padding: 0 2px;
+}
+.pend__sum { text-transform: none; letter-spacing: 0; font-weight: 500; }
+
+.pend { list-style: none; display: grid; gap: 4px; margin: 0; padding: 0; }
+.pend__i {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center; gap: 10px;
+  padding: 7px 8px 7px 11px; border-radius: 8px;
+  background: var(--s-2); border: 1px solid var(--line);
+}
+.pend__n {
+  font-size: 12.5px; color: var(--ink1);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* A file size is a fixed LTR string. Left to inherit the paragraph direction
+   it renders as "MB 2.3" in Arabic — the digits are bidi-weak, so "2.3" and
+   "MB" get reordered around each other. `isolate` fences the run off so it
+   reads the same in both languages while still sitting on the correct edge. */
+.pend__s, .pend__sum {
+  font-size: 11px; color: var(--ink3);
+  direction: ltr; unicode-bidi: isolate; font-variant-numeric: tabular-nums;
+}
+/* A destructive control, so it is quiet until you are near it. Sized to the
+   44px-ish touch target the rest of the product uses, not to the glyph. */
+.pend__x {
+  display: grid; place-items: center; width: 26px; height: 26px; padding: 0;
+  border: 0; border-radius: 6px; background: transparent; cursor: pointer;
+  color: var(--ink3); font-size: 17px; line-height: 1;
+  transition: background .12s, color .12s;
+}
+.pend__x:hover { background: rgba(220,60,60,.16); color: #ff9a9a; }
+.pend__x:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
 
 .actions--end { justify-content: flex-end; margin-top: 0; }
 
