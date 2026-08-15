@@ -491,7 +491,11 @@ export function monthlyProjectsChart(lang, projects, months) {
     const r = Math.min(4, w / 2, h);
     return h <= 0 ? '' : `M${x} ${y + h}V${y + r}q0-${r} ${r}-${r}h${w - 2 * r}q${r} 0 ${r} ${r}V${y + h}Z`;
   };
-  const peak = series.reduce((a, b) => (b.n > a.n ? b : a), series[0]);
+  /* EVERY month that reaches the max is labelled, not the first one found. Two
+     bars drawn at the same height where only one carries a number reads as
+     "this one is the peak and that one is slightly lower" — which is a lie the
+     chart tells confidently. November 2025 and January 2026 both sit at 55. */
+  const isPeak = (s) => s.n === max && s.n > 0;
 
   return `
 <section class="card">
@@ -507,7 +511,7 @@ export function monthlyProjectsChart(lang, projects, months) {
         const y = yOf(s.n), h = PAD_T + plotH - y;
         return `<g><title>${esc(monthLong(s.k, lang))} — ${s.n}</title>
           <path d="${barPath(x, y, barW, h)}" fill="var(--brand)"/>
-          ${s.k === peak.k && s.n ? `<text x="${x + barW / 2}" y="${y - 7}" class="axis axis--val" text-anchor="middle">${s.n}</text>` : ''}
+          ${isPeak(s) ? `<text x="${x + barW / 2}" y="${y - 7}" class="axis axis--val" text-anchor="middle">${s.n}</text>` : ''}
         </g>`;
       }).join('')}
       ${series.map((s, i) => `<text x="${PAD_L + i * step + step / 2}" y="${H - 12}" class="axis" text-anchor="middle">${esc(monthLabel(s.k, lang))}</text>`).join('')}
