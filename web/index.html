@@ -580,6 +580,46 @@ select.btn--sm { height: 28px; padding: 0 6px; background: var(--s-2); border: 1
 .chk--inline input { width: 14px; height: 14px; }
 .filterbar .btn { align-self: end; }
 
+/* -------------------------------- chart row -------------------------------
+   Two charts that answer one question between them, so they sit side by side
+   and share a month axis. They stack below 1080px rather than shrinking: a
+   12-column heatmap squeezed into half a phone is unreadable, and the bar
+   chart's month labels start colliding. `align-items:start` keeps the shorter
+   card its own height instead of stretching it to match the taller one. */
+.chartrow {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px; align-items: start;
+}
+.chartrow > .card { margin-top: 0; }
+@media (max-width: 1080px) { .chartrow { grid-template-columns: minmax(0, 1fr); } }
+
+.chartwrap { padding: 10px 12px 0 !important; }
+.axis--val { fill: var(--ink1); font-weight: 600; }
+
+/* --------------------------------- heatmap --------------------------------
+   A grid of counts, not a series set: 21 managers would need 21 categorical
+   hues and the palette stops at 8. One sequential hue, and the number stays in
+   the cell so magnitude is never colour-alone. */
+.heat { width: 100%; border-collapse: separate; border-spacing: 2px; font-size: 11.5px; }
+.heat th, .heat td { padding: 0; }
+.heat__rowh {
+  text-align: start; color: var(--ink2); font-weight: 500; white-space: nowrap;
+  padding-inline-end: 10px !important; max-width: 190px; overflow: hidden; text-overflow: ellipsis;
+}
+.heat__colh, .heat__tot { color: var(--ink3); font-weight: 600; font-size: 10.5px; text-align: center; }
+.heat__tot { text-align: end; padding-inline-start: 10px !important; color: var(--ink2); }
+.heat__c { text-align: center; }
+.heat__box {
+  display: grid; place-items: center; min-width: 26px; height: 22px; border-radius: 4px;
+  color: #fff; font-size: 10.5px; font-weight: 600; cursor: default;
+}
+/* The two lightest steps are light enough that white text on them fails
+   contrast, so the ink flips to the surface colour rather than staying white
+   and being unreadable on exactly the cells that matter most. */
+.heat__box[style*="9c6dd3"], .heat__box[style*="b68ee9"] { color: #101014; }
+.heat__box--key { min-width: 30px; }
+.heatkey { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; padding: 0 16px 14px !important; }
+
 /* ------------------------------ project detail ---------------------------- */
 .factgrid {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
