@@ -595,6 +595,16 @@ select.btn--sm { height: 28px; padding: 0 6px; background: var(--s-2); border: 1
 
 .chartwrap { padding: 10px 12px 0 !important; }
 .axis--val { fill: var(--ink1); font-weight: 600; }
+/* The "Earlier" column is a multi-year bucket sitting next to one-month bars,
+   so it is set apart from them — it must not be read as a thirteenth month.
+   NOT with italics: Arabic has no italic form, and the synthetic skew browsers
+   apply to أقدم throws a stroke that reads as a stray slash. A rule on the
+   month-facing edge works in both scripts, so `border-inline-end` rather than
+   border-right — it follows the writing direction. */
+.axis--bucket { fill: var(--ink3); }
+.heat__colh--bucket, .heat__c--bucket {
+  border-inline-end: 1px solid var(--line); padding-inline-end: 6px !important;
+}
 
 /* --------------------------------- heatmap --------------------------------
    A grid of counts, not a series set: 21 managers would need 21 categorical
