@@ -51,7 +51,7 @@ export const DSTR = {
     name: 'Name', client: 'Client', size: 'Size', description: 'Description',
     start: 'Earliest start', deadline: 'Submission deadline',
     stages: 'Which teams does this need?', assignTo: 'Assign to',
-    rfp: 'RFP document', refs: 'Reference photos', dropHere: 'Choose files',
+    rfp: 'RFP documents', refs: 'Reference photos', dropHere: 'Choose files',
     estimate: 'Estimated delivery', naive: 'If the teams were free',
     queueDays: 'of that is queue', createAndAssign: 'Create and assign',
     status: 'Status', due: 'Due', owner: 'Owner', stage: 'Stage', team: 'Team',
@@ -75,7 +75,7 @@ export const DSTR = {
     titleHint: 'What is this document called?',
     descHint: 'What is it for, and who should read it? Optional.',
     dropHint: 'PDF, Word, PowerPoint, Excel or images. You can pick several at once.',
-    filesPicked: 'files selected', filePicked: 'file selected',
+    filesQueued: '{n} to upload', removeFile: 'Remove',
     noDocsYet: 'No documents yet. The first upload appears here.',
     attachments: 'Attachments',
     onlineNow: 'Online now', onlineNowSub: 'with the app open right now',
@@ -96,8 +96,8 @@ export const DSTR = {
     inviteSent: 'Invited {email}. They have an email with a link to set their password.',
     inviteResent: '{email} already has an account, so we sent a sign-in link instead.',
     inviteNoMail: '{email} can sign in with that role now, but the email did not go out: {reason}. They have not been told anything — fix the sender under Authentication → Emails, then invite them again.',
-    rfpHint: 'The brief you were sent. PDF, Word, Excel or a zip.',
-    refsHint: 'Photos, moodboards, anything the designers should look at first.',
+    rfpHint: 'The brief you were sent, and anything that came with it. PDF, Word, Excel or a zip — as many as you need.',
+    refsHint: 'Photos, moodboards, anything the designers should look at first. Pick as many as you need.',
     deadlineChart: 'Deadlines by month', deadlineNote: 'Open projects grouped by submission deadline. The dashed line is today, so everything to its left is already late.',
     noneYet: 'Nothing here yet.', today_: 'today',
     /* `submitted` has always meant "submitted on Etemad" here, and `won`/`lost`
@@ -186,7 +186,7 @@ export const DSTR = {
     name: 'الاسم', client: 'العميل', size: 'الحجم', description: 'الوصف',
     start: 'أقرب بداية', deadline: 'موعد التقديم',
     stages: 'ما الفرق المطلوبة؟', assignTo: 'إسناد إلى',
-    rfp: 'كراسة الشروط', refs: 'صور مرجعية', dropHere: 'اختر الملفات',
+    rfp: 'كراسة الشروط والمرفقات', refs: 'صور مرجعية', dropHere: 'اختر الملفات',
     estimate: 'موعد التسليم المتوقع', naive: 'لو كانت الفرق فارغة',
     queueDays: 'منها انتظار', createAndAssign: 'إنشاء وإسناد',
     status: 'الحالة', due: 'الاستحقاق', owner: 'المسؤول', stage: 'المرحلة', team: 'الفريق',
@@ -210,7 +210,7 @@ export const DSTR = {
     titleHint: 'ما اسم هذا المستند؟',
     descHint: 'ما الغرض منه، ومن يجب أن يقرأه؟ اختياري.',
     dropHint: 'PDF أو وورد أو باوربوينت أو إكسل أو صور. يمكن اختيار عدة ملفات.',
-    filesPicked: 'ملفات مختارة', filePicked: 'ملف مختار',
+    filesQueued: '{n} للرفع', removeFile: 'إزالة',
     noDocsYet: 'لا توجد مستندات بعد. أول رفع سيظهر هنا.',
     attachments: 'المرفقات',
     onlineNow: 'متصل الآن', onlineNowSub: 'التطبيق مفتوح لديهم الآن',
@@ -231,8 +231,8 @@ export const DSTR = {
     inviteSent: 'تمت دعوة {email}. وصلته رسالة فيها رابط لضبط كلمة المرور.',
     inviteResent: '{email} لديه حساب بالفعل، فأرسلنا له رابط دخول بدلاً من ذلك.',
     inviteNoMail: 'يستطيع {email} الدخول بهذه الصلاحية الآن، لكن الرسالة لم تُرسل: {reason}. لم يصله أي إشعار — أصلح المُرسِل من Authentication ← Emails ثم أعد الدعوة.',
-    rfpHint: 'الكراسة التي وصلتك. PDF أو وورد أو إكسل أو ملف مضغوط.',
-    refsHint: 'صور أو لوحات إلهام، أي شيء يجب أن يراه المصممون أولاً.',
+    rfpHint: 'الكراسة التي وصلتك وما رافقها. PDF أو وورد أو إكسل أو ملف مضغوط، بأي عدد.',
+    refsHint: 'صور أو لوحات إلهام، أي شيء يجب أن يراه المصممون أولاً. اختر بأي عدد.',
     deadlineChart: 'المواعيد حسب الشهر', deadlineNote: 'المشاريع المفتوحة مجمّعة حسب موعد التقديم. الخط المتقطع هو اليوم، وكل ما على يساره متأخر بالفعل.',
     noneYet: 'لا شيء هنا بعد.', today_: 'اليوم',
     st: { intake: 'استلام', in_design: 'قيد التصميم', pricing: 'التسعير',
@@ -379,22 +379,68 @@ export function statusPill(status, lang) {
    not translatable, so every upload on the product used to look like a raw
    OS control dropped into a dark page. This renders the same input visually
    hidden — still focusable, still what the label activates — behind a target
-   that says what it takes. controller.js fills the hint with the chosen file
-   names, which the hidden control can no longer do for itself. */
+   that says what it takes.
+
+   The queue below it is a SIBLING of the label, never a child. Nested inside,
+   every click — including the one on a remove button — would bubble up to the
+   label and reopen the file dialog, so removing a file would immediately ask
+   for another one. */
 export function dropField(id, title, hint, { accept = '', multiple = false, required = false, tall = false } = {}) {
   return `
-  <label class="drop${tall ? ' drop--tall' : ''}" for="${esc(id)}">
-    <svg class="drop__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
-         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <path d="M12 16V4M8 8l4-4 4 4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
-    </svg>
-    <span class="drop__t">
-      <b>${esc(title)}</b>
-      <span class="drop__h" data-hint>${esc(hint)}</span>
-    </span>
-    <input id="${esc(id)}" type="file"${multiple ? ' multiple' : ''}${required ? ' required' : ''}
-           accept="${esc(accept)}" />
-  </label>`;
+  <div class="dropwrap">
+    <label class="drop${tall ? ' drop--tall' : ''}" for="${esc(id)}">
+      <svg class="drop__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 16V4M8 8l4-4 4 4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+      </svg>
+      <span class="drop__t">
+        <b>${esc(title)}</b>
+        <span class="drop__h" data-hint>${esc(hint)}</span>
+      </span>
+      <input id="${esc(id)}" type="file"${multiple ? ' multiple' : ''}${required ? ' required' : ''}
+             accept="${esc(accept)}" />
+    </label>
+    <div class="pendbox" data-pend-for="${esc(id)}"></div>
+  </div>`;
+}
+
+/* What is queued on a picker, listed under it so a choice can be undone before
+   anything is uploaded. controller.js re-renders this on every change.
+
+   The queue lives on the input's own FileList and nowhere else. Keeping a
+   parallel array beside it is exactly the bug where a file the user removed
+   from the list uploads anyway, because submit reads `input.files` and the
+   list was only ever a picture of a second, divergent truth. */
+export function pendingFiles(lang, id, files) {
+  const t = DSTR[lang];
+  if (!files.length) return '';
+  const total = files.reduce((a, f) => a + (f.size || 0), 0);
+  return `
+  <div class="pend__head">
+    <span>${esc(t.filesQueued.replace('{n}', files.length))}</span>
+    <span class="pend__sum">${esc(fileSize(total))}</span>
+  </div>
+  <ul class="pend">
+    ${files.map((f, i) => `
+    <li class="pend__i">
+      <span class="pend__n" title="${esc(f.name)}">${esc(f.name)}</span>
+      <span class="pend__s">${esc(fileSize(f.size))}</span>
+      <button type="button" class="pend__x" data-drop-rm="${esc(id)}" data-i="${i}"
+              title="${esc(t.removeFile)}" aria-label="${esc(t.removeFile)}: ${esc(f.name)}">&times;</button>
+    </li>`).join('')}
+  </ul>`;
+}
+
+/* Bytes the way a file manager says it. Not a rounded "1 MB" for everything
+   between 0.5 and 1.5 — the number is here so someone can tell a 200KB logo
+   from a 40MB render before they commit to waiting on the upload. */
+export function fileSize(n) {
+  if (!Number.isFinite(n) || n < 0) return '';
+  if (n < 1024) return `${n} B`;
+  const k = n / 1024;
+  if (k < 1024) return `${k < 10 ? k.toFixed(1) : Math.round(k)} KB`;
+  const m = k / 1024;
+  return m < 1024 ? `${m < 10 ? m.toFixed(1) : Math.round(m)} MB` : `${(m / 1024).toFixed(1)} GB`;
 }
 
 /* --------------------------------------------------------------- KPI tiles */
@@ -1322,7 +1368,7 @@ export function newProjectView(lang, ctx) {
 
     <h3 class="subhead">${esc(t.attachments)}</h3>
     <div class="dropgrid">
-      ${dropField('pRfp', t.rfp, t.rfpHint, { accept: '.pdf,.doc,.docx,.xls,.xlsx,.zip,.txt', tall: true })}
+      ${dropField('pRfp', t.rfp, t.rfpHint, { accept: '.pdf,.doc,.docx,.xls,.xlsx,.zip,.txt', multiple: true, tall: true })}
       ${dropField('pRefs', t.refs, t.refsHint, { accept: 'image/*,.pdf', multiple: true, tall: true })}
     </div>
 
