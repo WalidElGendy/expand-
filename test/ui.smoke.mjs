@@ -460,6 +460,86 @@ check(/\d{4}/.test(D.estimateBox('en', est)), 'the estimate box renders without 
   dbmod.state.me = was;
 }
 
+/* ------------------------------- the Leads screen -------------------------
+   The bug this whole block exists for: leads.company was NULL on all 420
+   rows and the table printed `l.company || l.source`, so every Sales Lead
+   claimed to work at a company called "Sales Leads". A fallback that reaches
+   for a different field entirely is worse than an empty cell. */
+{
+  const lead = (i, o) => ({
+    id: 'l' + i, name: 'Lead ' + i, status: 'contacted', source: 'Sales Leads',
+    owner_id: null, next_follow_up_on: null, created_at: `2026-0${i}-01T00:00:00Z`, ...o,
+  });
+
+  check(D.leadCompany({ company: 'Aramco', website: 'https://x.com', source: 'Sales Leads' }) === 'Aramco',
+    'a recorded company name is not preferred over the website');
+  check(D.leadCompany({ website: 'https://www.aramco.com/en' }) === 'aramco.com',
+    'the website host is not used when no company name was recorded');
+  check(D.leadCompany({ source: 'Sales Leads' }) === '',
+    'the Asana list name leaked back into the company column');
+  check(D.leadCompany({ website: 'not a url' }) === 'not a url',
+    'a malformed website threw instead of degrading');
+
+  const fixtures = [
+    lead(1, { owner_id: 'o1', status: 'contacted',   next_follow_up_on: '2020-01-01' }),
+    lead(2, { owner_id: 'o1', status: 'address_not_found', company: 'Accenture' }),
+    lead(3, { status: 'no_answer', source: 'World Defense Show Prospects', company: 'Falcom' }),
+    lead(4, { owner_id: 'o2', status: 'contacted', next_follow_up_on: '2099-01-01' }),
+  ];
+  const F = (lf) => D.filterLeads(fixtures, lf);
+  check(F({}).length === 4, 'the default lead view drops rows');
+  check(F({ owner: 'o1' }).length === 2, 'the lead owner filter does not match on owner_id');
+  check(F({ owner: '~none' }).length === 1, 'the no-owner lead option finds nothing');
+  check(F({ status: 'no_answer' }).length === 1, 'the lead status filter is wrong');
+  check(F({ source: 'World Defense Show Prospects' }).length === 1, 'the source filter is wrong');
+  check(F({ follow: 'overdue' }).map(l => l.id).join() === 'l1', 'the overdue follow-up window is wrong');
+  check(F({ follow: 'none' }).length === 2, 'the "no follow-up date" window is wrong');
+  const byFollow = F({ sort: 'follow' }).map(l => l.id);
+  check(byFollow[0] === 'l1' && byFollow.slice(-2).every(id => ['l2', 'l3'].includes(id)),
+    `undated leads did not sort last: ${byFollow}`);
+
+  for (const lang of ['en', 'ar']) {
+    const html = D.leadsView(lang, { leads: fixtures, people: [] });
+    check(html.includes('data-lf="owner"') && html.includes('data-lf="follow"'),
+      `${lang}: the leads filter bar is missing controls`);
+    check(html.includes('data-route="#/l/l1"'), `${lang}: lead names are not clickable`);
+    check(!html.includes('>Sales Leads<') || html.includes('data-lf="source"'),
+      `${lang}: the Asana list name is being printed as a company`);
+    check(html.includes(D.DSTR[lang].st.address_not_found),
+      `${lang}: the richer lead statuses are not shown`);
+  }
+  check(D.leadsView('en', { leads: fixtures, people: [], lf: { ...D.LF_DEFAULT, status: 'won' } })
+    .includes(D.DSTR.en.noLeadMatch), 'an empty lead result does not say so');
+
+  /* The lead page, and the question it exists to answer. */
+  const withProposal = D.leadView('en', {
+    lead: lead(9, { company: 'Aramco', title: 'Marketing Manager', email: 'a@aramco.com',
+                    phone: '966 50 322 0796', website: 'https://aramco.com' }),
+    leadProposals: [{ id: 'p1', name: 'SADAIA stand', status: 'submitted', due_on: '2026-11-02' }],
+    leadEvents: [], projectHits: [],
+  });
+  check(withProposal.includes('Marketing Manager') && withProposal.includes('a@aramco.com'),
+    'the lead page does not show title or email');
+  check(withProposal.includes('SADAIA stand') && withProposal.includes(D.DSTR.en.st.submitted),
+    'a linked proposal does not show its live status');
+  check(withProposal.includes('data-route="#/p/p1"'), 'the proposal does not link to the project');
+  check(withProposal.includes('id="linkForm"'), 'there is no way to link a proposal');
+
+  const noProposal = D.leadView('en', { lead: lead(8), leadProposals: [], leadEvents: [], projectHits: [] });
+  check(noProposal.includes(D.DSTR.en.noProposals),
+    'a lead with no proposal stays silent instead of saying so');
+  check(D.leadView('en', { lead: null }).includes(D.DSTR.en.leadNotFound),
+    'a missing lead renders a blank page');
+
+  // A project that came from a lead must say so, and link back.
+  const fromLead = D.projectView('en', {
+    project: { ...proj(11, null, 'submitted'), project_stages: [],
+               lead: { id: 'l9', name: 'Amal Prasad', company: 'Aramco' } },
+  });
+  check(fromLead.includes(D.DSTR.en.fromLead) && fromLead.includes('data-route="#/l/l9"'),
+    'the project page does not show which lead it came from');
+}
+
 /* --------------------------- the Projects screen --------------------------
    Projects is now in the sidebar for everyone: the read policy already lets
    any active user see them, and a designer who cannot find the project their
