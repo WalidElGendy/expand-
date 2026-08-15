@@ -271,7 +271,8 @@ export const setPerson = async (id, patch) => ok(await sb
 const PROJECT_COLS = `
   id, name, client, description, size, status, start_on, due_on, delivered_on,
   estimated_delivery, estimate_meta, is_crm_list, import_flags, asana_url,
-  created_at, updated_at, owner_id,
+  created_at, updated_at, owner_id, lead_id,
+  lead:lead_id ( id, name, company ),
   owner:owner_id ( id, full_name, department_id ),
   project_stages ( id, department_id, assignee_id, effort_days, planned_start,
                    planned_end, started_at, completed_at, status, sort,
@@ -427,11 +428,44 @@ export const setTaskDone = async (id, completed) => ok(await sb
 
 /* ----------------------------------------------------------------- leads */
 
-export const listLeads = async ({ limit = 500 } = {}) => ok(await sb
-  .from('leads')
-  .select('id, name, company, email, phone, status, source, next_follow_up_on, value_sar, notes, owner:owner_id ( id, full_name )')
-  .order('next_follow_up_on', { ascending: true, nullsFirst: false })
+const LEAD_COLS = `
+  id, name, company, title, website, email, phone, status, source,
+  next_follow_up_on, value_sar, notes, created_at, updated_at, owner_id,
+  owner:owner_id ( id, full_name )`;
+
+export const listLeads = async ({ limit = 1000 } = {}) => ok(await sb
+  .from('leads').select(LEAD_COLS)
+  .order('created_at', { ascending: false })
   .limit(limit));
+
+export const getLead = async (id) => ok(await sb
+  .from('leads').select(LEAD_COLS).eq('id', id).single());
+
+/* ------------------------------------------------------- lead → proposal
+
+   "Did we do a proposal for them, and where has it got to?" The two tables
+   were unconnected and projects.client is empty on 367 of 369 rows, so there
+   was nothing to match on either. The link is therefore explicit: somebody
+   states it, and until they do the lead page says so rather than guessing. */
+
+export const proposalsForLead = async (lead_id) => ok(await sb
+  .from('projects')
+  .select('id, name, status, due_on, estimated_delivery, owner:owner_id ( id, full_name )')
+  .eq('lead_id', lead_id)
+  .order('created_at', { ascending: false }));
+
+/** Candidates for the link picker. Server-side match so the whole project
+    list does not have to be in memory on a screen that never loaded it. */
+export const findProjects = async (term, limit = 12) => ok(await sb
+  .from('projects')
+  .select('id, name, status, lead_id')
+  .eq('is_crm_list', false)
+  .ilike('name', `%${String(term).replace(/[%_]/g, '')}%`)
+  .order('created_at', { ascending: false })
+  .limit(limit));
+
+export const linkProposal   = (project_id, lead_id) => updateProject(project_id, { lead_id });
+export const unlinkProposal = (project_id)          => updateProject(project_id, { lead_id: null });
 
 export const createLead = async (l) => ok(await sb
   .from('leads')
@@ -443,7 +477,7 @@ export const updateLead = async (id, patch) => ok(await sb
 
 export const listLeadEvents = async (lead_id) => ok(await sb
   .from('lead_events')
-  .select('id, kind, body, occurred_at, created_by')
+  .select('id, kind, body, occurred_at, author:created_by ( id, full_name )')
   .eq('lead_id', lead_id).order('occurred_at', { ascending: false }));
 
 export const addLeadEvent = async (e) => ok(await sb
