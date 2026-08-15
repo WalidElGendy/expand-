@@ -460,6 +460,75 @@ check(/\d{4}/.test(D.estimateBox('en', est)), 'the estimate box renders without 
   dbmod.state.me = was;
 }
 
+/* ----------------------- the two volume charts ----------------------------
+   The trap these guard: `due_on` is set on 95 of 369 projects and `created_at`
+   is the import date on all of them. A "projects per month" chart built on
+   either would look complete and describe something else entirely. Both charts
+   count by `start_on`, which every project has, and share one month window so
+   a spike on the left can be traced to a row on the right. */
+{
+  const mk = (mo, owner, n) => Array.from({ length: n }, (_, i) => ({
+    id: `${mo}-${owner}-${i}`, name: 'P', status: 'in_design', start_on: `${mo}-05`,
+    due_on: null, owner_id: owner, owner: owner ? { id: owner, full_name: owner } : null,
+    project_stages: [], created_at: '2026-08-01T00:00:00Z',
+  }));
+  const fixtures = [
+    ...mk('2026-01', 'Fahad', 9), ...mk('2026-01', 'Salman', 2), ...mk('2026-01', null, 1),
+    ...mk('2026-02', 'Fahad', 1), ...mk('2026-02', 'Salman', 4),
+    ...mk('2026-03', 'Fahad', 13), ...mk('2026-03', 'Rania', 1),
+  ];
+  const months = D.monthWindow(fixtures);
+  check(months.join() === '2026-01,2026-02,2026-03', `the month window is wrong: ${months}`);
+
+  // A month with no work must stay in the axis as a gap, not be closed up.
+  const gapped = [...mk('2026-01', 'A', 1), ...mk('2026-04', 'A', 1)];
+  check(D.monthWindow(gapped).join() === '2026-01,2026-02,2026-03,2026-04',
+    'an idle month was closed up instead of drawn as a gap');
+  check(D.monthWindow([{ start_on: null }]).length === 0, 'a project without a start date broke the window');
+
+  const bar = D.monthlyProjectsChart('en', fixtures, months);
+  const heat = D.managerMonthChart('en', fixtures, months);
+
+  check(bar.includes('31 of 31'), 'the bar chart does not say how much of the portfolio it covers');
+  check(bar.includes('>14<'), 'the peak month is not labelled');
+  check((bar.match(/>9</g) || []).length === 0 || !bar.includes('axis--val">9<'),
+    'a value label was drawn on a bar that is not the peak');
+
+  /* The heatmap must account for exactly the same projects as the bar chart.
+     If these two ever disagree the screen is telling two different stories. */
+  const totals = [...heat.matchAll(/<td class="heat__tot">(\d+)<\/td>/g)].map(m => +m[1]);
+  check(totals.reduce((a, b) => a + b, 0) === fixtures.length,
+    `the heatmap totals ${totals.reduce((a, b) => a + b, 0)} against ${fixtures.length} projects`);
+  check(heat.includes('Fahad') && heat.includes('Salman'), 'managers are missing from the heatmap');
+  check(heat.indexOf('Fahad') < heat.indexOf('Salman'), 'the heatmap is not sorted by volume');
+  check(heat.includes(D.DSTR.en.unassignedOwner), 'projects with no owner vanished from the heatmap');
+
+  /* Counts are skewed — 13 in one cell against a floor of 1 — so equal slices
+     of the range would drop nearly every cell into one band and the grid would
+     read as a flat colour. Quantile cuts must produce more than one step. */
+  const usedFills = [...new Set([...heat.matchAll(/background:(#[0-9a-f]{6})/g)].map(m => m[1]))];
+  check(usedFills.length >= 3, `the heatmap collapsed to ${usedFills.length} shade(s) — the scale does no work`);
+  check(!/background:#[0-9a-f]{6}"[^>]*>0</.test(heat), 'an empty cell was painted as if it had work in it');
+
+  /* An SVG does not mirror under dir=rtl but the table beside it does, so the
+     bars are reversed by hand. Without this the two charts run in opposite
+     directions in Arabic and the shared axis stops lining up. */
+  const barAr = D.monthlyProjectsChart('ar', fixtures, months);
+  const order = (html) => [...html.matchAll(/text-anchor="middle">([^<]+)<\/text>/g)]
+    .map(m => m[1]).filter(s => !/^\d+$/.test(s));
+  const en = order(bar), ar = order(barAr);
+  check(en.length === 3 && ar.length === 3, `month labels missing: en ${en} ar ${ar}`);
+  check(ar.join() === [...ar].join() && en[0] !== ar[0],
+    `the Arabic bar chart did not mirror: en ${en} vs ar ${ar}`);
+
+  for (const lang of ['en', 'ar']) {
+    const html = D.pmView(lang, { projects: fixtures, people: [], leads: [], stages: [] });
+    check(html.includes('chartrow'), `${lang}: the two charts are not laid out together`);
+    check(html.includes(D.DSTR[lang].projectsByMonth) && html.includes(D.DSTR[lang].byManager),
+      `${lang}: one of the two charts is missing`);
+  }
+}
+
 /* ------------------------------- the Leads screen -------------------------
    The bug this whole block exists for: leads.company was NULL on all 420
    rows and the table printed `l.company || l.source`, so every Sales Lead
