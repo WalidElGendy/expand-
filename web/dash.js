@@ -139,7 +139,9 @@ export const DSTR = {
     projectsByMonth: 'Projects by month', byManager: 'Projects per manager',
     perMonth: 'per month', total_: 'Total', fewer: 'Fewer', more: 'More',
     startedInWindow: '{n} of {t} started in this window',
-    byStartNote: 'Counted by the month work started, which every project has. Deadlines are set on only 95 of them, so counting by deadline would describe a quarter of the business and look like all of it.',
+    allProjects: '{n} projects, all of them',
+    earlierBar: 'Earlier', earlierLong: 'Everything before {m}',
+    byStartNote: 'Every project is counted, by the month its work started. Deadlines play no part — they are set on only 95 of the 369, so counting by deadline would describe a quarter of the business and look like all of it. The grey bar holds everything that started before the twelve months shown.',
 
     /* --- Projects screen: filters and detail ------------------------------ */
     filters: 'Filters', clearFilters: 'Clear',   // owner/team/status/due already exist above
@@ -262,7 +264,9 @@ export const DSTR = {
     projectsByMonth: 'المشاريع حسب الشهر', byManager: 'المشاريع لكل مدير',
     perMonth: 'شهرياً', total_: 'الإجمالي', fewer: 'أقل', more: 'أكثر',
     startedInWindow: '{n} من {t} بدأت في هذه الفترة',
-    byStartNote: 'محسوبة حسب شهر بدء العمل، وهو موجود لكل مشروع. المواعيد النهائية مسجلة على ٩٥ مشروعاً فقط، لذا العد حسب الموعد النهائي يصف ربع الأعمال ويبدو وكأنه كلها.',
+    allProjects: '{n} مشروعاً، جميعها',
+    earlierBar: 'أقدم', earlierLong: 'كل ما بدأ قبل {m}',
+    byStartNote: 'كل المشاريع محسوبة، حسب شهر بدء العمل. المواعيد النهائية لا دخل لها: فهي مسجلة على ٩٥ مشروعاً فقط من ٣٦٩، لذا العد حسب الموعد النهائي يصف ربع الأعمال ويبدو وكأنه كلها. العمود الرمادي يضم كل ما بدأ قبل الأشهر الاثني عشر المعروضة.',
 
     filters: 'التصفية', clearFilters: 'مسح',
     anyOwner: 'كل المسؤولين', anyTeam: 'كل الفرق', anyStatus: 'كل الحالات', anyDue: 'كل المواعيد',
@@ -457,20 +461,34 @@ const monthLong = (k, lang) => {
       { month: 'long', year: 'numeric', timeZone: 'UTC' });
 };
 
-/* How many projects started each month. One series, so slot-1 brand purple and
-   no legend — the title names it. Only the peak is labelled: a number over
-   every bar is a table wearing a chart's clothes. */
+/* How many projects started each month, and EVERY project is in here somewhere.
+   One series, so slot-1 brand purple and no legend — the title names it.
+
+   The window is the last 12 months that carry work, but 14 projects start in
+   2023 and then nothing happens for two years. Drawing the true span would be
+   37 columns with a 23-month hole in it; dropping those 14 would print a total
+   that quietly disagrees with the 369 on the tile above. So they go into one
+   "Earlier" bucket at the head of the axis, painted grey rather than brand so
+   it cannot be misread as a month with a suspiciously round number in it. */
 export function monthlyProjectsChart(lang, projects, months) {
   const t = DSTR[lang];
-  const inScope = projects.filter(p => p.start_on);
+  const dated = projects.filter(p => p.start_on);
   if (months.length < 2) return '';
 
   const counts = new Map();
-  for (const p of inScope) {
+  let earlier = 0, later = 0;
+  for (const p of dated) {
     const k = monthKey(parse(p.start_on));
+    if (k < months[0]) { earlier++; continue; }
+    if (k > months[months.length - 1]) { later++; continue; }
     counts.set(k, (counts.get(k) || 0) + 1);
   }
-  const all = months.map(k => ({ k, n: counts.get(k) || 0 }));
+  const bars = months.map(k => ({ k, n: counts.get(k) || 0 }));
+  /* `later` should always be 0 — the window ends at the last month with work —
+     but it is counted rather than assumed, and folded into the bucket if the
+     window rule ever changes, so the arithmetic cannot silently go wrong. */
+  const spill = earlier + later;
+  const all = spill ? [{ k: '~earlier', n: spill, bucket: true }, ...bars] : bars;
   const shown = all.reduce((a, s) => a + s.n, 0);
   const max = Math.max(...all.map(s => s.n), 1);
 
@@ -481,40 +499,41 @@ export function monthlyProjectsChart(lang, projects, months) {
      bars are reversed by hand for RTL. */
   const series = lang === 'ar' ? [...all].reverse() : all;
 
-  const W = 560, H = 250, PAD_L = 34, PAD_R = 10, PAD_T = 22, PAD_B = 34;
+  /* Every bar is labelled, so the y axis is gone: printing the same numbers
+     twice, once as a scale and once on the marks, is clutter that makes the
+     chart harder to read rather than more precise. Only the baseline stays,
+     because a bar chart without one has nothing to sit on. The top padding
+     grows to make room for the labels. */
+  const W = 560, H = 250, PAD_L = 8, PAD_R = 8, PAD_T = 26, PAD_B = 34;
   const plotW = W - PAD_L - PAD_R, plotH = H - PAD_T - PAD_B;
   const step = plotW / series.length;
   const barW = Math.max(6, Math.min(34, step - 8));
   const yOf = (n) => PAD_T + plotH - (n / max) * plotH;
-  const ticks = [0, Math.round(max / 2), max].filter((v, i, a) => a.indexOf(v) === i);
+  const base = PAD_T + plotH;
   const barPath = (x, y, w, h) => {
     const r = Math.min(4, w / 2, h);
     return h <= 0 ? '' : `M${x} ${y + h}V${y + r}q0-${r} ${r}-${r}h${w - 2 * r}q${r} 0 ${r} ${r}V${y + h}Z`;
   };
-  /* EVERY month that reaches the max is labelled, not the first one found. Two
-     bars drawn at the same height where only one carries a number reads as
-     "this one is the peak and that one is slightly lower" — which is a lie the
-     chart tells confidently. November 2025 and January 2026 both sit at 55. */
-  const isPeak = (s) => s.n === max && s.n > 0;
+  const labelOf = (s) => (s.bucket ? t.earlierBar : monthLabel(s.k, lang));
+  const titleOf = (s) => (s.bucket ? t.earlierLong.replace('{m}', monthLong(months[0], lang)) : monthLong(s.k, lang));
 
   return `
 <section class="card">
   <div class="card__head"><h2>${esc(t.projectsByMonth)}</h2>
-    <span class="muted small">${esc(t.startedInWindow.replace('{n}', shown).replace('{t}', projects.length))}</span></div>
+    <span class="muted small">${esc(t.allProjects.replace('{n}', shown))}</span></div>
   <div class="chartwrap">
     <svg viewBox="0 0 ${W} ${H}" class="chart" role="img"
          aria-label="${esc(t.projectsByMonth)}">
-      ${ticks.map(v => `<line x1="${PAD_L}" x2="${W - PAD_R}" y1="${yOf(v)}" y2="${yOf(v)}" class="grid"/>
-        <text x="${PAD_L - 8}" y="${yOf(v) + 4}" class="axis" text-anchor="end">${v}</text>`).join('')}
+      <g class="grid"><line x1="${PAD_L}" x2="${W - PAD_R}" y1="${base}" y2="${base}"/></g>
       ${series.map((s, i) => {
         const x = PAD_L + i * step + (step - barW) / 2;
-        const y = yOf(s.n), h = PAD_T + plotH - y;
-        return `<g><title>${esc(monthLong(s.k, lang))} — ${s.n}</title>
-          <path d="${barPath(x, y, barW, h)}" fill="var(--brand)"/>
-          ${isPeak(s) ? `<text x="${x + barW / 2}" y="${y - 7}" class="axis axis--val" text-anchor="middle">${s.n}</text>` : ''}
+        const y = yOf(s.n), h = base - y;
+        return `<g><title>${esc(titleOf(s))} — ${s.n}</title>
+          <path d="${barPath(x, y, barW, h)}" fill="${s.bucket ? 'var(--ink3)' : 'var(--brand)'}"/>
+          ${s.n ? `<text x="${x + barW / 2}" y="${y - 7}" class="axis axis--val" text-anchor="middle">${s.n}</text>` : ''}
         </g>`;
       }).join('')}
-      ${series.map((s, i) => `<text x="${PAD_L + i * step + step / 2}" y="${H - 12}" class="axis" text-anchor="middle">${esc(monthLabel(s.k, lang))}</text>`).join('')}
+      ${series.map((s, i) => `<text x="${PAD_L + i * step + step / 2}" y="${H - 12}" class="axis${s.bucket ? ' axis--bucket' : ''}" text-anchor="middle">${esc(labelOf(s))}</text>`).join('')}
     </svg>
   </div>
   <p class="note">${esc(t.byStartNote)}</p>
@@ -529,12 +548,19 @@ export function managerMonthChart(lang, projects, months) {
   const t = DSTR[lang];
   if (months.length < 2) return '';
 
+  /* Same bucket as the bar chart beside it, for the same reason and by the same
+     rule: a project that started outside the window is still that manager's
+     project. Without this the two cards sit side by side reconciling to
+     different totals — 369 on the left, 355 on the right — which is worse than
+     either number being wrong on its own, because nothing on screen says why. */
   const inWindow = new Set(months);
   const rows = new Map();
+  let spill = 0;
   for (const p of projects) {
     if (!p.start_on) continue;
-    const k = monthKey(parse(p.start_on));
-    if (!inWindow.has(k)) continue;
+    const m = monthKey(parse(p.start_on));
+    const k = inWindow.has(m) ? m : '~earlier';
+    if (k === '~earlier') spill++;
     const who = p.owner?.full_name || t.unassignedOwner;
     if (!rows.has(who)) rows.set(who, { who, total: 0, by: new Map() });
     const r = rows.get(who);
@@ -542,6 +568,7 @@ export function managerMonthChart(lang, projects, months) {
   }
   const list = [...rows.values()].sort((a, b) => b.total - a.total || a.who.localeCompare(b.who));
   if (!list.length) return '';
+  const cols = spill ? ['~earlier', ...months] : months;
 
   /* Sequential, single hue, light→dark flipped for a dark surface so more is
      brighter. Four steps rather than five: validated on #101014, five could
@@ -556,7 +583,13 @@ export function managerMonthChart(lang, projects, months) {
      and the encoding does no work. Quantiles put the cuts where the data
      actually is. Duplicate cuts are dropped rather than drawn as two
      indistinguishable steps that claim to mean different things. */
-  const vals = list.flatMap(r => [...r.by.values()]).filter(n => n > 0).sort((a, b) => a - b);
+  /* The bucket's cells are deliberately kept OUT of the quantile maths and off
+     the ramp. It spans years while every other column spans a month, so a
+     shared colour scale would compare two different things and skew the cuts
+     for the months that actually matter. It gets the same grey the bar chart
+     gives it. */
+  const vals = list.flatMap(r => [...r.by.entries()].filter(([k]) => k !== '~earlier').map(([, n]) => n))
+    .filter(n => n > 0).sort((a, b) => a - b);
   const cuts = [...new Set([0.25, 0.5, 0.75]
     .map(q => vals[Math.floor(q * (vals.length - 1))]))]
     .filter(v => v < vals[vals.length - 1]);
@@ -566,7 +599,9 @@ export function managerMonthChart(lang, projects, months) {
     for (let i = 0; i < cuts.length; i++) if (n <= cuts[i]) return i;
     return steps.length - 1;
   };
-  const fillOf = (n) => (n <= 0 ? 'var(--s-2)' : steps[bandOf(n)]);
+  const fillOf = (n, k) => (n <= 0 ? 'var(--s-2)' : k === '~earlier' ? 'var(--ink3)' : steps[bandOf(n)]);
+  const colShort = (k) => (k === '~earlier' ? t.earlierBar : monthLabel(k, lang));
+  const colLong = (k) => (k === '~earlier' ? t.earlierLong.replace('{m}', monthLong(months[0], lang)) : monthLong(k, lang));
   // What each step starts at, so the legend states the scale rather than
   // asking the reader to guess what "brighter" is worth.
   const bandLow = (i) => (i === 0 ? 1 : cuts[i - 1] + 1);
@@ -578,16 +613,16 @@ export function managerMonthChart(lang, projects, months) {
   <div class="tblwrap">
     <table class="heat">
       <thead><tr><th class="heat__rowh">${esc(t.owner)}</th>
-        ${months.map(k => `<th class="heat__colh">${esc(monthLabel(k, lang))}</th>`).join('')}
+        ${cols.map(k => `<th class="heat__colh${k === '~earlier' ? ' heat__colh--bucket' : ''}">${esc(colShort(k))}</th>`).join('')}
         <th class="heat__tot">${esc(t.total_)}</th></tr></thead>
       <tbody>
         ${list.map(r => `<tr>
           <td class="heat__rowh">${esc(r.who)}</td>
-          ${months.map(k => {
+          ${cols.map(k => {
             const n = r.by.get(k) || 0;
-            return `<td class="heat__c"><span class="heat__box" style="background:${fillOf(n)}"
-              title="${esc(r.who)} — ${esc(monthLong(k, lang))} — ${n}"
-              aria-label="${esc(r.who)} — ${esc(monthLong(k, lang))} — ${n}">${n ? n : ''}</span></td>`;
+            return `<td class="heat__c${k === '~earlier' ? ' heat__c--bucket' : ''}"><span class="heat__box" style="background:${fillOf(n, k)}"
+              title="${esc(r.who)} — ${esc(colLong(k))} — ${n}"
+              aria-label="${esc(r.who)} — ${esc(colLong(k))} — ${n}">${n ? n : ''}</span></td>`;
           }).join('')}
           <td class="heat__tot">${r.total}</td></tr>`).join('')}
       </tbody>
@@ -599,6 +634,9 @@ export function managerMonthChart(lang, projects, months) {
     ${steps.map((c, i) => `<span class="heat__box heat__box--key" style="background:${c}"
       title="${bandLow(i)}+">${bandLow(i)}${i === steps.length - 1 ? '+' : ''}</span>`).join('')}
     <span class="muted small">${esc(t.more)}</span>
+    ${spill ? `<span class="heat__box heat__box--key" style="background:var(--ink3)"
+      title="${esc(t.earlierLong.replace('{m}', monthLong(months[0], lang)))}">·</span>
+    <span class="muted small">${esc(t.earlierBar)}</span>` : ''}
   </div>
 </section>`;
 }
