@@ -109,7 +109,31 @@ export const DSTR = {
           in_production: 'In production',
           delivered: 'Delivered', archived: 'Archived', draft: 'Draft', pending: 'Pending',
           in_progress: 'In progress', done: 'Done', blocked: 'Blocked', new: 'New',
-          contacted: 'Contacted', qualified: 'Qualified', proposal: 'Proposal' },
+          contacted: 'Contacted', qualified: 'Qualified', proposal: 'Proposal',
+          /* The BD team's own words. "Wrong number", "No answer", "Message
+             not delivered" and "Address not found" used to collapse into
+             "lost", which erased the difference between a lead who said no
+             and one nobody ever reached. */
+          not_contacted: 'Not contacted', interested: 'Interested',
+          not_interested: 'Not interested', follow_up: 'Follow up',
+          wrong_number: 'Wrong number', no_answer: 'No answer',
+          not_delivered: 'Message not delivered', address_not_found: 'Address not found' },
+
+    /* --- Leads screen ---------------------------------------------------- */
+    jobTitle: 'Title', website: 'Website', source_: 'Source',   // phone already exists above
+    anySource: 'Any source', anyFollow: 'Any follow-up', followOverdue: 'Overdue',
+    follow7: 'Next 7 days', follow30: 'Next 30 days', followNone: 'No date set',
+    sortFollow: 'Follow-up, soonest', sortAdded: 'Recently added', sortCompany: 'Company',
+    backToLeads: 'Leads', leadNotFound: 'That lead is not here.',
+    noLeadMatch: 'No lead matches these filters.',
+    contactHead: 'Contact', proposalsHead: 'Proposals',
+    noProposals: 'No proposal is linked to this lead yet.',
+    linkProposal: 'Link a proposal', searchProjects: 'Search projects by name',
+    link: 'Link', unlink: 'Unlink', alreadyLinked: 'already linked to another lead',
+    noProjectMatch: 'No project matches that.',
+    leadHistory: 'Activity', noLeadHistory: 'Nothing logged yet.',
+    companyUnknown: 'No company recorded',
+    fromLead: 'Came from lead', openInAsanaLead: 'Open in Asana',
 
     /* --- Projects screen: filters and detail ------------------------------ */
     filters: 'Filters', clearFilters: 'Clear',   // owner/team/status/due already exist above
@@ -208,7 +232,26 @@ export const DSTR = {
           in_production: 'قيد التنفيذ الفعلي',
           delivered: 'مُسلَّم', archived: 'مؤرشف', draft: 'مسودة', pending: 'بانتظار',
           in_progress: 'قيد التنفيذ', done: 'منجز', blocked: 'متوقف', new: 'جديد',
-          contacted: 'تم التواصل', qualified: 'مؤهل', proposal: 'عرض' },
+          contacted: 'تم التواصل', qualified: 'مؤهل', proposal: 'عرض',
+          not_contacted: 'لم يتم التواصل', interested: 'مهتم',
+          not_interested: 'غير مهتم', follow_up: 'متابعة',
+          wrong_number: 'رقم خاطئ', no_answer: 'لا رد',
+          not_delivered: 'لم تصل الرسالة', address_not_found: 'العنوان غير موجود' },
+
+    jobTitle: 'المسمى الوظيفي', website: 'الموقع', source_: 'المصدر',
+    anySource: 'كل المصادر', anyFollow: 'كل المتابعات', followOverdue: 'متأخرة',
+    follow7: 'خلال ٧ أيام', follow30: 'خلال ٣٠ يوماً', followNone: 'بلا موعد',
+    sortFollow: 'المتابعة، الأقرب', sortAdded: 'الأحدث إضافة', sortCompany: 'الشركة',
+    backToLeads: 'العملاء المحتملون', leadNotFound: 'هذا العميل غير موجود.',
+    noLeadMatch: 'لا يوجد عميل يطابق هذه التصفية.',
+    contactHead: 'بيانات التواصل', proposalsHead: 'العروض',
+    noProposals: 'لا يوجد عرض مرتبط بهذا العميل بعد.',
+    linkProposal: 'اربط عرضاً', searchProjects: 'ابحث عن مشروع بالاسم',
+    link: 'ربط', unlink: 'إلغاء الربط', alreadyLinked: 'مرتبط بعميل آخر بالفعل',
+    noProjectMatch: 'لا يوجد مشروع مطابق.',
+    leadHistory: 'النشاط', noLeadHistory: 'لا شيء مسجل بعد.',
+    companyUnknown: 'لا توجد شركة مسجلة',
+    fromLead: 'جاء من عميل محتمل', openInAsanaLead: 'افتح في أسانا',
 
     filters: 'التصفية', clearFilters: 'مسح',
     anyOwner: 'كل المسؤولين', anyTeam: 'كل الفرق', anyStatus: 'كل الحالات', anyDue: 'كل المواعيد',
@@ -272,6 +315,18 @@ const ST_COLOUR = {
      positive, clearly not done. */
   in_production: 'var(--s1)',
   submitted:   'var(--warn)',
+  /* The four "we never reached them" outcomes share one muted colour: they
+     are the same fact from the reader's point of view — the contact detail
+     is wrong — and giving each its own hue would imply four kinds of
+     progress where there is none. */
+  wrong_number:      'var(--ink4)',
+  no_answer:         'var(--ink4)',
+  not_delivered:     'var(--ink4)',
+  address_not_found: 'var(--ink4)',
+  not_contacted: 'var(--ink3)',
+  follow_up:     'var(--warn)',
+  interested:    'var(--ok)',
+  not_interested:'var(--critical)',
   proposal:    'var(--warn)',
   contacted:   'var(--warn)',
   pending:     'var(--ink3)',
@@ -892,6 +947,8 @@ export function projectView(lang, ctx) {
     ${fact(t.estimate, esc(fmt(p.estimated_delivery, lang)))}
     ${fact(t.createdOn, esc(fmt((p.created_at || '').slice(0, 10), lang)))}
     ${fact(t.updatedOn, esc(fmt((p.updated_at || '').slice(0, 10), lang)))}
+    ${p.lead ? fact(t.fromLead,
+      `<button class="link" data-act="go" data-route="#/l/${esc(p.lead.id)}">${esc(p.lead.name)}${p.lead.company ? ` · ${esc(p.lead.company)}` : ''}</button>`) : ''}
   </div>
 
   <h3 class="subhead">${esc(t.description)}</h3>
@@ -1053,13 +1110,113 @@ export function estimateBox(lang, est) {
 
 /* ----------------------------------- leads -------------------------------- */
 
+/* The company we can honestly show. `company` when somebody recorded one,
+   otherwise the host of the website — "aramco.com" tells a reader what they
+   need. Never `source`: that is the name of an Asana list, and printing it
+   here is what made all 70 Sales Leads claim to work at a company called
+   "Sales Leads". */
+export const leadCompany = (l) => {
+  if (l?.company) return l.company;
+  if (!l?.website) return '';
+  try { return new URL(l.website).host.replace(/^www\./, ''); }
+  catch { return String(l.website).replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0]; }
+};
+
+export const LF_DEFAULT = { owner: '', status: '', source: '', follow: '', sort: 'follow' };
+
+/* One rule for which leads are shown, read by the table and by the count
+   above it, for the same reason the projects filter has one. */
+export function filterLeads(leads, lf = {}) {
+  const f = { ...LF_DEFAULT, ...lf };
+  const midnight = new Date(); midnight.setHours(0, 0, 0, 0);
+  const inDays = (d) => Math.round((parse(d) - midnight) / 86400000);
+
+  let rows = (leads || []).slice();
+  if (f.status) rows = rows.filter(l => l.status === f.status);
+  if (f.source) rows = rows.filter(l => l.source === f.source);
+  if (f.owner) rows = f.owner === '~none'
+    ? rows.filter(l => !l.owner_id)
+    : rows.filter(l => l.owner_id === f.owner);
+
+  if (f.follow === 'overdue') rows = rows.filter(l => l.next_follow_up_on && inDays(l.next_follow_up_on) < 0);
+  else if (f.follow === 'd7')  rows = rows.filter(l => l.next_follow_up_on && inDays(l.next_follow_up_on) >= 0 && inDays(l.next_follow_up_on) <= 7);
+  else if (f.follow === 'd30') rows = rows.filter(l => l.next_follow_up_on && inDays(l.next_follow_up_on) >= 0 && inDays(l.next_follow_up_on) <= 30);
+  else if (f.follow === 'none') rows = rows.filter(l => !l.next_follow_up_on);
+
+  const sorters = {
+    // Undated last: 326 leads have no follow-up date and they must not bury
+    // the 94 that do.
+    follow: (a, b) => {
+      if (!a.next_follow_up_on && !b.next_follow_up_on) return 0;
+      if (!a.next_follow_up_on) return 1;
+      if (!b.next_follow_up_on) return -1;
+      return parse(a.next_follow_up_on) - parse(b.next_follow_up_on);
+    },
+    added:   (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0),
+    name:    (a, b) => String(a.name).localeCompare(String(b.name)),
+    company: (a, b) => leadCompany(a).localeCompare(leadCompany(b)),
+  };
+  return rows.sort(sorters[f.sort] || sorters.follow);
+}
+
+function leadFilterBar(lang, ctx, all) {
+  const t = DSTR[lang];
+  const f = { ...LF_DEFAULT, ...(ctx.lf || {}) };
+  const people = ctx.people || [];
+
+  const tally = (fn) => {
+    const m = new Map();
+    all.forEach(l => { const k = fn(l); if (k) m.set(k, (m.get(k) || 0) + 1); });
+    return [...m.entries()].sort((a, b) => b[1] - a[1]);
+  };
+  const owners = tally(l => l.owner_id)
+    .map(([id, n]) => ({ id, n, name: people.find(p => p.id === id)?.full_name
+                                   || all.find(l => l.owner_id === id)?.owner?.full_name || id }));
+  const noOwner = all.filter(l => !l.owner_id).length;
+  const statuses = tally(l => l.status);
+  const sources  = tally(l => l.source);
+
+  const sel = (key, label, options) => `
+    <label class="f f--sm"><span>${esc(label)}</span>
+      <select data-lf="${esc(key)}">
+        ${options.map(o => `<option value="${esc(o.v)}"${o.v === f[key] ? ' selected' : ''}>${esc(o.l)}</option>`).join('')}
+      </select></label>`;
+
+  const active = ['owner', 'status', 'source', 'follow'].some(k => f[k]) || f.sort !== 'follow';
+
+  return `
+<div class="filterbar">
+  ${sel('owner', t.owner, [{ v: '', l: t.anyOwner },
+    ...owners.map(o => ({ v: o.id, l: `${o.name} (${o.n})` })),
+    ...(noOwner ? [{ v: '~none', l: `${t.unassignedOwner} (${noOwner})` }] : [])])}
+  ${sel('status', t.status, [{ v: '', l: t.anyStatus },
+    ...statuses.map(([s, n]) => ({ v: s, l: `${t.st[s] || String(s).replace(/_/g, ' ')} (${n})` }))])}
+  ${sel('source', t.source_, [{ v: '', l: t.anySource },
+    ...sources.map(([s, n]) => ({ v: s, l: `${s} (${n})` }))])}
+  ${sel('follow', t.followUp, [{ v: '', l: t.anyFollow },
+    { v: 'overdue', l: t.followOverdue }, { v: 'd7', l: t.follow7 },
+    { v: 'd30', l: t.follow30 }, { v: 'none', l: t.followNone }])}
+  ${sel('sort', t.sortBy, [{ v: 'follow', l: t.sortFollow }, { v: 'added', l: t.sortAdded },
+    { v: 'name', l: t.sortName }, { v: 'company', l: t.sortCompany }])}
+  ${active ? `<button class="btn btn--sm" data-lf-clear="1">${esc(t.clearFilters)}</button>` : ''}
+</div>`;
+}
+
 export function leadsView(lang, ctx) {
   const t = DSTR[lang];
   const leads = ctx.leads || [];
-  const STATUSES = ['new', 'contacted', 'qualified', 'proposal', 'won', 'lost'];
+  /* Only the statuses that actually occur, in pipeline order, so the tile row
+     does not carry four permanent zeroes. */
+  const ORDER = ['new', 'not_contacted', 'contacted', 'interested', 'follow_up',
+                 'qualified', 'proposal', 'won', 'not_interested', 'lost',
+                 'wrong_number', 'no_answer', 'not_delivered', 'address_not_found'];
+  const STATUSES = ORDER.filter(s => leads.some(l => l.status === s)).slice(0, 6);
   const counts = Object.fromEntries(STATUSES.map(s => [s, leads.filter(l => l.status === s).length]));
   const stale = leads.filter(l => l.status !== 'won' && l.status !== 'lost' && lateBy(l.next_follow_up_on)).length;
   const open = leads.filter(l => !['won', 'lost'].includes(l.status)).length;
+  const matched = filterLeads(leads, ctx.lf);
+  const rows = matched.slice(0, 200);
+  const anyTitle = rows.some(l => l.title);
 
   /* Same tiles as the dashboard rather than the old edge-to-edge strip: the
      strip had no card, no colour and no denominator, so "0 qualified" read as
@@ -1084,35 +1241,142 @@ export function leadsView(lang, ctx) {
 <section class="card">
   <div class="card__head">
     <h2>${esc(t.leads)}</h2>
-    <span class="muted small">${leads.length}</span>
+    <span class="muted small">${esc(t.showingN.replace('{n}', matched.length).replace('{t}', leads.length))}</span>
     <button class="btn btn--primary btn--sm" style="margin-inline-start:auto" data-act="newlead">${esc(t.addLead)}</button>
   </div>
   <div id="leadForm"></div>
+  ${leadFilterBar(lang, ctx, leads)}
   <div class="tblwrap">
   <table class="tbl">
     <thead><tr>
-      <th>${esc(t.name)}</th><th>${esc(t.company)}</th><th>${esc(t.status)}</th>
+      <th>${esc(t.name)}</th>
+      ${anyTitle ? `<th>${esc(t.jobTitle)}</th>` : ''}
+      <th>${esc(t.company)}</th><th>${esc(t.status)}</th>
       <th class="num">${esc(t.followUp)}</th><th>${esc(t.owner)}</th><th></th>
     </tr></thead>
     <tbody>
-      ${leads.slice(0, 200).map(l => {
+      ${rows.length ? rows.map(l => {
         const late = lateBy(l.next_follow_up_on);
+        const co = leadCompany(l);
+        /* The status dropdown offers this lead's own value plus the full
+           vocabulary, so a row already marked "Address not found" does not
+           silently reset to something else the moment anyone touches it. */
+        const opts = [...new Set([...ORDER, l.status])].filter(Boolean);
         return `<tr>
-          <td>${esc(l.name)}${l.email ? `<span class="muted small block">${esc(l.email)}</span>` : ''}</td>
-          <td class="muted small">${esc(l.company || l.source || '')}</td>
+          <td><button class="link" data-act="go" data-route="#/l/${esc(l.id)}">${esc(l.name)}</button>
+            ${l.email ? `<span class="muted small block">${esc(l.email)}</span>` : ''}</td>
+          ${anyTitle ? `<td class="small ${l.title ? '' : 'muted'}">${esc(l.title || '—')}</td>` : ''}
+          <td class="small ${co ? '' : 'muted'}">${esc(co || '—')}</td>
           <td>
             <select class="leadStatus btn--sm" data-lead="${esc(l.id)}">
-              ${STATUSES.map(s => `<option value="${s}"${s === l.status ? ' selected' : ''}>${esc(t.st[s] || s)}</option>`).join('')}
+              ${opts.map(s => `<option value="${s}"${s === l.status ? ' selected' : ''}>${esc(t.st[s] || String(s).replace(/_/g, ' '))}</option>`).join('')}
             </select>
           </td>
           <td class="num ${late ? 'bad' : 'muted'}">${esc(fmt(l.next_follow_up_on, lang))}</td>
           <td class="muted small">${esc(l.owner?.full_name || t.unassigned)}</td>
           <td class="num"><button class="link small" data-note="${esc(l.id)}">${esc(t.logNote)}</button></td>
         </tr>`;
-      }).join('')}
+      }).join('')
+      : `<tr><td class="tbl__empty" colspan="7">${esc(t.noLeadMatch)}</td></tr>`}
     </tbody>
   </table>
   </div>
+  ${matched.length > rows.length ? `<p class="note">${esc(lang === 'ar'
+    ? `تعرض ${rows.length} من ${matched.length}. ضيّق التصفية للوصول إلى البقية.`
+    : `Showing ${rows.length} of ${matched.length}. Narrow the filters to reach the rest.`)}</p>` : ''}
+</section>`;
+}
+
+/* ========================================================================
+   One lead: who they are, how to reach them, what was said, and whether a
+   proposal ever went out for them.
+   ======================================================================== */
+
+export function leadView(lang, ctx) {
+  const t = DSTR[lang];
+  const l = ctx.lead;
+  if (!l) {
+    return `
+<nav class="crumb"><button class="link" data-act="go" data-route="#/leads">← ${esc(t.backToLeads)}</button></nav>
+<section class="card"><div class="card__head"><h2>${esc(t.leadNotFound)}</h2></div></section>`;
+  }
+
+  const co = leadCompany(l);
+  const events = ctx.leadEvents || [];
+  const proposals = ctx.leadProposals || [];
+  const hits = ctx.projectHits || [];
+  const late = lateBy(l.next_follow_up_on);
+  const mayEdit = canPlan() || db.state.me?.department_id === 'bd';
+
+  const fact = (label, value, cls = '') =>
+    `<div class="fact"><span class="fact__l">${esc(label)}</span><span class="fact__v ${cls}">${value}</span></div>`;
+
+  return `
+<nav class="crumb"><button class="link" data-act="go" data-route="#/leads">← ${esc(t.backToLeads)}</button></nav>
+
+<section class="card">
+  <div class="card__head">
+    <h2>${esc(l.name)}</h2>
+    ${statusPill(l.status, lang)}
+    ${l.source ? `<span class="chip">${esc(l.source)}</span>` : ''}
+  </div>
+  <div class="factgrid">
+    ${fact(t.company, esc(co || t.companyUnknown), co ? '' : 'muted')}
+    ${fact(t.jobTitle, esc(l.title || '—'), l.title ? '' : 'muted')}
+    ${fact(t.email, l.email ? `<a class="link" href="mailto:${esc(l.email)}">${esc(l.email)}</a>` : '—', l.email ? '' : 'muted')}
+    ${fact(t.phone, l.phone ? `<a class="link" href="tel:${esc(String(l.phone).split(',')[0].replace(/\s/g, ''))}">${esc(l.phone)}</a>` : '—', l.phone ? '' : 'muted')}
+    ${fact(t.website, l.website ? `<a class="link" href="${esc(l.website)}" target="_blank" rel="noopener">${esc(co || l.website)} ↗</a>` : '—', l.website ? '' : 'muted')}
+    ${fact(t.owner, esc(l.owner?.full_name || t.unassigned), l.owner ? '' : 'muted')}
+    ${fact(t.followUp, `${esc(fmt(l.next_follow_up_on, lang))}${late ? ` <span class="bad small">${late} ${esc(t.overdue)}</span>` : ''}`)}
+    ${fact(t.createdOn, esc(fmt((l.created_at || '').slice(0, 10), lang)))}
+  </div>
+  ${l.notes ? `<h3 class="subhead">${esc(t.notes)}</h3><p class="prose">${esc(l.notes)}</p>` : ''}
+</section>
+
+<section class="card">
+  <div class="card__head"><h2>${esc(t.proposalsHead)}</h2><span class="muted small">${proposals.length}</span></div>
+  ${proposals.length ? `<div class="tblwrap"><table class="tbl tbl--tight">
+    <thead><tr><th>${esc(t.name)}</th><th>${esc(t.status)}</th>
+      <th class="num">${esc(t.due)}</th><th>${esc(t.owner)}</th><th></th></tr></thead>
+    <tbody>${proposals.map(p => `<tr>
+      <td><button class="link" data-act="go" data-route="#/p/${esc(p.id)}">${esc(p.name)}</button></td>
+      <td>${statusPill(p.status, lang)}</td>
+      <td class="num muted">${esc(fmt(p.due_on, lang))}</td>
+      <td class="small muted">${esc(p.owner?.full_name || t.unassigned)}</td>
+      <td class="num">${mayEdit ? `<button class="link small" data-unlink="${esc(p.id)}">${esc(t.unlink)}</button>` : ''}</td>
+    </tr>`).join('')}</tbody>
+  </table></div>` : `<p class="note">${esc(t.noProposals)}</p>`}
+
+  ${mayEdit ? `
+  <form id="linkForm" class="inlineform">
+    <div class="fields">
+      <label class="f f--wide"><span>${esc(t.linkProposal)}</span>
+        <input id="linkQ" placeholder="${esc(t.searchProjects)}" autocomplete="off" /></label>
+    </div>
+    ${hits.length ? `<ul class="filelist">${hits.map(p => `
+      <li class="filerow">
+        <span>${esc(p.name)} ${statusPill(p.status, lang)}</span>
+        ${p.lead_id && p.lead_id !== l.id
+          ? `<span class="muted small">${esc(t.alreadyLinked)}</span>`
+          : `<button type="button" class="btn btn--sm" data-link="${esc(p.id)}">${esc(t.link)}</button>`}
+      </li>`).join('')}</ul>`
+    : (ctx.projectQuery ? `<p class="note">${esc(t.noProjectMatch)}</p>` : '')}
+  </form>` : ''}
+</section>
+
+<section class="card">
+  <div class="card__head"><h2>${esc(t.leadHistory)}</h2></div>
+  ${mayEdit ? `<form id="leadNoteForm" class="inlineform">
+    <div class="fields">
+      <label class="f f--wide"><span>${esc(t.addNote)}</span><input id="leadNoteBody" required /></label>
+    </div>
+    <div class="actions"><button type="submit" class="btn btn--sm">${esc(t.post)}</button></div>
+  </form>` : ''}
+  ${events.length ? `<ul class="timeline">${events.map(e => `
+    <li class="timeline__i">
+      <span class="timeline__d">${esc(sinceText(e.occurred_at, lang, t))}</span>
+      <span class="timeline__b"><b>${esc(e.author?.full_name || '—')}</b> — ${esc(e.body || e.kind)}</span>
+    </li>`).join('')}</ul>` : `<p class="note">${esc(t.noLeadHistory)}</p>`}
 </section>`;
 }
 
