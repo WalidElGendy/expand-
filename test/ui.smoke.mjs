@@ -489,27 +489,62 @@ check(/\d{4}/.test(D.estimateBox('en', est)), 'the estimate box renders without 
   const bar = D.monthlyProjectsChart('en', fixtures, months);
   const heat = D.managerMonthChart('en', fixtures, months);
 
-  check(bar.includes('31 of 31'), 'the bar chart does not say how much of the portfolio it covers');
   /* Read the value labels the way the browser paints them — by the class on the
      <text>, not by a substring of the markup. An earlier version of this check
      looked for `axis--val">9<` and passed vacuously, because `text-anchor` sits
      between the class and the `>`. A guard that cannot fail guards nothing. */
-  const labels = (html) => [...html.matchAll(/class="axis axis--val"[^>]*>(\d+)</g)].map(m => m[1]);
-  check(labels(bar).join() === '14', `the peak label is wrong: ${labels(bar)}`);
+  const labels = (html) => [...html.matchAll(/class="axis axis--val"[^>]*>(\d+)</g)].map(m => +m[1]);
 
-  /* A tie must label BOTH bars. Two bars at the same height where only one
-     carries a number reads as "this one is higher", which is a lie the chart
-     tells confidently — and the real data ties: Nov 2025 and Jan 2026 are
-     both 55. */
+  /* EVERY bar carries its count, and the counts must sum to the number of
+     projects handed in — not to the number that happen to fall inside the
+     window. That is the whole point of the change: the header said "355 of
+     369" and the missing 14 were invisible. */
+  check(labels(bar).join() === '12,5,14', `the bars are not all labelled: ${labels(bar)}`);
+  check(labels(bar).reduce((a, b) => a + b, 0) === fixtures.length,
+    `the bars total ${labels(bar).reduce((a, b) => a + b, 0)} against ${fixtures.length} projects`);
+  check(bar.includes('31 projects'), 'the header does not state the full project count');
+
+  /* A run of projects two years before the window must NOT vanish and must NOT
+     stretch the axis across the empty years. They fold into one grey bucket at
+     the head, and the total still reconciles. */
+  const withOld = [...mk('2023-08', 'A', 4), ...fixtures];
+  const oldMonths = D.monthWindow(withOld, 3);
+  const oldBar = D.monthlyProjectsChart('en', withOld, oldMonths);
+  check(labels(oldBar).join() === '4,12,5,14', `the earlier bucket is wrong: ${labels(oldBar)}`);
+  check(labels(oldBar).reduce((a, b) => a + b, 0) === withOld.length,
+    'projects outside the window were dropped instead of bucketed');
+  check(oldBar.includes('35 projects'), 'the header ignores the bucketed projects');
+  check(oldBar.includes('var(--ink3)') && oldBar.includes(D.DSTR.en.earlierBar),
+    'the bucket is painted and labelled as if it were a month');
+  check(!bar.includes('var(--ink3)'), 'an empty bucket was drawn when nothing falls outside the window');
+
+  /* A tie must label both bars — the real data ties at 55 in Nov 25 and Jan 26
+     — and with every bar labelled the y axis would print the same numbers a
+     second time, so it is gone. */
   const tied = [...mk('2026-01', 'A', 6), ...mk('2026-02', 'A', 3), ...mk('2026-03', 'A', 6)];
   const tiedBar = D.monthlyProjectsChart('en', tied, D.monthWindow(tied));
-  check(labels(tiedBar).join() === '6,6', `a tie was not labelled on both bars: ${labels(tiedBar)}`);
+  check(labels(tiedBar).join() === '6,3,6', `a tie was not labelled on both bars: ${labels(tiedBar)}`);
+  check(!/text-anchor="end"/.test(bar), 'the y axis is still drawn alongside the value labels');
 
   /* The heatmap must account for exactly the same projects as the bar chart.
      If these two ever disagree the screen is telling two different stories. */
-  const totals = [...heat.matchAll(/<td class="heat__tot">(\d+)<\/td>/g)].map(m => +m[1]);
-  check(totals.reduce((a, b) => a + b, 0) === fixtures.length,
-    `the heatmap totals ${totals.reduce((a, b) => a + b, 0)} against ${fixtures.length} projects`);
+  const sumTot = (html) => [...html.matchAll(/<td class="heat__tot">(\d+)<\/td>/g)]
+    .reduce((a, m) => a + +m[1], 0);
+  check(sumTot(heat) === fixtures.length,
+    `the heatmap totals ${sumTot(heat)} against ${fixtures.length} projects`);
+
+  /* And they must still agree once projects fall outside the window — the case
+     that broke it. Both cards bucket the same rows the same way, so the number
+     in the left header and the sum of the right column are one number. */
+  const oldHeat = D.managerMonthChart('en', withOld, oldMonths);
+  check(sumTot(oldHeat) === withOld.length,
+    `the heatmap totals ${sumTot(oldHeat)} against ${withOld.length} projects once some fall outside the window`);
+  check(sumTot(oldHeat) === labels(oldBar).reduce((a, b) => a + b, 0),
+    'the two cards reconcile to different totals');
+  check(oldHeat.includes('background:var(--ink3)'),
+    'the heatmap bucket is on the sequential ramp, comparing years against months');
+  check(!heat.includes('var(--ink3)'), 'an empty bucket column was drawn in the heatmap');
+
   check(heat.includes('Fahad') && heat.includes('Salman'), 'managers are missing from the heatmap');
   check(heat.indexOf('Fahad') < heat.indexOf('Salman'), 'the heatmap is not sorted by volume');
   check(heat.includes(D.DSTR.en.unassignedOwner), 'projects with no owner vanished from the heatmap');
