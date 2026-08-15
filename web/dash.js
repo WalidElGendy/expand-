@@ -135,6 +135,12 @@ export const DSTR = {
     companyUnknown: 'No company recorded',
     fromLead: 'Came from lead', openInAsanaLead: 'Open in Asana',
 
+    /* --- volume charts --- */
+    projectsByMonth: 'Projects by month', byManager: 'Projects per manager',
+    perMonth: 'per month', total_: 'Total', fewer: 'Fewer', more: 'More',
+    startedInWindow: '{n} of {t} started in this window',
+    byStartNote: 'Counted by the month work started, which every project has. Deadlines are set on only 95 of them, so counting by deadline would describe a quarter of the business and look like all of it.',
+
     /* --- Projects screen: filters and detail ------------------------------ */
     filters: 'Filters', clearFilters: 'Clear',   // owner/team/status/due already exist above
     anyOwner: 'Any owner', anyTeam: 'Any team', anyStatus: 'Any status', anyDue: 'Any deadline',
@@ -252,6 +258,11 @@ export const DSTR = {
     leadHistory: 'النشاط', noLeadHistory: 'لا شيء مسجل بعد.',
     companyUnknown: 'لا توجد شركة مسجلة',
     fromLead: 'جاء من عميل محتمل', openInAsanaLead: 'افتح في أسانا',
+
+    projectsByMonth: 'المشاريع حسب الشهر', byManager: 'المشاريع لكل مدير',
+    perMonth: 'شهرياً', total_: 'الإجمالي', fewer: 'أقل', more: 'أكثر',
+    startedInWindow: '{n} من {t} بدأت في هذه الفترة',
+    byStartNote: 'محسوبة حسب شهر بدء العمل، وهو موجود لكل مشروع. المواعيد النهائية مسجلة على ٩٥ مشروعاً فقط، لذا العد حسب الموعد النهائي يصف ربع الأعمال ويبدو وكأنه كلها.',
 
     filters: 'التصفية', clearFilters: 'مسح',
     anyOwner: 'كل المسؤولين', anyTeam: 'كل الفرق', anyStatus: 'كل الحالات', anyDue: 'كل المواعيد',
@@ -403,6 +414,190 @@ const kpi = (n, label, { sub = '', bad = false, colour = '', date = false } = {}
    would have read as "nothing due" rather than "nothing captured".        */
 
 function monthKey(d) { return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`; }
+
+/* ===================================================================== volume
+
+   Two questions, two charts, one shared month axis so they can be read across:
+   how much work started each month, and who was carrying it.
+
+   The month comes from `start_on`, not `due_on`. Only 95 of 369 projects have
+   a deadline, so a "projects per month" chart built on due dates would quietly
+   describe a quarter of the business and present it as all of it. Every
+   project has a start date. `created_at` is useless here — the Asana import
+   stamped all 369 rows with the same day, so grouping by it draws one bar.
+   ===================================================================== */
+
+/** The months both charts share: contiguous, so an idle month reads as a gap
+    rather than being closed up, and capped at the last 12 that carry data. */
+export function monthWindow(projects, span = 12) {
+  const keys = projects.filter(p => p.start_on).map(p => monthKey(parse(p.start_on)));
+  if (!keys.length) return [];
+  const sorted = [...new Set(keys)].sort();
+  const out = [];
+  let [y, m] = sorted[0].split('-').map(Number);
+  const [ly, lm] = sorted[sorted.length - 1].split('-').map(Number);
+  while (y < ly || (y === ly && m <= lm)) {
+    out.push(`${y}-${String(m).padStart(2, '0')}`);
+    if (++m > 12) { m = 1; y++; }
+    if (out.length > 60) break;
+  }
+  return out.slice(-span);
+}
+
+const monthLabel = (k, lang) => {
+  const [yy, mm] = k.split('-');
+  return new Date(Date.UTC(+yy, +mm - 1, 1))
+    .toLocaleDateString(lang === 'ar' ? 'ar-SA-u-ca-gregory' : 'en-GB',
+      { month: 'short', timeZone: 'UTC' });
+};
+const monthLong = (k, lang) => {
+  const [yy, mm] = k.split('-');
+  return new Date(Date.UTC(+yy, +mm - 1, 1))
+    .toLocaleDateString(lang === 'ar' ? 'ar-SA-u-ca-gregory' : 'en-GB',
+      { month: 'long', year: 'numeric', timeZone: 'UTC' });
+};
+
+/* How many projects started each month. One series, so slot-1 brand purple and
+   no legend — the title names it. Only the peak is labelled: a number over
+   every bar is a table wearing a chart's clothes. */
+export function monthlyProjectsChart(lang, projects, months) {
+  const t = DSTR[lang];
+  const inScope = projects.filter(p => p.start_on);
+  if (months.length < 2) return '';
+
+  const counts = new Map();
+  for (const p of inScope) {
+    const k = monthKey(parse(p.start_on));
+    counts.set(k, (counts.get(k) || 0) + 1);
+  }
+  const all = months.map(k => ({ k, n: counts.get(k) || 0 }));
+  const shown = all.reduce((a, s) => a + s.n, 0);
+  const max = Math.max(...all.map(s => s.n), 1);
+
+  /* An SVG does not mirror under `dir="rtl"` — its coordinates are absolute —
+     but the heatmap beside it is a table and does. Left unhandled, the two
+     charts run in opposite directions in Arabic and the shared month axis,
+     which is the whole reason they sit side by side, stops lining up. So the
+     bars are reversed by hand for RTL. */
+  const series = lang === 'ar' ? [...all].reverse() : all;
+
+  const W = 560, H = 250, PAD_L = 34, PAD_R = 10, PAD_T = 22, PAD_B = 34;
+  const plotW = W - PAD_L - PAD_R, plotH = H - PAD_T - PAD_B;
+  const step = plotW / series.length;
+  const barW = Math.max(6, Math.min(34, step - 8));
+  const yOf = (n) => PAD_T + plotH - (n / max) * plotH;
+  const ticks = [0, Math.round(max / 2), max].filter((v, i, a) => a.indexOf(v) === i);
+  const barPath = (x, y, w, h) => {
+    const r = Math.min(4, w / 2, h);
+    return h <= 0 ? '' : `M${x} ${y + h}V${y + r}q0-${r} ${r}-${r}h${w - 2 * r}q${r} 0 ${r} ${r}V${y + h}Z`;
+  };
+  const peak = series.reduce((a, b) => (b.n > a.n ? b : a), series[0]);
+
+  return `
+<section class="card">
+  <div class="card__head"><h2>${esc(t.projectsByMonth)}</h2>
+    <span class="muted small">${esc(t.startedInWindow.replace('{n}', shown).replace('{t}', projects.length))}</span></div>
+  <div class="chartwrap">
+    <svg viewBox="0 0 ${W} ${H}" class="chart" role="img"
+         aria-label="${esc(t.projectsByMonth)}">
+      ${ticks.map(v => `<line x1="${PAD_L}" x2="${W - PAD_R}" y1="${yOf(v)}" y2="${yOf(v)}" class="grid"/>
+        <text x="${PAD_L - 8}" y="${yOf(v) + 4}" class="axis" text-anchor="end">${v}</text>`).join('')}
+      ${series.map((s, i) => {
+        const x = PAD_L + i * step + (step - barW) / 2;
+        const y = yOf(s.n), h = PAD_T + plotH - y;
+        return `<g><title>${esc(monthLong(s.k, lang))} — ${s.n}</title>
+          <path d="${barPath(x, y, barW, h)}" fill="var(--brand)"/>
+          ${s.k === peak.k && s.n ? `<text x="${x + barW / 2}" y="${y - 7}" class="axis axis--val" text-anchor="middle">${s.n}</text>` : ''}
+        </g>`;
+      }).join('')}
+      ${series.map((s, i) => `<text x="${PAD_L + i * step + step / 2}" y="${H - 12}" class="axis" text-anchor="middle">${esc(monthLabel(s.k, lang))}</text>`).join('')}
+    </svg>
+  </div>
+  <p class="note">${esc(t.byStartNote)}</p>
+</section>`;
+}
+
+/* Who carried it. 21 managers over 12 months is a grid, not a series set — a
+   stacked bar would need 21 hues and the palette tops out at 8. A heatmap
+   answers "how many, who, when" in one read with a single hue, and the row
+   labels carry the totals so magnitude is never colour-alone. */
+export function managerMonthChart(lang, projects, months) {
+  const t = DSTR[lang];
+  if (months.length < 2) return '';
+
+  const inWindow = new Set(months);
+  const rows = new Map();
+  for (const p of projects) {
+    if (!p.start_on) continue;
+    const k = monthKey(parse(p.start_on));
+    if (!inWindow.has(k)) continue;
+    const who = p.owner?.full_name || t.unassignedOwner;
+    if (!rows.has(who)) rows.set(who, { who, total: 0, by: new Map() });
+    const r = rows.get(who);
+    r.total++; r.by.set(k, (r.by.get(k) || 0) + 1);
+  }
+  const list = [...rows.values()].sort((a, b) => b.total - a.total || a.who.localeCompare(b.who));
+  if (!list.length) return '';
+
+  /* Sequential, single hue, light→dark flipped for a dark surface so more is
+     brighter. Four steps rather than five: validated on #101014, five could
+     not keep both a 2:1 floor against the panel and a readable step gap.
+       node scripts/validate_palette.js — ordinal mode, ALL CHECKS PASS */
+  const RAMP = ['#6a27a5', '#824cbc', '#9c6dd3', '#b68ee9'];
+
+  /* Bands by quantile, not by an equal slice of the range. Project counts per
+     manager-month are heavily skewed — most cells are 1–3 while one busy month
+     hits 13 — and cutting the range into four equal parts drops ~85% of the
+     grid into the darkest band, so the whole thing reads as one flat colour
+     and the encoding does no work. Quantiles put the cuts where the data
+     actually is. Duplicate cuts are dropped rather than drawn as two
+     indistinguishable steps that claim to mean different things. */
+  const vals = list.flatMap(r => [...r.by.values()]).filter(n => n > 0).sort((a, b) => a - b);
+  const cuts = [...new Set([0.25, 0.5, 0.75]
+    .map(q => vals[Math.floor(q * (vals.length - 1))]))]
+    .filter(v => v < vals[vals.length - 1]);
+  const steps = RAMP.slice(0, cuts.length + 1);
+  const bandOf = (n) => {
+    if (n <= 0) return -1;
+    for (let i = 0; i < cuts.length; i++) if (n <= cuts[i]) return i;
+    return steps.length - 1;
+  };
+  const fillOf = (n) => (n <= 0 ? 'var(--s-2)' : steps[bandOf(n)]);
+  // What each step starts at, so the legend states the scale rather than
+  // asking the reader to guess what "brighter" is worth.
+  const bandLow = (i) => (i === 0 ? 1 : cuts[i - 1] + 1);
+
+  return `
+<section class="card">
+  <div class="card__head"><h2>${esc(t.byManager)}</h2>
+    <span class="muted small">${list.length} · ${esc(t.perMonth)}</span></div>
+  <div class="tblwrap">
+    <table class="heat">
+      <thead><tr><th class="heat__rowh">${esc(t.owner)}</th>
+        ${months.map(k => `<th class="heat__colh">${esc(monthLabel(k, lang))}</th>`).join('')}
+        <th class="heat__tot">${esc(t.total_)}</th></tr></thead>
+      <tbody>
+        ${list.map(r => `<tr>
+          <td class="heat__rowh">${esc(r.who)}</td>
+          ${months.map(k => {
+            const n = r.by.get(k) || 0;
+            return `<td class="heat__c"><span class="heat__box" style="background:${fillOf(n)}"
+              title="${esc(r.who)} — ${esc(monthLong(k, lang))} — ${n}"
+              aria-label="${esc(r.who)} — ${esc(monthLong(k, lang))} — ${n}">${n ? n : ''}</span></td>`;
+          }).join('')}
+          <td class="heat__tot">${r.total}</td></tr>`).join('')}
+      </tbody>
+    </table>
+  </div>
+  <div class="heatkey">
+    <span class="muted small">${esc(t.fewer)}</span>
+    <span class="heat__box heat__box--key" style="background:var(--s-2)" title="0">0</span>
+    ${steps.map((c, i) => `<span class="heat__box heat__box--key" style="background:${c}"
+      title="${bandLow(i)}+">${bandLow(i)}${i === steps.length - 1 ? '+' : ''}</span>`).join('')}
+    <span class="muted small">${esc(t.more)}</span>
+  </div>
+</section>`;
+}
 
 export function deadlineChart(lang, projects) {
   const dated = projects.filter(p => p.due_on);
@@ -852,6 +1047,18 @@ export function pmView(lang, ctx) {
   ${kpi(openLeads, t.openLeads, { sub: `${leads.length} ${lang === 'ar' ? 'في القائمة' : 'in the list'}`, colour: 'var(--s3)' })}
   ${kpi(esc(fmt(freeFrom, lang)), t.nextFree, { date: true, sub: lang === 'ar' ? 'حجم متوسط، يبدأ اليوم' : 'medium size, starting today', colour: 'var(--s1)' })}
 </div>
+
+${(() => {
+  /* Both charts get the SAME months, so a spike on the left can be traced to a
+     row on the right. Computed once from the whole portfolio, not from the
+     filtered set: these two answer "what does the year look like", and
+     re-cutting them on every filter would make them a second, quieter table. */
+  const months = monthWindow(projects);
+  return `<div class="chartrow">
+  ${monthlyProjectsChart(lang, projects, months)}
+  ${managerMonthChart(lang, projects, months)}
+</div>`;
+})()}
 
 ${deadlineChart(lang, open)}
 
