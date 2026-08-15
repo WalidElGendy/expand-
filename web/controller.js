@@ -361,17 +361,76 @@ export function wireApp(lang) {
      every screen that uses dropField() gets it — the documents library and
      the two on the new-project form alike. */
   $$('.drop input[type="file"]').forEach(input => {
+    const wrap = input.closest('.dropwrap');
     const drop = input.closest('.drop');
     const hintEl = drop?.querySelector('[data-hint]');
+    const pendBox = wrap?.querySelector(`[data-pend-for="${CSS.escape(input.id)}"]`);
     if (!hintEl) return;
     const hint = hintEl.textContent;
-    input.onchange = () => {
+
+    /* A FileList is read-only, so a queue you can add to and remove from has
+       to be rebuilt through a DataTransfer and assigned back. This is the
+       whole trick, and it is why the list on screen and the thing that gets
+       uploaded are the same object rather than two that agree until they
+       don't. */
+    const setQueue = (files) => {
+      const dt = new DataTransfer();
+      files.forEach(f => dt.items.add(f));
+      input.files = dt.files;   // assignment fires no change event, so no loop
+      input.__prev = files;     // written here and nowhere else
+      paint();
+    };
+
+    /* Same name, size and mtime is the same file. Without this, someone who
+       opens the picker twice because they forgot what they chose the first
+       time silently uploads two copies of the brief. */
+    const key = (f) => `${f.name} ${f.size} ${f.lastModified}`;
+
+    const paint = () => {
       const picked = [...input.files];
       drop.classList.toggle('is-set', picked.length > 0);
-      hintEl.textContent = !picked.length ? hint
-        : picked.length === 1 ? picked[0].name
-        : `${picked.length} ${V.DSTR[lang].filesPicked} — ${picked.map(f => f.name).join(', ')}`;
+      // The hint says what the field takes; the list below says what is in it.
+      // Repeating the file names in both is noise on a field that now holds
+      // ten of them.
+      hintEl.textContent = hint;
+      if (pendBox) pendBox.innerHTML = V.pendingFiles(lang, input.id, picked);
     };
+
+    input.onchange = () => {
+      /* Picking again ADDS. The native control replaces, which on a field
+         that accepts many files means the second trip to the picker silently
+         throws away the first — and the only way to attach two documents
+         would be to remember to ctrl-click both in one go. */
+      if (!input.multiple) { input.__prev = [...input.files]; paint(); return; }
+      /* `__prev` is a memory of the last queue, needed because by the time
+         `change` fires the control has already replaced `files` with the new
+         pick alone. */
+      const merged = [...(input.__prev || [])];
+      const seen = new Set(merged.map(key));
+      for (const f of input.files) if (!seen.has(key(f))) { seen.add(key(f)); merged.push(f); }
+      setQueue(merged);
+    };
+
+    /* Bound on the wrapper, not on the buttons: the list is re-rendered on
+       every change, so a handler attached to a button dies with it. Assigned
+       rather than addEventListener, so re-wiring the same DOM cannot stack up
+       duplicate handlers and remove two files per click. */
+    if (wrap) wrap.onclick = (e) => {
+      const btn = e.target.closest('[data-drop-rm]');
+      if (!btn || btn.dataset.dropRm !== input.id) return;
+      e.preventDefault();
+      const gone = Number(btn.dataset.i);
+      setQueue([...input.files].filter((_, i) => i !== gone));
+      /* Focus has to land somewhere deliberate — the button that had it was
+         just destroyed, and focus dumped on <body> strands a keyboard user
+         back at the top of the form. Take the row that slid into this slot,
+         or the last one if the removed row was the last. */
+      const left = wrap.querySelectorAll('[data-drop-rm]');
+      (left[Math.min(gone, left.length - 1)] || input).focus();
+    };
+
+    input.__prev = [...input.files];
+    paint();
   });
 
   const df = $('#docForm');
@@ -558,9 +617,12 @@ function wireNewProject(lang, form) {
       }
 
       // Files last: a project with no RFP is recoverable, an RFP with no
-      // project to hang off is not.
-      const rfp = $('#pRfp').files[0];
-      if (rfp) await db.uploadFile('rfps', rfp, { purpose: 'rfp', project_id: project.id });
+      // project to hang off is not. Every file the queue holds goes up — it
+      // used to read `.files[0]` and drop the rest on the floor without
+      // saying so.
+      for (const doc of [...$('#pRfp').files]) {
+        await db.uploadFile('rfps', doc, { purpose: 'rfp', project_id: project.id });
+      }
       for (const ref of [...$('#pRefs').files]) {
         await db.uploadFile('refs', ref, { purpose: 'reference', project_id: project.id });
       }
