@@ -712,6 +712,86 @@ for (const lang of ['en', 'ar']) {
   }
 }
 
+/* ------------------------- attachments on a new project -------------------
+   Both pickers take many files now, and the queue is listed under the target
+   so it can be edited before anything is uploaded. The bug that made this
+   necessary: submit read `$('#pRfp').files[0]` — a single index — so anyone
+   who attached a brief plus its BOQ got the brief, silently, with no error
+   and nothing on screen to suggest the second file had been dropped. */
+{
+  check(D.fileSize(0) === '0 B', 'an empty file has no size');
+  check(D.fileSize(999) === '999 B', 'bytes are not shown as bytes');
+  check(D.fileSize(2048) === '2.0 KB', 'kilobytes are wrong');
+  check(D.fileSize(1024 * 1024 * 3.5) === '3.5 MB', 'megabytes are wrong');
+  /* Not rounded to a flat "1 MB" for everything between 0.5 and 1.5: the size
+     is here so a 200KB logo can be told from a 40MB render before committing
+     to the wait. */
+  check(D.fileSize(1024 * 1024 * 40) === '40 MB', 'a large render loses its precision');
+  check(D.fileSize(NaN) === '' && D.fileSize(-1) === '', 'a nonsense size prints something');
+
+  for (const lang of ['en', 'ar']) {
+    const t = D.DSTR[lang];
+    const form = D.newProjectView(lang, { people: [], stages: [] });
+
+    /* Both fields, not just the reference one. `multiple` is what the native
+       control checks; without it the OS picker refuses a second selection. */
+    for (const id of ['pRfp', 'pRefs']) {
+      const tag = form.match(new RegExp(`<input id="${id}"[^>]*>`))?.[0] || '';
+      check(/\bmultiple\b/.test(tag), `${lang}: #${id} still takes one file only`);
+      check(form.includes(`data-pend-for="${id}"`), `${lang}: #${id} has nowhere to list what is queued`);
+    }
+
+    /* The list must be a SIBLING of the label. Nested inside it, a click on a
+       remove button bubbles to the label and reopens the file dialog, so
+       removing a file would immediately demand another one. */
+    const field = form.slice(form.indexOf('<input id="pRfp"'));
+    check(field.indexOf('</label>') < field.indexOf('data-pend-for="pRfp"'),
+      `${lang}: the queue sits inside the label that opens the picker`);
+
+    const files = [
+      { name: 'brief.pdf', size: 2048 },
+      { name: 'boq.xlsx', size: 1024 * 1024 * 2 },
+    ];
+    const list = D.pendingFiles(lang, 'pRfp', files);
+    check(list.includes('brief.pdf') && list.includes('boq.xlsx'),
+      `${lang}: a queued file is not listed`);
+    check((list.match(/data-drop-rm="pRfp"/g) || []).length === 2,
+      `${lang}: not every queued file can be removed`);
+    check(/data-i="0"/.test(list) && /data-i="1"/.test(list),
+      `${lang}: the remove buttons do not say which file they remove`);
+    check(list.includes(t.filesQueued.replace('{n}', 2)),
+      `${lang}: the queue does not say how many files are in it`);
+    // The running total, so nobody starts a 400MB upload without warning.
+    check(list.includes('2.0 MB'), `${lang}: the queue does not total the upload`);
+    check(D.pendingFiles(lang, 'pRfp', []) === '',
+      `${lang}: an empty queue still draws a heading`);
+  }
+
+  /* The mechanism, in the browser that actually has to run it. A FileList is
+     read-only, so add and remove are implemented by rebuilding one through a
+     DataTransfer and assigning it back — if that assignment is ever refused,
+     every guard above still passes and the feature is dead. So it is exercised
+     for real rather than asserted about. */
+  await page.goto(URL_, { waitUntil: 'networkidle' });
+  const q = await page.evaluate(() => {
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.multiple = true;
+    const put = (names) => {
+      const dt = new DataTransfer();
+      names.forEach(n => dt.items.add(new File(['x'], n, { type: 'text/plain' })));
+      inp.files = dt.files;
+      return [...inp.files].map(f => f.name);
+    };
+    const first = put(['brief.pdf', 'boq.xlsx']);
+    const kept = [...inp.files].filter((_, i) => i !== 0);
+    const dt = new DataTransfer(); kept.forEach(f => dt.items.add(f)); inp.files = dt.files;
+    return { first, afterRemove: [...inp.files].map(f => f.name) };
+  });
+  check(q.first.join() === 'brief.pdf,boq.xlsx', `a queue could not be built: ${q.first}`);
+  check(q.afterRemove.join() === 'boq.xlsx',
+    `removing a file did not change what the input would upload: ${q.afterRemove}`);
+}
+
 /* ------------------------------- the People screen ----------------------- */
 const people = [
   { id: 'a', full_name: 'Arrived',  email: 'a@x.com', user_id: 'ua', is_active: true,  last_seen_at: '2026-08-11T09:00:00Z', department_id: '3d', role: 'member' },
