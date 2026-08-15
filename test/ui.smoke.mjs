@@ -490,9 +490,20 @@ check(/\d{4}/.test(D.estimateBox('en', est)), 'the estimate box renders without 
   const heat = D.managerMonthChart('en', fixtures, months);
 
   check(bar.includes('31 of 31'), 'the bar chart does not say how much of the portfolio it covers');
-  check(bar.includes('>14<'), 'the peak month is not labelled');
-  check((bar.match(/>9</g) || []).length === 0 || !bar.includes('axis--val">9<'),
-    'a value label was drawn on a bar that is not the peak');
+  /* Read the value labels the way the browser paints them — by the class on the
+     <text>, not by a substring of the markup. An earlier version of this check
+     looked for `axis--val">9<` and passed vacuously, because `text-anchor` sits
+     between the class and the `>`. A guard that cannot fail guards nothing. */
+  const labels = (html) => [...html.matchAll(/class="axis axis--val"[^>]*>(\d+)</g)].map(m => m[1]);
+  check(labels(bar).join() === '14', `the peak label is wrong: ${labels(bar)}`);
+
+  /* A tie must label BOTH bars. Two bars at the same height where only one
+     carries a number reads as "this one is higher", which is a lie the chart
+     tells confidently — and the real data ties: Nov 2025 and Jan 2026 are
+     both 55. */
+  const tied = [...mk('2026-01', 'A', 6), ...mk('2026-02', 'A', 3), ...mk('2026-03', 'A', 6)];
+  const tiedBar = D.monthlyProjectsChart('en', tied, D.monthWindow(tied));
+  check(labels(tiedBar).join() === '6,6', `a tie was not labelled on both bars: ${labels(tiedBar)}`);
 
   /* The heatmap must account for exactly the same projects as the bar chart.
      If these two ever disagree the screen is telling two different stories. */
