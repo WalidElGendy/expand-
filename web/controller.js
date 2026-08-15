@@ -23,6 +23,11 @@ export const ctx = {
   // One project, its attachments, its tasks and its history.
   project: null, projectFiles: [], projectTasks: [], projectEvents: [],
 
+  // One lead, its activity, the proposals linked to it, and the search
+  // results behind the "link a proposal" box.
+  lead: null, leadEvents: [], leadProposals: [], projectHits: [], projectQuery: '',
+  lf: { ...V.LF_DEFAULT },
+
   /* Filter state for the Projects table. It lives here rather than in the
      URL because these are a working session's questions, not addresses worth
      sharing — and rather than inside the view because the view is a pure
@@ -64,6 +69,18 @@ export async function loadFor(route, id) {
       jobs.push(db.listFiles({ project_id: id }).then(f => { ctx.projectFiles = f; }).catch(() => {}));
       jobs.push(db.listProjectTasks(id).then(x => { ctx.projectTasks = x; }).catch(() => {}));
       jobs.push(db.listProjectEvents(id).then(e => { ctx.projectEvents = e; }).catch(() => {}));
+      jobs.push(db.listPeople().then(p => { ctx.people = p; }).catch(() => {}));
+    }
+
+    /* One lead. Same reasoning as the project page: fetched by id so a deep
+       link works, and the proposals come with it because "did we bid for
+       them" is the question the page exists to answer. */
+    if (route === 'lead' && id) {
+      ctx.lead = null; ctx.leadEvents = []; ctx.leadProposals = [];
+      ctx.projectHits = []; ctx.projectQuery = '';
+      jobs.push(db.getLead(id).then(l => { ctx.lead = l; }).catch(() => { ctx.lead = null; }));
+      jobs.push(db.listLeadEvents(id).then(e => { ctx.leadEvents = e; }).catch(() => {}));
+      jobs.push(db.proposalsForLead(id).then(p => { ctx.leadProposals = p; }).catch(() => {}));
       jobs.push(db.listPeople().then(p => { ctx.people = p; }).catch(() => {}));
     }
     /* The Projects screen is open to everyone, so it needs the projects,
@@ -182,6 +199,71 @@ export function wireApp(lang) {
   });
   const clearPf = $('[data-pf-clear]');
   if (clearPf) clearPf.onclick = () => { ctx.pf = { ...V.PF_DEFAULT }; rerender(); };
+
+  /* --- Leads: the same filter bar, over the leads already in memory --- */
+  $$('[data-lf]').forEach(el => {
+    const key = el.dataset.lf;
+    el.onchange = () => { ctx.lf = { ...ctx.lf, [key]: el.value }; rerender(); };
+  });
+  const clearLf = $('[data-lf-clear]');
+  if (clearLf) clearLf.onclick = () => { ctx.lf = { ...V.LF_DEFAULT }; rerender(); };
+
+  /* --- one lead: link a proposal ---
+     Searches on the server rather than filtering a list this screen never
+     loaded. Debounced, because a keystroke is not a question. */
+  const linkQ = $('#linkQ');
+  if (linkQ) {
+    let timer = null;
+    linkQ.oninput = () => {
+      clearTimeout(timer);
+      const term = linkQ.value.trim();
+      timer = setTimeout(async () => {
+        ctx.projectQuery = term;
+        if (term.length < 2) { ctx.projectHits = []; rerender(); return; }
+        try { ctx.projectHits = await db.findProjects(term); }
+        catch { ctx.projectHits = []; }
+        rerender();
+        // Re-focus and restore the caret: the whole screen re-rendered under
+        // the person's hands and a search box that loses focus mid-word is
+        // unusable.
+        const box = $('#linkQ');
+        if (box) { box.focus(); box.value = term; box.setSelectionRange(term.length, term.length); }
+      }, 300);
+    };
+    $('#linkForm').onsubmit = (e) => e.preventDefault();
+  }
+
+  $$('[data-link]').forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    try {
+      await db.linkProposal(b.dataset.link, ctx.lead.id);
+      await loadFor('lead', ctx.lead.id);
+      rerender();
+    } catch (e) { fail(e); b.disabled = false; }
+  });
+
+  $$('[data-unlink]').forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    try {
+      await db.unlinkProposal(b.dataset.unlink);
+      await loadFor('lead', ctx.lead.id);
+      rerender();
+    } catch (e) { fail(e); b.disabled = false; }
+  });
+
+  const leadNote = $('#leadNoteForm');
+  if (leadNote) leadNote.onsubmit = async (e) => {
+    e.preventDefault();
+    const body = $('#leadNoteBody').value.trim();
+    if (!body) return;
+    const btn = leadNote.querySelector('button[type=submit]');
+    btn.disabled = true;
+    try {
+      await db.addLeadEvent({ lead_id: ctx.lead.id, kind: 'note', body });
+      ctx.leadEvents = await db.listLeadEvents(ctx.lead.id);
+      rerender();
+    } catch (err) { fail(err); btn.disabled = false; }
+  };
 
   /* --- one project: move it along the Etemad flow --- */
   const stForm = $('#stForm');
@@ -505,6 +587,7 @@ function bodyFor(lang, route, id) {
   if (route === 'new')      return V.newProjectView(lang, ctx);
   if (route === 'projects') return V.pmView(lang, ctx);
   if (route === 'project')  return V.projectView(lang, ctx);
+  if (route === 'lead')     return V.leadView(lang, ctx);
   if (route === 'leads') return V.leadsView(lang, ctx);
   if (route === 'docs')  return V.docsView(lang, ctx);
   if (route === 'admin') return V.adminView(lang, ctx);
