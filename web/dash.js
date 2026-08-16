@@ -74,6 +74,42 @@ export const DSTR = {
     searchPlaceholder: 'Search this page…',
     homeSub: 'What is open, what is late, and what it costs',
     leadsSub: 'Every lead and where it stands', peopleSub: 'Who can sign in, and as what',
+
+    /* --- business highlights (management only) --- */
+    highlights: 'Business highlights',
+    highlightsSub: 'Where the work sits, where it slips, and who it depends on',
+    openEstimator: 'Delivery estimator',
+    hlEmpty: 'There is nothing to measure yet.',
+
+    hlDelivery: 'Delivery record',
+    hlDeliveryNote: 'Only projects that have both a submission deadline and a recorded delivery date can be judged. The rest are silent, not on time.',
+    hlOnTime: 'Delivered on time', hlLate: 'Delivered late',
+    hlMedianLate: 'Typical delay when late', hlDays: 'days',
+    hlJudged: 'of {n} judged', hlUnjudged: '{n} projects have no delivery date recorded',
+    hlStillLate: 'Open and already past due', hlWorstLate: 'Longest overdue right now',
+    hlOnTimeRate: 'On-time rate',
+    hlLateBands: 'How late, when late',
+    hlLateBandsNote: 'Each delivered-late project placed in a band. One project 708 days late would drag an average; bands show the shape instead.',
+    band0: 'Up to a week', band1: '1–4 weeks', band2: '1–3 months', band3: 'Over 3 months',
+
+    hlLoad: 'Who is carrying what',
+    hlLoadNote: 'Open stages on open projects, by the person they are assigned to. Unassigned work is shown as its own row because it is nobody\'s and it is the biggest row.',
+    hlStages: 'open stages', hlPeople: 'people hold work', hlUnowned: 'stages nobody owns',
+    hlShareOfAll: 'share of all open work',
+
+    hlRisk: 'Single points of failure',
+    hlRiskNote: 'For each team, how much of its open work sits with one person. A high share means the team stops when that person does.',
+    hlBusiest: 'Busiest person', hlHolds: 'holds', hlOfTeam: 'of the team\'s open work',
+    hlSole: 'sole holder', hlRiskHigh: 'At risk', hlRiskOk: 'Spread',
+    hlTeam: 'Team', hlTeamStages: 'Open stages', hlConcentration: 'Concentration',
+
+    hlPipeline: 'Pipeline pressure',
+    hlPipelineNote: 'What is waiting on somebody. These are not forecasts — every number is a row that exists right now.',
+    hlLeadsNoOwner: 'Leads with no owner', hlFollowOverdue: 'Follow-ups past their date',
+    hlAtEtemad: 'Sitting at Etemad', hlAtEtemadSub: 'submitted, no verdict back',
+    hlProjNoOwner: 'Projects with no owner',
+    hlOfLeads: 'of {n} leads', hlOfProjects: 'of {n} projects',
+    hlNobody: 'nobody',
     openProjects: 'Open projects', overdue_: 'Overdue', unassigned_: 'Stages unassigned',
     committedDays: 'Design days committed', openLeads: 'Open leads', nextFree: 'A new project would deliver',
     ofTotal: 'of', needsReview: 'Needs review', allRows: 'All', teamsCol: 'Teams',
@@ -215,6 +251,42 @@ export const DSTR = {
     searchPlaceholder: 'ابحث في هذه الصفحة…',
     homeSub: 'ما هو مفتوح، وما هو متأخر، وكم يكلّف',
     leadsSub: 'كل عميل محتمل وموقعه', peopleSub: 'من يستطيع الدخول، وبأي صلاحية',
+
+    /* --- مؤشرات الأعمال (للإدارة فقط) --- */
+    highlights: 'مؤشرات الأعمال',
+    highlightsSub: 'أين يقف العمل، وأين يتأخر، وعلى من يعتمد',
+    openEstimator: 'حاسبة موعد التسليم',
+    hlEmpty: 'لا توجد بيانات كافية للقياس بعد.',
+
+    hlDelivery: 'سجل التسليم',
+    hlDeliveryNote: 'تُحتسب المشاريع التي لها موعد تقديم وتاريخ تسليم مسجّل معاً فقط. البقية غير معروفة، وليست «في الموعد».',
+    hlOnTime: 'سُلّمت في موعدها', hlLate: 'سُلّمت متأخرة',
+    hlMedianLate: 'التأخير المعتاد عند التأخر', hlDays: 'يوماً',
+    hlJudged: 'من {n} مقيّمة', hlUnjudged: '{n} مشروعاً بلا تاريخ تسليم مسجّل',
+    hlStillLate: 'مفتوحة وتجاوزت موعدها', hlWorstLate: 'الأطول تأخراً الآن',
+    hlOnTimeRate: 'نسبة الالتزام بالموعد',
+    hlLateBands: 'حجم التأخير عند التأخر',
+    hlLateBandsNote: 'كل مشروع متأخر داخل نطاق. مشروع واحد متأخر ٧٠٨ أيام يشوّه المتوسط، والنطاقات تُظهر الصورة الحقيقية.',
+    band0: 'حتى أسبوع', band1: 'أسبوع إلى ٤ أسابيع', band2: 'شهر إلى ٣ أشهر', band3: 'أكثر من ٣ أشهر',
+
+    hlLoad: 'من يحمل ماذا',
+    hlLoadNote: 'المراحل المفتوحة في المشاريع المفتوحة، حسب الشخص المسند إليه. العمل غير المسند له صف خاص لأنه ليس لأحد وهو أكبر صف.',
+    hlStages: 'مرحلة مفتوحة', hlPeople: 'أشخاص يحملون عملاً', hlUnowned: 'مرحلة بلا مسؤول',
+    hlShareOfAll: 'من إجمالي العمل المفتوح',
+
+    hlRisk: 'نقاط الاعتماد على شخص واحد',
+    hlRiskNote: 'لكل فريق: كم من عمله المفتوح يقع على شخص واحد. النسبة العالية تعني توقف الفريق بتوقفه.',
+    hlBusiest: 'الأكثر تحميلاً', hlHolds: 'يحمل', hlOfTeam: 'من عمل الفريق المفتوح',
+    hlSole: 'المسؤول الوحيد', hlRiskHigh: 'معرّض للخطر', hlRiskOk: 'موزّع',
+    hlTeam: 'الفريق', hlTeamStages: 'مراحل مفتوحة', hlConcentration: 'التركّز',
+
+    hlPipeline: 'ضغط خط الأعمال',
+    hlPipelineNote: 'ما ينتظر قراراً أو متابعة. ليست توقعات — كل رقم هنا صف موجود الآن.',
+    hlLeadsNoOwner: 'عملاء محتملون بلا مسؤول', hlFollowOverdue: 'متابعات تجاوزت موعدها',
+    hlAtEtemad: 'لدى اعتماد', hlAtEtemadSub: 'مقدَّمة ولم يصل قرار',
+    hlProjNoOwner: 'مشاريع بلا مسؤول',
+    hlOfLeads: 'من {n} عميلاً محتملاً', hlOfProjects: 'من {n} مشروعاً',
+    hlNobody: 'لا أحد',
     openProjects: 'مشاريع مفتوحة', overdue_: 'متأخرة', unassigned_: 'مراحل غير مسندة',
     committedDays: 'أيام تصميم ملتزم بها', openLeads: 'عملاء محتملون مفتوحون', nextFree: 'مشروع جديد يُسلَّم في',
     ofTotal: 'من', needsReview: 'تحتاج مراجعة', allRows: 'الكل', teamsCol: 'الفرق',
@@ -1092,6 +1164,264 @@ function filterBar(lang, ctx, all) {
 
 const STATUS_ORDER = ['intake', 'in_design', 'pricing', 'submitted', 'won',
                       'in_production', 'delivered', 'lost', 'archived'];
+
+/* ==========================================================================
+   BUSINESS HIGHLIGHTS — the management screen.
+
+   This screen used to be a card on the landing page, which meant a stranger
+   with the URL and no password could read staff names, work emails and task
+   counts. That version is gone: the data it drew came from a file compiled
+   into the bundle, and the file has been deleted. Everything below is read
+   live, over RLS, by somebody who has signed in and whom canPlan() allows.
+
+   The other rule this screen keeps: NOTHING HERE IS DERIVED FROM A COLUMN
+   THAT IS MOSTLY EMPTY. `effort_days` is set on 6 stages out of 629 and
+   `started_at`/`completed_at` on none, so utilisation, cycle time and "days
+   of capacity left" would be arithmetic performed on absence. They are not
+   here. Every figure below counts rows that exist, and where a denominator
+   is partial the card says so out loud rather than presenting a share of
+   what it happened to have as a share of the business.
+   ========================================================================== */
+
+const dayDiff = (a, b) => Math.round((parse(a) - parse(b)) / DAY);
+
+/** Did we deliver when we said we would? Judged only on projects that carry
+    both a deadline and a delivery date — the rest are unknown, and counting
+    unknown as "on time" is how an on-time rate becomes a compliment. */
+export function deliveryRecord(projects) {
+  const judged = [];
+  for (const p of projects) {
+    if (!p.due_on || !p.delivered_on) continue;
+    judged.push({ id: p.id, name: p.name, late: dayDiff(p.delivered_on, p.due_on) });
+  }
+  const late = judged.filter(j => j.late > 0);
+  const onTime = judged.length - late.length;
+
+  /* Median, not mean. One project came in 708 days after its deadline; an
+     average built on it reports a typical delay nobody has ever seen. */
+  const sorted = late.map(j => j.late).sort((a, b) => a - b);
+  const medianLate = sorted.length
+    ? (sorted.length % 2 ? sorted[(sorted.length - 1) / 2]
+       : Math.round((sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2))
+    : 0;
+
+  const bands = [0, 0, 0, 0];
+  for (const j of late) {
+    bands[j.late <= 7 ? 0 : j.late <= 28 ? 1 : j.late <= 90 ? 2 : 3]++;
+  }
+
+  /* Separately: what is late RIGHT NOW and has not been delivered at all.
+     A delivery record is history; this is the bill still outstanding. */
+  const now = today();
+  const open = projects.filter(p => !CLOSED_STATUS.includes(p.status));
+  const stillLate = open
+    .filter(p => p.due_on && p.due_on < now)
+    .map(p => ({ id: p.id, name: p.name, by: dayDiff(now, p.due_on) }))
+    .sort((a, b) => b.by - a.by);
+
+  return {
+    judged: judged.length, onTime, late: late.length, medianLate, bands,
+    unjudged: projects.length - judged.length,
+    rate: judged.length ? Math.round((onTime / judged.length) * 100) : null,
+    stillLate: stillLate.length, worst: stillLate[0] || null,
+  };
+}
+
+/** Open stages on open projects, by the person holding them. Unassigned is a
+    row, not a footnote — it is usually the largest one, and hiding it would
+    make the roster look busier than it is. */
+export function workloadByPerson(projects) {
+  const live = projects
+    .filter(p => !CLOSED_STATUS.includes(p.status))
+    .flatMap(p => (p.project_stages || []).filter(s => s.status !== 'done'));
+
+  const by = new Map();
+  let unassigned = 0;
+  for (const s of live) {
+    if (!s.assignee_id) { unassigned++; continue; }
+    const k = s.assignee_id;
+    const row = by.get(k) || { id: k, name: s.assignee?.full_name || '', dept: s.assignee?.department_id || s.department_id, n: 0 };
+    row.n++;
+    by.set(k, row);
+  }
+  const rows = [...by.values()].sort((a, b) => b.n - a.n || String(a.name).localeCompare(String(b.name)));
+  return { rows, unassigned, total: live.length, people: rows.length };
+}
+
+/** Where the business depends on one person. Per team: how much of its
+    ASSIGNED open work the busiest single person holds. The denominator is
+    assigned work rather than all work, because dividing by a total that is
+    half unassigned makes every team look comfortably spread. */
+export function keyPersonRisk(projects) {
+  const live = projects
+    .filter(p => !CLOSED_STATUS.includes(p.status))
+    .flatMap(p => (p.project_stages || []).filter(s => s.status !== 'done'));
+
+  const teams = new Map();
+  for (const s of live) {
+    const d = s.department_id || '—';
+    const team = teams.get(d) || { dept: d, total: 0, unassigned: 0, holders: new Map() };
+    team.total++;
+    if (!s.assignee_id) team.unassigned++;
+    else team.holders.set(s.assignee_id,
+      { name: s.assignee?.full_name || '', n: (team.holders.get(s.assignee_id)?.n || 0) + 1 });
+    teams.set(d, team);
+  }
+
+  return [...teams.values()].map(team => {
+    const holders = [...team.holders.values()].sort((a, b) => b.n - a.n);
+    const assigned = holders.reduce((a, h) => a + h.n, 0);
+    const top = holders[0] || null;
+    const share = assigned ? top.n / assigned : 0;
+    return {
+      dept: team.dept, total: team.total, unassigned: team.unassigned,
+      assigned, holders: holders.length, top, share,
+      /* Two people and one of them holds everything is a real dependency;
+         one stage held by one person is not a finding, it is a stage. */
+      risk: assigned >= 3 && share >= 0.6,
+      sole: assigned >= 3 && holders.length === 1,
+    };
+  }).sort((a, b) => b.total - a.total);
+}
+
+/** What is waiting on a human. Every figure is a row that exists today. */
+export function pipelinePressure(projects, leads) {
+  const now = today();
+  const live = (leads || []).filter(l => !['won', 'lost'].includes(l.status));
+  const open = projects.filter(p => !CLOSED_STATUS.includes(p.status));
+  return {
+    leadsTotal: (leads || []).length,
+    leadsNoOwner: (leads || []).filter(l => !l.owner_id).length,
+    followOverdue: live.filter(l => l.next_follow_up_on && l.next_follow_up_on < now).length,
+    followTotal: live.filter(l => l.next_follow_up_on).length,
+    atEtemad: projects.filter(p => p.status === 'submitted').length,
+    projNoOwner: open.filter(p => !p.owner_id).length,
+    projOpen: open.length,
+  };
+}
+
+/* A horizontal bar row. HTML rather than SVG: the labels are people's names,
+   they are long, half of them are Arabic, and a <div> mirrors under dir="rtl"
+   for free where an SVG's absolute coordinates do not. The number sits at the
+   end of its own bar, so there is no axis to read across to. */
+const hbar = (label, n, max, { colour = 'var(--brand)', muted = false, sub = '' } = {}) => `
+  <li class="hb${muted ? ' hb--muted' : ''}">
+    <span class="hb__l" title="${esc(label)}">${esc(label)}${sub ? `<span class="hb__sub">${esc(sub)}</span>` : ''}</span>
+    <span class="hb__track"><span class="hb__fill" style="width:${max ? Math.max(1.5, (n / max) * 100) : 0}%;background:${colour}"></span></span>
+    <span class="hb__n">${n}</span>
+  </li>`;
+
+export function highlightsView(lang, ctx) {
+  const t = DSTR[lang];
+  const projects = (ctx.projects || []).filter(p => !p.is_crm_list);
+  if (!projects.length) {
+    return `<section class="card"><p class="muted">${esc(t.hlEmpty)}</p></section>`;
+  }
+
+  const D = deliveryRecord(projects);
+  const L = workloadByPerson(projects);
+  const R = keyPersonRisk(projects);
+  const P = pipelinePressure(projects, ctx.leads || []);
+
+  /* ---------------------------------------------------- 1. delivery record */
+  const bandLabels = [t.band0, t.band1, t.band2, t.band3];
+  /* Sequential, one hue: these bands are ordered severity, not four different
+     things. It runs dim → bright rather than light → dark because the surface
+     is dark — the same direction the manager heatmap uses, so "more" means the
+     same thing on both screens. Status red is NOT used: it is reserved, and
+     every band here is already late, so painting them all red says nothing. */
+  const bandRamp = ['#6a27a5', '#824cbc', '#9c6dd3', '#b68ee9'];
+  const bandMax = Math.max(...D.bands, 1);
+
+  const delivery = `
+<section class="card">
+  <div class="card__head"><h2>${esc(t.hlDelivery)}</h2>
+    <span class="muted small">${esc(t.hlJudged.replace('{n}', D.judged))}</span></div>
+  <div class="kpis kpis--in">
+    ${kpi(D.rate === null ? '—' : `${D.rate}%`, t.hlOnTimeRate, { colour: 'var(--ok)',
+      sub: `${D.onTime} ${lang === 'ar' ? 'من' : 'of'} ${D.judged}` })}
+    ${kpi(D.late, t.hlLate, { colour: 'var(--warn)', bad: D.late > D.onTime,
+      sub: D.medianLate ? `${t.hlMedianLate}: ${D.medianLate} ${t.hlDays}` : '' })}
+    ${kpi(D.stillLate, t.hlStillLate, { colour: 'var(--critical)', bad: D.stillLate > 0,
+      sub: D.worst ? `${t.hlWorstLate}: ${D.worst.by} ${t.hlDays}` : '' })}
+  </div>
+  ${D.late ? `
+  <h3 class="subhead">${esc(t.hlLateBands)}</h3>
+  <ul class="hbars">
+    ${D.bands.map((n, i) => hbar(bandLabels[i], n, bandMax, { colour: bandRamp[i] })).join('')}
+  </ul>
+  <p class="note">${esc(t.hlLateBandsNote)}</p>` : ''}
+  <p class="note">${esc(t.hlDeliveryNote)} ${esc(t.hlUnjudged.replace('{n}', D.unjudged))}.</p>
+</section>`;
+
+  /* ------------------------------------------------- 2. who is carrying what */
+  const loadMax = Math.max(L.unassigned, ...L.rows.map(r => r.n), 1);
+  const load = `
+<section class="card">
+  <div class="card__head"><h2>${esc(t.hlLoad)}</h2>
+    <span class="muted small">${L.total} ${esc(t.hlStages)} · ${L.people} ${esc(t.hlPeople)}</span></div>
+  <ul class="hbars">
+    ${L.unassigned ? hbar(t.unassignedOwner, L.unassigned, loadMax, {
+      colour: 'var(--ink3)', muted: true,
+      sub: `${Math.round((L.unassigned / (L.total || 1)) * 100)}% ${t.hlShareOfAll}` }) : ''}
+    ${L.rows.map(r => hbar(r.name || '—', r.n, loadMax, {
+      colour: db.dept(r.dept)?.colour || 'var(--brand)',
+      sub: deptName(r.dept, lang) })).join('')}
+  </ul>
+  <p class="note">${esc(t.hlLoadNote)}</p>
+</section>`;
+
+  /* ------------------------------------------- 3. single points of failure */
+  const risk = `
+<section class="card">
+  <div class="card__head"><h2>${esc(t.hlRisk)}</h2></div>
+  <div class="tblwrap">
+    <table class="tbl">
+      <thead><tr>
+        <th>${esc(t.hlTeam)}</th>
+        <th class="num">${esc(t.hlTeamStages)}</th>
+        <th>${esc(t.hlBusiest)}</th>
+        <th>${esc(t.hlConcentration)}</th>
+        <th class="num">${esc(t.status)}</th>
+      </tr></thead>
+      <tbody>
+        ${R.map(r => `<tr>
+          <td><span class="pill" style="--c:${esc(db.dept(r.dept)?.colour || '#555')}">${esc(deptName(r.dept, lang))}</span></td>
+          <td class="num">${r.total}${r.unassigned ? `<span class="block small muted">${r.unassigned} ${esc(t.hlUnowned)}</span>` : ''}</td>
+          <td class="small ${r.top ? '' : 'muted'}">${esc(r.top?.name || t.hlNobody)}
+            ${r.top ? `<span class="block small muted">${esc(t.hlHolds)} ${r.top.n} ${esc(t.hlOfTeam)}</span>` : ''}</td>
+          <td>
+            <span class="conc"><span class="conc__f${r.risk ? ' conc__f--bad' : ''}" style="width:${Math.round(r.share * 100)}%"></span></span>
+            <span class="conc__n">${r.assigned ? `${Math.round(r.share * 100)}%` : '—'}</span>
+          </td>
+          <td class="num">${r.risk
+            ? `<span class="tag tag--bad">${esc(r.sole ? t.hlSole : t.hlRiskHigh)}</span>`
+            : `<span class="tag">${esc(t.hlRiskOk)}</span>`}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>
+  <p class="note">${esc(t.hlRiskNote)}</p>
+</section>`;
+
+  /* ---------------------------------------------------- 4. pipeline pressure */
+  const pipeline = `
+<section class="card">
+  <div class="card__head"><h2>${esc(t.hlPipeline)}</h2></div>
+  <div class="kpis kpis--in">
+    ${kpi(P.leadsNoOwner, t.hlLeadsNoOwner, { colour: 'var(--warn)', bad: P.leadsNoOwner > 0,
+      sub: t.hlOfLeads.replace('{n}', P.leadsTotal) })}
+    ${kpi(P.followOverdue, t.hlFollowOverdue, { colour: 'var(--critical)', bad: P.followOverdue > 0,
+      sub: `${lang === 'ar' ? 'من' : 'of'} ${P.followTotal} ${lang === 'ar' ? 'لها موعد متابعة' : 'with a date set'}` })}
+    ${kpi(P.atEtemad, t.hlAtEtemad, { colour: 'var(--s1)', sub: t.hlAtEtemadSub })}
+    ${kpi(P.projNoOwner, t.hlProjNoOwner, { colour: 'var(--s4)', bad: P.projNoOwner > 0,
+      sub: t.hlOfProjects.replace('{n}', P.projOpen) })}
+  </div>
+  <p class="note">${esc(t.hlPipelineNote)}</p>
+</section>`;
+
+  return delivery + load + risk + pipeline;
+}
 
 export function pmView(lang, ctx) {
   const t = DSTR[lang];
