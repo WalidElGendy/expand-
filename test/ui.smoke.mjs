@@ -739,6 +739,15 @@ for (const lang of ['en', 'ar']) {
      again is a smaller version of the bug this replaced. */
   check(code.includes('data-resend'), `${lang}: there is no way to ask for another code`);
 
+  /* The wrong-code message must NOT be Supabase's own "Token has expired or is
+     invalid". Those words are what four days of being locked out looked like,
+     and repeating them here would tell the one person who most needs to see a
+     change that nothing changed. */
+  const bad = D.signInView(lang, 'code', '!' + t.codeBad, null, 'x@y.com');
+  check(bad.includes(t.codeBad), `${lang}: the wrong-code message is missing`);
+  check(!/expired/i.test(t.codeBad) && !/انتهت/.test(t.codeBad),
+    `${lang}: the wrong-code message still says "expired"`);
+
   // The address is only carried where it was collected — never prefilled on a
   // fresh sign-in screen, which would leak the last person to use the device.
   check(!D.signInView(lang, 'in').includes('mahmoud@expandexpo.com'),
