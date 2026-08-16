@@ -61,19 +61,28 @@ page.on('requestfailed', r => {
   if (r.url().startsWith(URL_)) errors.push('REQFAIL: ' + r.url());
 });
 
-const ROUTES = [
-  ['#/',                        'landing'],
-  ['#/who',                     'who'],
-  ['#/me/1211783184896369',     'profile'],   // Mahmoud Abdelghny — 3D
-  ['#/me/1211755244109291',     'profile'],   // AMEEN EYAD — 2D
-  ['#/me/1211418760238119',     'profile'],   // Omar Khaled — pricing
-  ['#/me/1211554705221607',     'profile'],   // Lidia — BD, renders the pipeline
-  ['#/pipeline',                'pipeline'],
-  ['#/estimate',                'estimate'],
-  ['#/signin',                  'signin'],     // must render signed out
-  ['#/home',                    'signin'],     // an app route with no session
-  ['#/admin',                   'signin'],     //   redirects to sign-in, not a blank page
+/* Every one of these used to be a PUBLIC screen. `#/who` listed the roster
+   with departments and task counts, `#/me/<asana id>` was a person's profile,
+   `#/pipeline` was the deal list, and `#/` printed a department summary — all
+   of it drawn from a file compiled into this bundle, all of it readable by
+   anyone who had the URL and no password at all.
 
+   The file is gone and so are the routes. What is asserted now is the
+   replacement rule, in the user's own words: a stranger sees a sign-in page
+   and nothing else. So EVERY route in this list, including the ones that no
+   longer exist, must resolve to `signin` while there is no session. */
+const ROUTES = [
+  ['#/',                        'signin'],
+  ['#/who',                     'signin'],   // was the roster
+  ['#/me/1211755244109291',     'signin'],   // was a named person's profile
+  ['#/pipeline',                'signin'],   // was the deal list
+  ['#/estimate',                'signin'],
+  ['#/highlights',              'signin'],
+  ['#/projects',                'signin'],
+  ['#/leads',                   'signin'],
+  ['#/signin',                  'signin'],
+  ['#/home',                    'signin'],
+  ['#/admin',                   'signin'],
 ];
 
 const seen = {};
@@ -103,7 +112,10 @@ for (const [hash, name] of ROUTES) {
 
   check(m.route === name,   `${hash}: body[data-route] is "${m.route}", expected "${name}"`);
   check(m.rootText > 60,    `${hash}: rendered almost nothing (${m.rootText} chars)`);
-  check(m.nav === 3,        `${hash}: expected 3 nav buttons, saw ${m.nav}`);
+  /* Signed out there is nothing to navigate to. A rail of links that all
+     bounce back to this same form is furniture that implies a product the
+     visitor cannot have. */
+  check(m.nav === 0,        `${hash}: signed out, expected an empty nav, saw ${m.nav} buttons`);
   // The shell is the product now: a route that renders without it has escaped
   // the layout, and the sidebar must never sit on top of the content.
   check(m.side,             `${hash}: rendered without the sidebar shell`);
@@ -116,63 +128,73 @@ for (const [hash, name] of ROUTES) {
   check(!m.tooWide.length,  `${hash}: horizontal overflow from ${JSON.stringify(m.tooWide)}`);
 }
 
-/* ------------------ the landing page covers the whole business ------------ */
-/* "Measured on delivered work" used to be a table of its own, which meant the
-   two departments with a stated effort figure got bars and dates while
-   pricing, content and BD got a chip that said, in effect, "no comment". The
-   table is gone and its numbers moved into the department rows — so the thing
-   to assert is that MOVING them did not LOSE them. */
-import { MEASURED, DEPARTMENTS } from '../data/snapshot.js';
+/* ===================================================================== leak
+   THE ASSERTION THIS WHOLE CHANGE EXISTS FOR.
 
-await page.goto(URL_, { waitUntil: 'networkidle' });
-await page.waitForTimeout(120);
-const land = await page.evaluate(() => ({
-  rows:   document.querySelectorAll('.deptrow').length,
-  cards:  document.querySelectorAll('.card').length,
-  text:   document.body.innerText,
-  notes:  document.querySelectorAll('.deptrow__note').length,
-}));
+   The landing card was not merely showing data to signed-out visitors — the
+   data was IN THE FILE. `data/snapshot.js` shipped twelve people's names,
+   their work email addresses, their open task counts and the Asana workspace
+   id, and esbuild inlined all of it into public/index.html. Hiding the card
+   would have left every byte of that a Ctrl-U away.
 
-check(land.rows === 7, `landing shows ${land.rows} department rows, expected all 7 functions`);
-check(land.cards === 1, `landing has ${land.cards} cards — the measured table should be folded into the one workspace card`);
-check(!/Measured on delivered work/i.test(land.text), 'the standalone "Measured on delivered work" table is still on the landing page');
+   So this test reads the built artefact, not the screen. A future commit that
+   re-adds a roster constant "just for a chart" fails here, before it is
+   deployed, and it fails whether or not anything renders it.
 
-for (const id of Object.keys(DEPARTMENTS)) {
-  check(land.text.includes(DEPARTMENTS[id].en), `landing never names the ${id} department — a 360 view has a hole in it`);
+   esbuild escapes non-ASCII, so Arabic in the bundle appears as \uXXXX —
+   these needles are all ASCII and would survive that.                     */
+const bundle = html;
+const MUST_NOT_SHIP = [
+  ['Mahmoud',          'a staff first name'],
+  ['Abdelghny',        'a staff surname'],
+  ['AMEEN EYAD',       'a staff name'],
+  ['Omar Khaled',      'a staff name'],
+  ['Bakhiet',          'a staff surname'],
+  ['Wejdan',           'a staff name'],
+  ['1205332497357182', 'the Asana workspace id'],
+  ['1211755244109291', 'an Asana user id'],
+  ['1211783184896369', 'an Asana user id'],
+];
+for (const [needle, what] of MUST_NOT_SHIP) {
+  check(!bundle.includes(needle),
+    `the shipped bundle contains ${what} ("${needle}") — anybody with the URL can read it without signing in`);
 }
-// Every median from the old table must still be visible somewhere on screen.
-for (const m of MEASURED) {
-  check(land.text.includes(String(m.medianElapsed)),
-    `the measured median for ${m.stage} (${m.medianElapsed}) disappeared when the table was removed`);
-}
-check(land.notes >= 4, `only ${land.notes} departments explain themselves; pricing, content, BD and PM each have a finding worth stating`);
 
-/* A stage with no stated effort must NOT be given an invented delivery date.
-   Multiplying a measured median (which includes queue) by a project count
-   would count the queue twice and produce a confident, wrong date. */
-const pricingRow = await page.evaluate(() => {
-  const row = [...document.querySelectorAll('.deptrow')]
-    .find(r => r.innerText.includes('Pricing'));
-  return row ? row.innerText : '';
-});
-check(/—/.test(pricingRow), 'pricing was given a delivery date despite having no stated effort figure');
-check(/13/.test(pricingRow), 'the pricing row lost its measured median of 13 days');
+/* Addresses, by shape rather than by list, so a name I have not thought of is
+   caught too. Two allowances, both narrow:
 
-/* ---- the numbers on the profile must come from the engine, not a string --- */
-import { WorkCalendar, iso } from '../engine/calendar.js';
-import { DEFAULT_STAGES } from '../engine/scheduler.js';
-import { byId } from '../data/snapshot.js';
+   - a PLACEHOLDER local part. The sign-in and invite forms print
+     "you@expandexpo.com" and "name@expandexpo.com", which name nobody. The
+     domain is the company's and is on its own letterhead; the person is the
+     private part, and there is no person here.
+   - a PLACEHOLDER domain. The vendored Supabase client carries JSDoc
+     examples ("example@email.com"), which are documentation, not roster. */
+const PLACEHOLDER_USER = /^(you|name|email|user|someone|no-reply|noreply|support|admin)$/i;
+const PLACEHOLDER_HOST = /^(email\.com|example\.(com|org|net)|test\.[a-z]+|localhost|sentry\.io|w3\.org|schema\.org|domain\.com)$/i;
+const addrs = [...new Set(bundle.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g) || [])]
+  .filter(a => {
+    const [user, host] = a.split('@');
+    return !PLACEHOLDER_USER.test(user) && !PLACEHOLDER_HOST.test(host) && !host.endsWith('.invalid');
+  });
+check(!addrs.length,
+  `the shipped bundle contains real email addresses: ${JSON.stringify(addrs.slice(0, 5))}`);
 
-const CAL = new WorkCalendar();
-const ameen = byId('1211755244109291');
-const expectDays = String(Math.round(ameen.projects * DEFAULT_STAGES['2d'].baseDays));
-const ameenStats = seen['#/me/1211755244109291'].stats;
-check(ameenStats.includes(String(ameen.projects)), `profile is missing the project count ${ameen.projects}`);
-check(ameenStats.includes(expectDays),
-  `profile committed days should be ${expectDays} (projects x stated effort), saw ${JSON.stringify(ameenStats)}`);
+/* Belt and braces on the domains that are actually ours: on expandexpo.com and
+   meshnet.co a local part is a colleague, so the allowlist above is the only
+   thing standing between a new placeholder and a real inbox — this says so
+   explicitly rather than relying on a regex written for the general case. */
+const ours = [...new Set(bundle.match(/[A-Za-z0-9._%+-]+@(expandexpo\.com|meshnet\.co)/g) || [])]
+  .filter(a => !PLACEHOLDER_USER.test(a.split('@')[0]));
+check(!ours.length, `the shipped bundle names colleagues: ${JSON.stringify(ours)}`);
+
+/* And the modules themselves must be gone, not merely unreferenced — an
+   unimported file is one `import` away from being public again. */
+import { existsSync } from 'node:fs';
+check(!existsSync(root + 'data/snapshot.js'), 'data/snapshot.js is still in the repository');
+check(!existsSync(root + 'web/views.js'),     'web/views.js is still in the repository');
 
 /* ---------------------------- language + RTL ------------------------------ */
-await page.goto(URL_ + '#/who', { waitUntil: 'networkidle' });
+await page.goto(URL_ + '#/signin', { waitUntil: 'networkidle' });
 await page.click('[data-act="lang"]');
 await page.waitForTimeout(60);
 const rtl = await page.evaluate(() => ({
@@ -184,22 +206,11 @@ const rtl = await page.evaluate(() => ({
 check(rtl.dir === 'rtl',  `Arabic did not flip direction (dir=${rtl.dir})`);
 check(rtl.lang === 'ar',  `Arabic did not set lang (lang=${rtl.lang})`);
 check(/Plex/i.test(rtl.font), `Arabic is not using IBM Plex Sans Arabic (${rtl.font})`);
-check(/[؀-ۿ]/.test(rtl.text), 'Arabic view rendered no Arabic text');
-
-/* ------------------------- navigation actually works ---------------------- */
-await page.goto(URL_, { waitUntil: 'networkidle' });
-await page.click('.hero__cta .btn--primary');
-await page.waitForTimeout(60);
-check(await page.evaluate(() => document.body.dataset.route) === 'who',
-  'Sign in on the landing page did not reach the role picker');
-await page.click('.whocard:not([disabled])');
-await page.waitForTimeout(60);
-check(await page.evaluate(() => document.body.dataset.route) === 'profile',
-  'Clicking a person did not open their profile');
+check(/[\u0600-\u06ff]/.test(rtl.text), 'Arabic view rendered no Arabic text');
 
 /* -------------------------------- mobile ---------------------------------- */
 await page.setViewportSize({ width: 390, height: 780 });
-await page.goto(URL_ + '#/pipeline', { waitUntil: 'networkidle' });
+await page.goto(URL_ + '#/signin', { waitUntil: 'networkidle' });
 await page.waitForTimeout(80);
 const mob = await page.evaluate(() => ({
   wide: [...document.querySelectorAll('body *')]
@@ -875,6 +886,117 @@ for (const lang of ['en', 'ar']) {
 check(D.adminView('en', { people, invites: [], resetMsg: { ok: false, text: 'nope' } }).includes('msg--bad'),
   'a failed reset link is not reported on the People screen');
 
+/* ====================================================== business highlights
+
+   The screen that replaced the leaked landing card. Every card on it is a
+   pure function over live rows, so the arithmetic is asserted here rather
+   than eyeballed — and the fixture is built so that a naive implementation
+   fails: one wildly late project (to catch a mean masquerading as a typical
+   delay), one project delivered EARLY (which is on time, not "0 days late"),
+   projects with a deadline and no delivery date (unknown, not on time), and
+   a team held entirely by one person.                                     */
+
+const hp = (id, o) => ({
+  id, name: 'HL ' + id, is_crm_list: false, status: o.status || 'delivered',
+  // `o.owner ?? 'u9'` would be wrong: null is exactly the value under test.
+  due_on: o.due || null, delivered_on: o.del || null,
+  owner_id: 'owner' in o ? o.owner : 'u9',
+  created_at: '2026-01-01T00:00:00Z',
+  project_stages: o.stages || [],
+});
+const st = (dept, who, name, status = 'pending') =>
+  ({ id: `${dept}-${who}-${Math.random()}`, department_id: dept, status,
+     assignee_id: who, assignee: who ? { id: who, full_name: name, department_id: dept } : null });
+
+const hlProjects = [
+  hp(1, { due: '2026-01-10', del: '2026-01-10' }),                  // exactly on time
+  hp(2, { due: '2026-01-10', del: '2026-01-03' }),                  // early -> on time
+  hp(3, { due: '2026-01-10', del: '2026-01-14' }),                  // 4 days  -> band 0
+  hp(4, { due: '2026-01-10', del: '2026-02-01' }),                  // 22 days -> band 1
+  hp(5, { due: '2026-01-10', del: '2026-03-10' }),                  // 59 days -> band 2
+  hp(6, { due: '2026-01-10', del: '2027-12-19' }),                  // 708     -> band 3
+  hp(7, { due: '2026-01-10', del: null, status: 'in_design' }),     // unknown, and open+late
+  hp(8, { due: null, del: null, status: 'in_design', owner: null }),// no deadline, no owner
+  hp(9, { due: '2026-01-10', del: null, status: 'submitted', owner: null,
+          stages: [st('3d', 'a', 'Solo Person'), st('3d', 'a', 'Solo Person'),
+                   st('3d', 'a', 'Solo Person'), st('3d', null, ''),
+                   st('2d', 'b', 'Bee'), st('2d', 'c', 'Cee'),
+                   st('2d', 'd', 'Dee'), st('2d', 'b', 'Bee', 'done')] }),
+];
+const hlLeads = [
+  { id: 'L1', status: 'new',       owner_id: null, next_follow_up_on: '2020-01-01' },
+  { id: 'L2', status: 'contacted', owner_id: 'u1', next_follow_up_on: '2020-01-01' },
+  { id: 'L3', status: 'won',       owner_id: null, next_follow_up_on: '2020-01-01' },
+  { id: 'L4', status: 'new',       owner_id: 'u1', next_follow_up_on: '2099-01-01' },
+  { id: 'L5', status: 'new',       owner_id: 'u1', next_follow_up_on: null },
+];
+
+const DR = D.deliveryRecord(hlProjects);
+check(DR.judged === 6,  `delivery record judged ${DR.judged} projects, expected the 6 with both dates`);
+check(DR.onTime === 2,  `${DR.onTime} on time — a project delivered BEFORE its deadline is on time, not late`);
+check(DR.late === 4,    `expected 4 late, got ${DR.late}`);
+/* The one that matters: 4, 22, 59 and 708 average to 198 days. Nobody has
+   ever waited 198 days. The median of those four is 41. */
+check(DR.medianLate === 41, `typical delay is ${DR.medianLate}; the median of 4/22/59/708 is 41 and the mean (198) is a fiction`);
+check(JSON.stringify(DR.bands) === '[1,1,1,1]', `late bands are ${JSON.stringify(DR.bands)}, expected one project in each`);
+check(DR.rate === 33, `on-time rate is ${DR.rate}%, expected 2 of 6 = 33%`);
+check(DR.unjudged === 3, `${DR.unjudged} unjudged, expected the 3 with no delivery date`);
+check(DR.stillLate === 2, `${DR.stillLate} open and overdue, expected the 2 open projects past 2026-01-10`);
+check(DR.worst && DR.worst.by > 100, 'the worst open overdue project is not reported');
+
+const WL = D.workloadByPerson(hlProjects);
+check(WL.total === 7, `${WL.total} open stages counted; the done one must not be in there`);
+check(WL.unassigned === 1, `${WL.unassigned} unassigned, expected 1`);
+check(WL.rows[0]?.name === 'Solo Person' && WL.rows[0]?.n === 3,
+  `the busiest person is ${JSON.stringify(WL.rows[0])}, expected Solo Person with 3`);
+check(WL.people === 4, `${WL.people} people hold work, expected 4`);
+check(WL.rows.reduce((a, r) => a + r.n, 0) + WL.unassigned === WL.total,
+  'the workload rows plus unassigned do not add up to the stage total — somebody is being counted twice or not at all');
+
+const KR = D.keyPersonRisk(hlProjects);
+const threeD = KR.find(r => r.dept === '3d'), twoD = KR.find(r => r.dept === '2d');
+check(threeD && threeD.share === 1 && threeD.sole,
+  `3d is held entirely by one person and is not flagged: ${JSON.stringify(threeD)}`);
+check(threeD.total === 4 && threeD.assigned === 3 && threeD.unassigned === 1,
+  `3d counts are wrong: ${JSON.stringify({ t: threeD.total, a: threeD.assigned, u: threeD.unassigned })}`);
+/* Three people, one each — the denominator is assigned work, so this must
+   come out at a third and NOT be flagged. */
+check(twoD && Math.round(twoD.share * 100) === 33 && !twoD.risk,
+  `2d has three holders with one stage each and should read as spread: ${JSON.stringify(twoD)}`);
+
+const PP = D.pipelinePressure(hlProjects, hlLeads);
+check(PP.leadsNoOwner === 2, `${PP.leadsNoOwner} unowned leads, expected 2`);
+check(PP.followOverdue === 2, `${PP.followOverdue} overdue follow-ups, expected 2 — the won lead is closed and the 2099 one is not due`);
+check(PP.atEtemad === 1, `${PP.atEtemad} at Etemad, expected the 1 submitted project`);
+check(PP.projNoOwner === 2, `${PP.projNoOwner} open projects with no owner, expected 2`);
+
+for (const lang of ['en', 'ar']) {
+  const h = D.highlightsView(lang, { projects: hlProjects, leads: hlLeads });
+  const t = D.DSTR[lang];
+  for (const key of ['hlDelivery', 'hlLoad', 'hlRisk', 'hlPipeline']) {
+    check(h.includes(t[key]), `${lang}: the "${key}" card is missing from Business highlights`);
+  }
+  check(h.includes('Solo Person'), `${lang}: the workload chart does not name the busiest person`);
+  check((h.match(/class="hb[ "]/g) || []).length >= 5, `${lang}: too few workload bars drawn`);
+  check(h.includes(t.unassignedOwner), `${lang}: unassigned work is not shown as its own row`);
+  check(h.includes('tag--bad'), `${lang}: a team held entirely by one person is not flagged`);
+  // The bug this class of screen invites: a number with no denominator.
+  check(h.includes(t.hlDeliveryNote), `${lang}: the delivery card does not say what it could not judge`);
+  check(!/>in_design</.test(h) && !/>submitted</.test(h), `${lang}: a raw status enum reached the screen`);
+  check(!h.includes('undefined') && !h.includes('NaN'),
+    `${lang}: Business highlights rendered "undefined" or "NaN"`);
+}
+/* Empty is a sentence, not a broken page. */
+check(D.highlightsView('en', { projects: [], leads: [] }).includes(D.DSTR.en.hlEmpty),
+  'Business highlights with no data renders something other than a plain explanation');
+
+/* And it is gated. A hidden sidebar item is a decoration; the check that
+   matters is the one a typed URL hits. */
+const savedMe = dbmod.state.me;
+dbmod.state.me = { id: 'u2', full_name: 'Designer', role: 'member', department_id: '3d', is_active: true };
+check(!D.canPlan(), 'canPlan() lets a plain designer through');
+dbmod.state.me = savedMe;
+
 /* --------------------------------- report --------------------------------- */
 await browser.close();
 server.close();
@@ -882,7 +1004,6 @@ server.close();
 if (errors.length) fail.push('console/page errors: ' + errors.slice(0, 5).join(' | '));
 
 console.log('routes checked: ' + ROUTES.map(([h]) => h).join(' '));
-console.log('profile stats (AMEEN EYAD): ' + JSON.stringify(seen['#/me/1211755244109291'].stats));
 
 if (fail.length) {
   console.log('\nFAIL');
