@@ -421,7 +421,11 @@ export function wireApp(lang) {
     /* Same name, size and mtime is the same file. Without this, someone who
        opens the picker twice because they forgot what they chose the first
        time silently uploads two copies of the brief. */
-    const key = (f) => `${f.name} ${f.size} ${f.lastModified}`;
+    /* U+0000 written as an escape, not as a literal. A raw NUL in the source
+       makes git and grep classify this file as binary, which silently costs
+       every diff, every `git format-patch` and every code review on it —
+       for a separator nobody can see. Same value, plain-text file. */
+    const key = (f) => `${f.name}\u0000${f.size}\u0000${f.lastModified}`;
 
     const paint = () => {
       const picked = [...input.files];
