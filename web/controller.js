@@ -87,7 +87,7 @@ export async function loadFor(route, id) {
        the roster (the free-capacity tile runs the scheduler over it) and the
        leads (there is an open-leads tile). Loading only some of that renders
        a confident zero, which is a lie an absent tile would not tell. */
-    const wantsProjects = route === 'projects' ||
+    const wantsProjects = route === 'projects' || route === 'highlights' ||
       (['home', 'new'].includes(route) && V.canPlan(me));
     const isDesigner = !['pm', 'bd', 'content'].includes(me.department_id);
 
@@ -690,5 +690,12 @@ function bodyFor(lang, route, id) {
   if (route === 'leads') return V.leadsView(lang, ctx);
   if (route === 'docs')  return V.docsView(lang, ctx);
   if (route === 'admin') return V.adminView(lang, ctx);
+  /* Gated in the view as well as in the sidebar. A hidden nav item is a
+     decoration; this is the check that survives somebody typing the URL. */
+  if (route === 'highlights') {
+    return V.canPlan()
+      ? V.highlightsView(lang, ctx)
+      : V.homeView(lang, ctx);
+  }
   return V.homeView(lang, ctx);
 }
