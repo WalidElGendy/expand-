@@ -203,13 +203,13 @@ function render() {
     // Leaving it as "home" while showing a sign-in form is the kind of small
     // lie that makes tests and screen readers disagree with the page.
     document.body.dataset.route = 'signin';
-    $('#root').innerHTML = shell({ name: 'signin' }, signInView(S.lang, C.ctx.authMode, C.ctx.authMsg, C.ctx.authErr));
+    $('#root').innerHTML = shell({ name: 'signin' }, signInView(S.lang, C.ctx.authMode, C.ctx.authMsg, C.ctx.authErr, C.ctx.authAddr));
     C.wireAuth(S.lang); wire();
     return;
   }
 
   const body =
-    r.name === 'signin'   ? signInView(S.lang, C.ctx.authMode, C.ctx.authMsg, C.ctx.authErr)
+    r.name === 'signin'   ? signInView(S.lang, C.ctx.authMode, C.ctx.authMsg, C.ctx.authErr, C.ctx.authAddr)
   : APP.includes(r.name)  ? C.appBody(S.lang, r.name, r.id)
   : r.name === 'who'      ? whoView(S.lang)
   : r.name === 'profile'  ? profileView(S.lang, r.id)
