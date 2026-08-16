@@ -544,6 +544,42 @@ select.btn--sm { height: 28px; padding: 0 6px; background: var(--s-2); border: 1
 .kpi--bad .kpi__n { color: #ff8f8f; }
 .kpi--date .kpi__n { font-size: 18px; }
 
+/* Tiles INSIDE a card, on Business highlights. The card already draws a
+   border and a surface, so a second border around each tile is a box in a
+   box; these sit on the deeper surface with no outline and let the card
+   group them. Auto-fit here because the count varies by card (3 and 4). */
+.kpis--in { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); margin: 4px 0 6px; }
+.kpis--in .kpi { background: var(--s-2); border-color: transparent; padding: 12px 14px; }
+.kpis--in .kpi__n { font-size: 24px; }
+
+/* ------------------------- horizontal bars (highlights) -------------------
+   HTML, not SVG. The labels are people's names — long, and half of them
+   Arabic — and a grid mirrors under dir="rtl" for free where an SVG's
+   absolute coordinates do not. The value rides the end of its own row, so
+   there is no axis to read across to and no gridline to draw.            */
+.hbars { list-style: none; display: grid; gap: 6px; margin: 8px 0 4px; padding: 0; }
+.hb { display: grid; grid-template-columns: minmax(96px, 168px) minmax(0, 1fr) 44px;
+      align-items: center; gap: 10px; }
+.hb__l { font-size: 12.5px; color: var(--ink2); min-width: 0;
+         overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hb__sub { display: block; font-size: 10.5px; color: var(--ink4); }
+.hb__track { height: 16px; background: var(--s-2); border-radius: 4px; overflow: hidden; }
+.hb__fill { display: block; height: 100%; border-radius: 4px; min-width: 3px; }
+.hb__n { font-family: var(--mono); font-size: 12.5px; color: var(--ink1);
+         text-align: end; font-variant-numeric: tabular-nums; }
+.hb--muted .hb__l, .hb--muted .hb__n { color: var(--ink3); }
+
+/* Concentration: a share, so it is drawn against a full-width track — the
+   empty part is the point. Red only past the threshold, and the tag beside
+   it repeats the verdict in words, so the colour is never carrying it alone. */
+.conc { display: block; width: 100%; max-width: 130px; height: 8px;
+        background: var(--s-2); border-radius: 4px; overflow: hidden; }
+.conc__f { display: block; height: 100%; background: var(--ink3); border-radius: 4px; }
+.conc__f--bad { background: var(--critical); }
+.conc__n { font-family: var(--mono); font-size: 11px; color: var(--ink3); }
+.tbl .tag { margin-inline-start: 0; }
+.tag--bad { background: rgba(208, 59, 59, .18); color: #ff9a9a; }
+
 /* ------------------------------- the chart -------------------------------- */
 .chartcard { margin-bottom: 14px; }
 .chart { display: block; width: 100%; height: auto; }
