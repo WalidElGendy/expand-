@@ -74,7 +74,7 @@ page.on('requestfailed', r => {
 const ROUTES = [
   ['#/',                        'signin'],
   ['#/who',                     'signin'],   // was the roster
-  ['#/me/1211755244109291',     'signin'],   // was a named person's profile
+  ['#/me/1200000000000000',     'signin'],   // was a named person's profile
   ['#/pipeline',                'signin'],   // was the deal list
   ['#/estimate',                'signin'],
   ['#/highlights',              'signin'],
@@ -141,23 +141,37 @@ for (const [hash, name] of ROUTES) {
    re-adds a roster constant "just for a chart" fails here, before it is
    deployed, and it fails whether or not anything renders it.
 
-   esbuild escapes non-ASCII, so Arabic in the bundle appears as \uXXXX —
-   these needles are all ASCII and would survive that.                     */
+   ONE RULE THIS TEST HAD TO LEARN ABOUT ITSELF: it used to hold a hardcoded
+   list of the twelve names, so the guard against publishing the roster
+   published the roster — in a public repository, in the file whose job was to
+   stop exactly that. Nothing here names a colleague any more.
+
+   Patterns instead of a list, which is also strictly stronger: it catches the
+   name nobody thought to add. Where a pattern cannot work — a person's name
+   has no shape — the needles come from LEAK_NEEDLES in the environment, so a
+   maintainer can run the strict version locally without committing the list.
+
+   esbuild escapes non-ASCII, so Arabic in the bundle appears as \uXXXX; every
+   pattern below is ASCII and survives that.                               */
 const bundle = html;
-const MUST_NOT_SHIP = [
-  ['Mahmoud',          'a staff first name'],
-  ['Abdelghny',        'a staff surname'],
-  ['AMEEN EYAD',       'a staff name'],
-  ['Omar Khaled',      'a staff name'],
-  ['Bakhiet',          'a staff surname'],
-  ['Wejdan',           'a staff name'],
-  ['1205332497357182', 'the Asana workspace id'],
-  ['1211755244109291', 'an Asana user id'],
-  ['1211783184896369', 'an Asana user id'],
-];
-for (const [needle, what] of MUST_NOT_SHIP) {
+
+/* Asana ids are 16-digit numbers. Nothing this product legitimately ships has
+   one: no version, no timestamp and no colour is 16 digits long.
+
+   All-identical runs are excluded, and that is a narrowing rather than a
+   loophole: the vendored Supabase client carries OpenTelemetry's all-zero
+   trace-id sentinel, which is a mask standing in for the absence of an id. A
+   real gid is never sixteen of the same digit. */
+const asanaIds = [...new Set(bundle.match(/\b\d{16}\b/g) || [])]
+  .filter(n => !/^(\d)\1{15}$/.test(n));
+check(!asanaIds.length,
+  `the shipped bundle contains Asana-style ids ${JSON.stringify(asanaIds.slice(0, 4))} — those identify the workspace and the people in it`);
+
+/* Whatever the maintainer wants checked by name, supplied at run time and
+   never written down here. Absent, the patterns above and below still run. */
+for (const needle of (process.env.LEAK_NEEDLES || '').split(',').map(s => s.trim()).filter(Boolean)) {
   check(!bundle.includes(needle),
-    `the shipped bundle contains ${what} ("${needle}") — anybody with the URL can read it without signing in`);
+    `the shipped bundle contains a LEAK_NEEDLES entry — anybody with the URL can read it without signing in`);
 }
 
 /* Addresses, by shape rather than by list, so a name I have not thought of is
@@ -360,6 +374,8 @@ check(/\d{4}/.test(D.estimateBox('en', est)), 'the estimate box renders without 
    separately the header starts claiming a number the body does not show. */
 {
   const F = (pf, rows = fixtures) => D.filterProjects(rows, pf);
+  /* Fixture owners, not colleagues. This file is in a public repository, and
+     a chart fixture is no reason to publish who works here. */
   const fixtures = [
     proj(1, '2020-01-01', 'in_design', false, null, 'o1'),   // long overdue
     proj(2, '2099-01-01', 'submitted', false, null, 'o1'),
@@ -483,10 +499,12 @@ check(/\d{4}/.test(D.estimateBox('en', est)), 'the estimate box renders without 
     due_on: null, owner_id: owner, owner: owner ? { id: owner, full_name: owner } : null,
     project_stages: [], created_at: '2026-08-01T00:00:00Z',
   }));
+  /* Fixture owners, not colleagues. This file is in a public repository, and
+     a chart fixture is no reason to publish who works here. */
   const fixtures = [
-    ...mk('2026-01', 'Fahad', 9), ...mk('2026-01', 'Salman', 2), ...mk('2026-01', null, 1),
-    ...mk('2026-02', 'Fahad', 1), ...mk('2026-02', 'Salman', 4),
-    ...mk('2026-03', 'Fahad', 13), ...mk('2026-03', 'Rania', 1),
+    ...mk('2026-01', 'Owner One', 9), ...mk('2026-01', 'Owner Two', 2), ...mk('2026-01', null, 1),
+    ...mk('2026-02', 'Owner One', 1), ...mk('2026-02', 'Owner Two', 4),
+    ...mk('2026-03', 'Owner One', 13), ...mk('2026-03', 'Owner Three', 1),
   ];
   const months = D.monthWindow(fixtures);
   check(months.join() === '2026-01,2026-02,2026-03', `the month window is wrong: ${months}`);
@@ -556,8 +574,8 @@ check(/\d{4}/.test(D.estimateBox('en', est)), 'the estimate box renders without 
     'the heatmap bucket is on the sequential ramp, comparing years against months');
   check(!heat.includes('var(--ink3)'), 'an empty bucket column was drawn in the heatmap');
 
-  check(heat.includes('Fahad') && heat.includes('Salman'), 'managers are missing from the heatmap');
-  check(heat.indexOf('Fahad') < heat.indexOf('Salman'), 'the heatmap is not sorted by volume');
+  check(heat.includes('Owner One') && heat.includes('Owner Two'), 'managers are missing from the heatmap');
+  check(heat.indexOf('Owner One') < heat.indexOf('Owner Two'), 'the heatmap is not sorted by volume');
   check(heat.includes(D.DSTR.en.unassignedOwner), 'projects with no owner vanished from the heatmap');
 
   /* Counts are skewed — 13 in one cell against a floor of 1 — so equal slices
@@ -606,6 +624,8 @@ check(/\d{4}/.test(D.estimateBox('en', est)), 'the estimate box renders without 
   check(D.leadCompany({ website: 'not a url' }) === 'not a url',
     'a malformed website threw instead of degrading');
 
+  /* Fixture owners, not colleagues. This file is in a public repository, and
+     a chart fixture is no reason to publish who works here. */
   const fixtures = [
     lead(1, { owner_id: 'o1', status: 'contacted',   next_follow_up_on: '2020-01-01' }),
     lead(2, { owner_id: 'o1', status: 'address_not_found', company: 'Accenture' }),
@@ -733,12 +753,12 @@ for (const lang of ['en', 'ar']) {
 
      A code cannot be spent by being fetched, and it is typed into the page
      the person is already on, so there is no stale tab to return through. */
-  const code = D.signInView(lang, 'code', '', null, 'mahmoud@expandexpo.com');
+  const code = D.signInView(lang, 'code', '', null, 'someone@expandexpo.com');
   check(code.includes('id="aCode"'), `${lang}: the code step has no code field`);
   check(!code.includes('id="aPass"'), `${lang}: the code step asks for a password too`);
   check(!code.includes('id="aEmail"'),
     `${lang}: the code step asks for the address again instead of carrying it`);
-  check(code.includes('mahmoud@expandexpo.com'),
+  check(code.includes('someone@expandexpo.com'),
     `${lang}: the code step does not say which address the code went to`);
   /* one-time-code is what lets iOS and Android offer the code from the
      notification; inputmode numeric is what gets the digit keypad. Without
@@ -761,7 +781,7 @@ for (const lang of ['en', 'ar']) {
 
   // The address is only carried where it was collected — never prefilled on a
   // fresh sign-in screen, which would leak the last person to use the device.
-  check(!D.signInView(lang, 'in').includes('mahmoud@expandexpo.com'),
+  check(!D.signInView(lang, 'in').includes('someone@expandexpo.com'),
     `${lang}: an address leaked onto the sign-in screen`);
 }
 
