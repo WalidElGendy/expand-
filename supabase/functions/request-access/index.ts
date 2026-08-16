@@ -28,12 +28,11 @@
    Runs with verify_jwt off, because the person asking has no account yet.
    ========================================================================== */
 
-import { CORS, json, EMAIL, APP, adminClient, actionLink } from '../_shared/http.ts';
+import { CORS, json, EMAIL, APP, adminClient, actionCode } from '../_shared/http.ts';
 import { send, inviteMail, resetMail } from '../_shared/mail.ts';
 
-// One link every two minutes per address. Enough that a mistyped click does
-// not fire twice, low enough that this cannot be used to bomb an inbox — and
-// it stops a second link cancelling the first while somebody is reading it.
+// One code every two minutes per address. Enough that a mistyped click does
+// not fire twice, and low enough that this cannot be used to bomb an inbox.
 const COOLDOWN_MS = 120_000;
 const fresh = (iso: string | null) =>
   !!iso && Date.now() - new Date(iso).getTime() < COOLDOWN_MS;
@@ -81,26 +80,26 @@ Deno.serve(async (req) => {
     const role = inv?.role || 'member';
 
     let kind = 'invite';
-    let { link, error } = await actionLink(admin, 'invite', email, redirectTo,
+    let { code, error } = await actionCode(admin, 'invite', email, redirectTo,
       { full_name, department_id, role });
 
     if (error && /already.*registered|already exists|email_exists|user_already/i.test(error)) {
       // They already made an account — the useful letter is the one that lets
       // them back in, not "you already exist", which they cannot act on.
-      kind = 'recovery';
-      ({ link, error } = await actionLink(admin, 'recovery', email, redirectTo));
+      kind = 'magiclink';
+      ({ code, error } = await actionCode(admin, 'magiclink', email, redirectTo));
     }
-    if (!link) {
-      await record(error ?? 'Supabase returned no link');
+    if (!code) {
+      await record(error ?? 'Supabase returned no code');
       return same();
     }
 
-    const letter = kind === 'recovery'
-      ? resetMail(full_name, link, false)
-      : inviteMail(full_name, link, '', role);
+    const letter = kind === 'magiclink'
+      ? resetMail(full_name, code, false)
+      : inviteMail(full_name, code, '', role);
     const sent = await send(email, letter.subject, letter.html, letter.text);
 
-    /* The cooldown starts only when a link actually went. Stamping it on a
+    /* The cooldown starts only when a code actually went. Stamping it on a
        failure meant a failed attempt blocked the retry that would have
        worked, for two minutes, with nobody told why. */
     await record(sent.ok ? null : (sent.reason ?? 'the mail server gave no reason'));
