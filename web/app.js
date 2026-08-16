@@ -11,8 +11,6 @@
 
 import { Scheduler, calibrate, backtest, DEFAULT_STAGES, DEFAULT_SIZE_FACTORS } from '../engine/scheduler.js';
 import { WorkCalendar, iso, parse } from '../engine/calendar.js';
-import { landingView, whoView, profileView, pipelineView, VSTR } from './views.js';
-import { byId } from '../data/snapshot.js';
 import * as db from './db.js';
 import * as C from './controller.js';
 import { DSTR, signInView, canPlan } from './dash.js';
@@ -159,10 +157,8 @@ function leverLabel(o) {
    refresh. Swap for the History API the day there is a backend. */
 function currentRoute() {
   const h = location.hash || '#/';
-  if (h.startsWith('#/me/')) return { name: 'profile', id: h.slice(5) };
-  if (h.startsWith('#/who')) return { name: 'who' };
-  if (h.startsWith('#/pipeline')) return { name: 'pipeline' };
   if (h.startsWith('#/estimate')) return { name: 'estimate' };
+  if (h.startsWith('#/highlights')) return { name: 'highlights' };
   if (h.startsWith('#/signin'))   return { name: 'signin' };
   if (h.startsWith('#/reset'))    return { name: 'signin' };   // recovery lands here
   if (h.startsWith('#/home'))     return { name: 'home' };
@@ -177,7 +173,7 @@ function currentRoute() {
   if (h.startsWith('#/leads'))    return { name: 'leads' };
   if (h.startsWith('#/docs'))     return { name: 'docs' };
   if (h.startsWith('#/admin'))    return { name: 'admin' };
-  return { name: 'landing' };
+  return { name: 'home' };
 }
 
 /* The signed-in routes, named once. This used to be two hardcoded lists —
@@ -186,7 +182,8 @@ function currentRoute() {
    missing from the second, so the screen only ever had rows if you happened
    to arrive from a page that had loaded them. A deep link or a refresh
    showed an empty table and called it zero projects. */
-const APP_ROUTES = ['home', 'projects', 'project', 'new', 'leads', 'lead', 'docs', 'admin'];
+const APP_ROUTES = ['home', 'projects', 'project', 'new', 'leads', 'lead', 'docs', 'admin',
+  'estimate', 'highlights'];
 
 function render() {
   document.documentElement.lang = S.lang;
@@ -208,14 +205,16 @@ function render() {
     return;
   }
 
+  /* Every route except sign-in is now an APP route, so this is the whole
+     dispatch. The estimator is the one screen that carries no company data
+     of its own, but it sits behind the door with everything else: "a
+     stranger sees a sign-in page and nothing else" is a rule that survives
+     somebody later adding a real project to it, and "mostly private" is not
+     a property anyone can check. */
   const body =
     r.name === 'signin'   ? signInView(S.lang, C.ctx.authMode, C.ctx.authMsg, C.ctx.authErr, C.ctx.authAddr)
-  : APP.includes(r.name)  ? C.appBody(S.lang, r.name, r.id)
-  : r.name === 'who'      ? whoView(S.lang)
-  : r.name === 'profile'  ? profileView(S.lang, r.id)
-  : r.name === 'pipeline' ? pipelineView(S.lang)
   : r.name === 'estimate' ? estimatorBody()
-  : landingView(S.lang);
+  : C.appBody(S.lang, r.name, r.id);
 
   $('#root').innerHTML = shell(r, body);
   wire();
@@ -232,21 +231,17 @@ const estimatorBody = () => `
     ${S.result ? timelineCard() : ''}`;
 
 function headTitle(r) {
-  const v = VSTR[S.lang], d = DSTR[S.lang];
-  if (r.name === 'home')     return { h1: d.home, sub: d.homeSub };
-  if (r.name === 'new')      return { h1: d.newProject, sub: '' };
-  if (r.name === 'leads')    return { h1: d.leads, sub: d.leadsSub };
-  if (r.name === 'docs')     return { h1: d.documents, sub: '' };
-  if (r.name === 'admin')    return { h1: d.people, sub: d.peopleSub };
-  if (r.name === 'signin')   return { h1: d.signIn, sub: '' };
-  if (r.name === 'estimate') return { h1: T().title, sub: T().sub };
-  if (r.name === 'who')      return { h1: v.whoTitle, sub: '' };
-  if (r.name === 'pipeline') return { h1: v.pipeline, sub: '' };
-  if (r.name === 'profile') {
-    const p = byId(r.id);
-    return { h1: p ? p.name : '—', sub: p ? p.role[S.lang] : '' };
-  }
-  return { h1: 'expand', sub: v.brandLine };
+  const d = DSTR[S.lang];
+  if (r.name === 'home')       return { h1: d.home, sub: d.homeSub };
+  if (r.name === 'new')        return { h1: d.newProject, sub: '' };
+  if (r.name === 'leads')      return { h1: d.leads, sub: d.leadsSub };
+  if (r.name === 'docs')       return { h1: d.documents, sub: '' };
+  if (r.name === 'admin')      return { h1: d.people, sub: d.peopleSub };
+  if (r.name === 'signin')     return { h1: d.signIn, sub: '' };
+  if (r.name === 'estimate')   return { h1: T().title, sub: T().sub };
+  if (r.name === 'highlights') return { h1: d.highlights, sub: d.highlightsSub };
+  if (r.name === 'projects')   return { h1: d.projects, sub: '' };
+  return { h1: 'expand', sub: '' };
 }
 
 /* ------------------------------------------------------------------ icons
@@ -270,11 +265,10 @@ const icon = (n) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" 
    want different things. The public one shows the product; the private one
    shows the work. Admin appears only for admins — a link that always 403s is
    worse than no link. */
-const PUBLIC_NAV = [
-  { group: 'product', route: '#/who',      icon: 'team',  label: () => VSTR[S.lang].whoTitle },
-  { group: 'product', route: '#/pipeline', icon: 'board', label: () => VSTR[S.lang].pipeline },
-  { group: 'product', route: '#/estimate', icon: 'spark', label: () => VSTR[S.lang].openEstimator },
-];
+/* There is no public nav any more. A signed-out visitor gets the sign-in
+   card and a rail with nothing on it, because every screen this product has
+   is about who works here and what they are working on. */
+const PUBLIC_NAV = [];
 
 function appNav() {
   const me = db.state.me, d = DSTR[S.lang];
@@ -292,8 +286,14 @@ function appNav() {
   }
   items.push({ group: 'work', route: '#/leads', icon: 'users', label: () => d.leads });
   items.push({ group: 'work', route: '#/docs',  icon: 'doc',   label: () => d.documents });
-  items.push({ group: 'insight', route: '#/estimate', icon: 'spark', label: () => VSTR[S.lang].openEstimator });
-  items.push({ group: 'insight', route: '#/pipeline', icon: 'chart', label: () => VSTR[S.lang].pipeline });
+  /* Business highlights is a management screen — it names people and says how
+     much each is carrying — so it is offered to the same people the database
+     lets plan. A designer seeing their own name at the top of a workload
+     chart is a different product decision from the one this makes. */
+  if (canPlan(me)) {
+    items.push({ group: 'insight', route: '#/highlights', icon: 'chart', label: () => d.highlights });
+  }
+  items.push({ group: 'insight', route: '#/estimate', icon: 'spark', label: () => d.openEstimator });
   if (me.role === 'admin') items.push({ group: 'workspace', route: '#/admin', icon: 'team', label: () => d.people });
   return items;
 }
