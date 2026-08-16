@@ -1,7 +1,13 @@
 # What your Asana data actually says
 
-Read from the live workspace (1205332497357182) on 26 July. 100+ projects
-scanned, six completed proposals analysed task-by-task.
+Read from the live Asana workspace on 26 July. 100+ projects scanned, six
+completed proposals analysed task-by-task.
+
+Written without names. The finding below is about how the work is *shaped* —
+that some stages run through one person — and that holds whoever those people
+are. This repository is public, so the roster lives in the database behind a
+login, not in a markdown file. Business highlights shows the same thing with
+current names to whoever is signed in and allowed to plan.
 
 ---
 
@@ -50,10 +56,10 @@ this data alone.
 
 Across all six projects analysed:
 
-- **Mahmoud Abdelghny** — every 3D Design task
-- **AMEEN EYAD** — every 2D Design task
-- **Wejdan Alkhubayzi / Fahad Sultan Alshaibani / Info Expandexpo** — Financial
-- **Omar Khaled** — price review and approval on every project
+- **one person** — every 3D Design task
+- **one person** — every 2D Design task
+- **three people** — Financial
+- **one person** — price review and approval on every project
 
 If 3D really is one designer, the demo's central finding applies directly to
 you: a single-person stage saturates first and sets the delivery date for every
@@ -78,9 +84,11 @@ tasks), World Defense Show Prospects (251 tasks), Potential Clients, Business
 Development, Expand Expo's Projects & Ideas. These are CRM lists. Including
 them in a capacity model would invent workload that does not exist.
 
-**Asana's teams are personal, not functional.** "Omar's First Team", "Rawabi's
-Team", "Rania Team" *and* "Rania's Team" (duplicates). The seven departments you
-described — International Projects, Local Projects, 3D, 2D, Content, Pricing,
+**Asana's teams are personal, not functional.** They are named after
+individuals rather than functions, and the same person appears two or three
+times over with the possessive spelled differently, so the duplicates are not
+even one team each. The seven departments
+you described — International Projects, Local Projects, 3D, 2D, Content, Pricing,
 Business Development — do not exist as teams. They exist as **sections inside
 each project**, which is the better signal and what the importer now reads.
 
