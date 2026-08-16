@@ -759,7 +759,8 @@ for (const lang of ['en', 'ar']) {
    promise the system no longer keeps. */
 for (const lang of ['en', 'ar']) {
   const t = D.DSTR[lang];
-  for (const k of ['linkOnTheWay', 'linkExpiredWhy', 'firstTimePrompt', 'forgotPrompt']) {
+  for (const k of ['linkOnTheWay', 'linkExpiredWhy', 'firstTimePrompt', 'forgotPrompt',
+                   'sendLink', 'linkSent', 'resetHint', 'codePrompt', 'codeBad']) {
     check(!/\blink\b/i.test(t[k]) && !/رابط/.test(t[k]),
       `${lang}: DSTR.${k} still tells people to open a link`);
   }
