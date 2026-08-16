@@ -33,17 +33,23 @@ export const DSTR = {
     signIn: 'Sign in', signOut: 'Sign out', email: 'Email', password: 'Password',
     firstTime: 'First time here?', setPassword: 'Create your password',
     firstTimeTitle: 'Getting in for the first time',
-    firstTimePrompt: 'Enter your work email. If you are on the team, we will send you a link to choose your password. You do not need one yet.',
-    forgotPrompt: 'Enter your work email and we will send you a link to set a new password.',
-    emailMeLink: 'Email me a link',
-    linkOnTheWay: 'If that address belongs to someone here, a link is on its way. Open the newest email you have — it works once, lasts a day, and asking again cancels the one before it. Check your junk folder if it is not there.',
-    forgot: 'Forgot your password?', sendReset: 'Email me a reset link',
+    firstTimePrompt: 'Enter your work email. If you are on the team, we will email you a six-digit code to type here. You do not need a password yet.',
+    forgotPrompt: 'Enter your work email and we will send you a six-digit code to type here.',
+    emailMeLink: 'Email me a code',
+    linkOnTheWay: 'If that address belongs to someone here, a code is on its way. Type it below. It lasts a day, and asking for another one replaces it — so use the newest email. Check your junk folder if it is not there.',
+    forgot: 'Forgot your password?', sendReset: 'Email me a code',
+
+    /* --- the code step --- */
+    codeTitle: 'Enter your code', codeLabel: 'Six-digit code',
+    codePrompt: 'We emailed a six-digit code to {e}. Type it here — you can stay on this page.',
+    codeGo: 'Continue', codeResend: 'Send another code', codeWrongAddr: 'Use a different address',
+    codeBad: 'That code did not work. Check you are reading the newest email — a newer code replaces the one before it.',
     backToSignIn: 'Back to sign in', checkInbox: 'Check your inbox.',
     newPassword: 'Choose a new password', setIt: 'Save my new password',
     linkExpired: 'That link has expired or was already used.',
-    linkExpiredWhy: 'Sign-in links last a day and work once, and every new link cancels the one before it — so an older email in your inbox will always say this. Open the newest one, or send yourself a fresh link and use that. Some mail scanners also open links before you do, which uses them up.',
-    sendFresh: 'Email me a new link', passwordSaved: 'Password saved. Signing you in…',
-    recoverPrompt: 'Choose it now, before you close this page. The link has signed you in, but until a password is saved there is nothing to sign in with next time.',
+    linkExpiredWhy: 'Old sign-in links no longer work at all — we email a six-digit code instead, which you type on this page. Ask for a code below and use the newest email.',
+    sendFresh: 'Email me a code', passwordSaved: 'Password saved. Signing you in…',
+    recoverPrompt: 'Choose it now, before you close this page. The code has signed you in, but until a password is saved there is nothing to sign in with next time.',
     noInvite: 'Your account exists but has not been activated. Ask an admin to add you.',
     home: 'Home', projects: 'Projects', newProject: 'New project', leads: 'Leads',
     documents: 'Documents', people: 'People', myQueue: 'My queue',
@@ -168,17 +174,23 @@ export const DSTR = {
     signIn: 'تسجيل الدخول', signOut: 'تسجيل الخروج', email: 'البريد الإلكتروني', password: 'كلمة المرور',
     firstTime: 'أول مرة هنا؟', setPassword: 'أنشئ كلمة المرور',
     firstTimeTitle: 'الدخول لأول مرة',
-    firstTimePrompt: 'أدخل بريد العمل. إن كنت ضمن الفريق سنرسل لك رابطاً لاختيار كلمة المرور. لا تحتاج كلمة مرور الآن.',
-    forgotPrompt: 'أدخل بريد العمل وسنرسل لك رابطاً لضبط كلمة مرور جديدة.',
-    emailMeLink: 'أرسل لي رابطاً',
-    linkOnTheWay: 'إن كان هذا البريد يخص أحداً هنا، فالرابط في طريقه إليك. افتح أحدث رسالة وصلتك — الرابط يعمل مرة واحدة، وصالح ليوم كامل، وكل طلب جديد يُلغي السابق. راجع مجلد الرسائل غير المرغوبة إن لم تجدها.',
-    forgot: 'نسيت كلمة المرور؟', sendReset: 'أرسل لي رابط إعادة التعيين',
+    firstTimePrompt: 'أدخل بريد العمل. إن كنت ضمن الفريق سنرسل لك رمزاً من ستة أرقام تكتبه هنا. لا تحتاج كلمة مرور الآن.',
+    forgotPrompt: 'أدخل بريد العمل وسنرسل لك رمزاً من ستة أرقام تكتبه هنا.',
+    emailMeLink: 'أرسل لي رمزاً',
+    linkOnTheWay: 'إن كان هذا البريد يخص أحداً هنا، فالرمز في طريقه إليك. اكتبه بالأسفل. صالح ليوم كامل، وكل طلب جديد يُلغي السابق — لذا استخدم أحدث رسالة. راجع مجلد الرسائل غير المرغوبة إن لم تجدها.',
+    forgot: 'نسيت كلمة المرور؟', sendReset: 'أرسل لي رمزاً',
+
+    /* --- خطوة الرمز --- */
+    codeTitle: 'أدخل الرمز', codeLabel: 'رمز من ستة أرقام',
+    codePrompt: 'أرسلنا رمزاً من ستة أرقام إلى {e}. اكتبه هنا — يمكنك البقاء في هذه الصفحة.',
+    codeGo: 'متابعة', codeResend: 'أرسل رمزاً آخر', codeWrongAddr: 'استخدام بريد آخر',
+    codeBad: 'الرمز غير صحيح. تأكد أنك تقرأ أحدث رسالة — كل رمز جديد يُلغي ما قبله.',
     backToSignIn: 'رجوع لتسجيل الدخول', checkInbox: 'تحقق من بريدك.',
     newPassword: 'اختر كلمة مرور جديدة', setIt: 'حفظ كلمة المرور',
     linkExpired: 'انتهت صلاحية الرابط أو تم استخدامه من قبل.',
-    linkExpiredWhy: 'روابط الدخول تعمل مرة واحدة ولمدة يوم كامل، وكل رابط جديد يُلغي ما قبله — لذا ستظهر هذه الرسالة دائماً مع أي بريد أقدم. افتح أحدث رسالة، أو أرسل لنفسك رابطاً جديداً واستخدمه. كما أن بعض أنظمة فحص البريد تفتح الرابط قبلك فتستهلكه.',
-    sendFresh: 'أرسل لي رابطاً جديداً', passwordSaved: 'تم حفظ كلمة المرور. جارٍ تسجيل دخولك…',
-    recoverPrompt: 'اخترها الآن قبل إغلاق الصفحة. الرابط سجّل دخولك، لكن قبل حفظ كلمة المرور لا يوجد ما تدخل به في المرة القادمة.',
+    linkExpiredWhy: 'روابط الدخول القديمة لم تعد تعمل — نرسل الآن رمزاً من ستة أرقام تكتبه في هذه الصفحة. اطلب رمزاً بالأسفل واستخدم أحدث رسالة.',
+    sendFresh: 'أرسل لي رمزاً', passwordSaved: 'تم حفظ كلمة المرور. جارٍ تسجيل دخولك…',
+    recoverPrompt: 'اخترها الآن قبل إغلاق الصفحة. الرمز سجّل دخولك، لكن قبل حفظ كلمة المرور لا يوجد ما تدخل به في المرة القادمة.',
     noInvite: 'حسابك موجود لكنه غير مفعّل. اطلب من المسؤول إضافتك.',
     home: 'الرئيسية', projects: 'المشاريع', newProject: 'مشروع جديد', leads: 'العملاء المحتملون',
     documents: 'المستندات', people: 'الفريق', myQueue: 'مهامي',
@@ -825,27 +837,33 @@ export function estimateFor(sched, { name, size, start, deadline, stages }) {
 
 /* ================================ SIGN IN ================================= */
 
-export function signInView(lang, mode = 'in', msg = '', authErr = null) {
+export function signInView(lang, mode = 'in', msg = '', authErr = null, addr = '') {
   const t = DSTR[lang];
   const title = mode === 'up' ? t.firstTimeTitle
               : mode === 'forgot' ? t.forgot
               : mode === 'reset' ? t.newPassword
+              : mode === 'code' ? t.codeTitle
               : t.signIn;
 
-  /* 'up' and 'forgot' ask for an address and send a link; only 'in' and
-     'reset' involve a password at all. The first-time screen used to take a
-     password too, which meant whoever typed an address first owned it — and
-     an address is what decides a role here. */
+  /* 'up' and 'forgot' ask for an address and send a code; 'code' takes the
+     code back; only 'in' and 'reset' involve a password at all. The
+     first-time screen used to take a password too, which meant whoever typed
+     an address first owned it — and an address is what decides a role here. */
   const wantsPassword = mode === 'in' || mode === 'reset';
-  const prompt = mode === 'up' ? t.firstTimePrompt : mode === 'forgot' ? t.forgotPrompt : '';
+  const wantsEmail = mode !== 'reset' && mode !== 'code';
+  const prompt = mode === 'up' ? t.firstTimePrompt
+               : mode === 'forgot' ? t.forgotPrompt
+               : mode === 'code' ? t.codePrompt.replace('{e}', addr || t.email)
+               : '';
   const go = mode === 'reset' ? t.setIt
            : mode === 'up' ? t.emailMeLink
            : mode === 'forgot' ? t.sendReset
+           : mode === 'code' ? t.codeGo
            : t.signIn;
 
-  /* An expired link is the single most likely way to arrive here, and the
-     only useful response is a new link — so the panel carries the button
-     rather than telling the user to go and find it. */
+  /* A dead link is still the most likely way to arrive here — old emails
+     stay in inboxes — and the only useful response is a code, so the panel
+     carries the button rather than telling the user to go and find it. */
   const expired = authErr && /expired|invalid/i.test(authErr.code || authErr.message || '');
   const errPanel = !authErr ? '' : `
     <div class="autherr">
@@ -860,12 +878,23 @@ export function signInView(lang, mode = 'in', msg = '', authErr = null) {
     <div class="card__head"><h2>${esc(title)}</h2></div>
     ${errPanel}
     <form id="authForm" class="authform" autocomplete="on">
-      ${mode === 'reset' ? `<p class="small muted">${esc(t.recoverPrompt)}</p>` : `
+      ${mode === 'reset' ? `<p class="small muted">${esc(t.recoverPrompt)}</p>` : ''}
       ${prompt ? `<p class="small muted">${esc(prompt)}</p>` : ''}
+      ${!wantsEmail ? '' : `
       <label class="f f--wide">
         <span>${esc(t.email)}</span>
         <input id="aEmail" type="email" name="email" required autocomplete="username"
-               placeholder="you@expandexpo.com" />
+               placeholder="you@expandexpo.com" value="${esc(addr)}" />
+      </label>`}
+      ${mode !== 'code' ? '' : `
+      <label class="f f--wide">
+        <span>${esc(t.codeLabel)}</span>
+        <!-- inputmode numeric brings up the digits keypad on a phone, and
+             one-time-code lets iOS and Android offer the code straight from
+             the notification, so it never has to be memorised across apps. -->
+        <input id="aCode" class="codein" name="one-time-code" required
+               type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6"
+               autocomplete="one-time-code" autofocus placeholder="000000" />
       </label>`}
       ${!wantsPassword ? '' : `
       <label class="f f--wide">
@@ -880,6 +909,9 @@ export function signInView(lang, mode = 'in', msg = '', authErr = null) {
           : mode === 'in'
           ? `<button type="button" class="link" data-auth="up">${esc(t.firstTime)}</button>
              <button type="button" class="link" data-auth="forgot">${esc(t.forgot)}</button>`
+          : mode === 'code'
+          ? `<button type="button" class="link" data-resend="1">${esc(t.codeResend)}</button>
+             <button type="button" class="link" data-auth="in">${esc(t.codeWrongAddr)}</button>`
           : `<button type="button" class="link" data-auth="in">${esc(t.backToSignIn)}</button>`}
       </div>
     </form>
