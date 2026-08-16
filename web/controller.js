@@ -194,7 +194,15 @@ export function wireAuth(lang) {
         location.hash = '#/home';
       }
     } catch (err) {
-      ctx.authMsg = '!' + err.message;
+      /* Supabase says "Token has expired or is invalid" for a wrong code, and
+         those are the exact words that cost somebody four days — seeing them
+         again would read as "nothing changed", when what actually happened is
+         usually that they are reading a superseded email. Say that instead.
+         Every other failure keeps the server's own wording, which is almost
+         always more useful than anything generic. */
+      ctx.authMsg = '!' + (ctx.authMode === 'code'
+        ? V.DSTR[lang].codeBad
+        : err.message);
     } finally {
       btn.disabled = false; rerender();
     }
