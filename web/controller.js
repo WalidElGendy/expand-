@@ -16,7 +16,7 @@ const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
 export const ctx = {
   projects: [], stages: [], people: [], leads: [], files: [], invites: [],
-  loading: false, error: null, authMode: 'in', authMsg: '', est: null,
+  loading: false, error: null, authMode: 'in', authMsg: '', authAddr: '', est: null,
   inviteMsg: null,      // what actually happened to the last invitation
   authErr: null,        // whatever Supabase sent back in the URL fragment
 
@@ -136,9 +136,24 @@ export function wireAuth(lang) {
     ctx.authMode = b.dataset.auth; ctx.authMsg = ''; ctx.authErr = null; rerender();
   });
 
+  /* "Send another code" from the code step. It keeps the address rather than
+     bouncing back to the email field: the whole failure this replaces was
+     somebody being sent away from the page and returning through a stale
+     email, and making them retype their address is a smaller version of the
+     same mistake. The server's own two-minute cooldown still applies. */
+  $$('[data-resend]').forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    try {
+      await db.requestAccess(ctx.authAddr);
+      ctx.authMsg = V.DSTR[lang].linkOnTheWay;
+    } catch (err) { ctx.authMsg = '!' + err.message; }
+    finally { rerender(); }
+  });
+
   form.onsubmit = async (e) => {
     e.preventDefault();
     const btn = $('#aGo'); const email = $('#aEmail')?.value; const pass = $('#aPass')?.value;
+    const code = $('#aCode')?.value;
     btn.disabled = true;
     try {
       if (ctx.authMode === 'reset') {
@@ -152,6 +167,14 @@ export function wireAuth(lang) {
            a courtesy email must not be able to hold up the door. */
         db.announceAccount();
         location.hash = '#/home';
+      } else if (ctx.authMode === 'code') {
+        /* The code buys a session; the password screen comes next, exactly as
+           it did when a link bought the session. Nothing downstream of here
+           had to change. */
+        await db.verifyCode(ctx.authAddr, code);
+        ctx.authErr = null; ctx.authMsg = '';
+        ctx.authMode = 'reset';
+        location.hash = '#/reset';
       } else if (ctx.authMode === 'forgot' || ctx.authMode === 'up') {
         /* Both buttons ask the same question — is this address known here —
            and get the same answer whether or not it is. A different reply for
@@ -160,6 +183,12 @@ export function wireAuth(lang) {
         await db.requestAccess(email);
         ctx.authErr = null;
         ctx.authMsg = V.DSTR[lang].linkOnTheWay;
+        /* Straight to the code box, with the address carried over. This is
+           the load-bearing half of the fix: the person never leaves the page,
+           so there is no stale tab to come back through and no older email to
+           open by mistake. */
+        ctx.authAddr = String(email || '').trim().toLowerCase();
+        ctx.authMode = 'code';
       } else {
         await db.signIn(email, pass);
         location.hash = '#/home';
