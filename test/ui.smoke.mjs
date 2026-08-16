@@ -710,6 +710,50 @@ for (const lang of ['en', 'ar']) {
     check(D.signInView(lang, m).includes('id="aPass"'),
       `${lang}: the "${m}" screen lost its password field`);
   }
+
+  /* --------------------------- the code step ----------------------------
+     What this replaced, and why it cannot come back: a sign-in email used to
+     carry a one-time URL. Minting a new one silently killed the last, so
+     somebody who clicked "send me another", waited, then opened the mail that
+     had already arrived was opening the link their own click had destroyed —
+     and the page told them it had expired, so they clicked again and rearmed
+     the trap. One person lost four days to that loop. Anything that fetches a
+     URL — mail scanners, link previewers — spent the token the same way.
+
+     A code cannot be spent by being fetched, and it is typed into the page
+     the person is already on, so there is no stale tab to return through. */
+  const code = D.signInView(lang, 'code', '', null, 'mahmoud@expandexpo.com');
+  check(code.includes('id="aCode"'), `${lang}: the code step has no code field`);
+  check(!code.includes('id="aPass"'), `${lang}: the code step asks for a password too`);
+  check(!code.includes('id="aEmail"'),
+    `${lang}: the code step asks for the address again instead of carrying it`);
+  check(code.includes('mahmoud@expandexpo.com'),
+    `${lang}: the code step does not say which address the code went to`);
+  /* one-time-code is what lets iOS and Android offer the code from the
+     notification; inputmode numeric is what gets the digit keypad. Without
+     them the code is retyped by hand from another app, which is where digits
+     get transposed. */
+  check(/autocomplete="one-time-code"/.test(code), `${lang}: the code field forgoes OS autofill`);
+  check(/inputmode="numeric"/.test(code), `${lang}: the code field will not raise a numeric keypad`);
+  /* Resend without leaving the step. Bouncing back to the email field to ask
+     again is a smaller version of the bug this replaced. */
+  check(code.includes('data-resend'), `${lang}: there is no way to ask for another code`);
+
+  // The address is only carried where it was collected — never prefilled on a
+  // fresh sign-in screen, which would leak the last person to use the device.
+  check(!D.signInView(lang, 'in').includes('mahmoud@expandexpo.com'),
+    `${lang}: an address leaked onto the sign-in screen`);
+}
+
+/* No auth URL may survive anywhere in the product's own copy. The link was
+   the vulnerability, so a string still telling somebody to click one is a
+   promise the system no longer keeps. */
+for (const lang of ['en', 'ar']) {
+  const t = D.DSTR[lang];
+  for (const k of ['linkOnTheWay', 'linkExpiredWhy', 'firstTimePrompt', 'forgotPrompt']) {
+    check(!/\blink\b/i.test(t[k]) && !/رابط/.test(t[k]),
+      `${lang}: DSTR.${k} still tells people to open a link`);
+  }
 }
 
 /* ------------------------- attachments on a new project -------------------
