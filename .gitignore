@@ -1,2 +1,9 @@
 node_modules/
 .env
+
+# Build output. vercel.json runs `npm run build` with outputDirectory `public`,
+# and scripts/build.mjs creates the directory itself, so nothing depends on a
+# committed copy — and a committed copy can only ever be stale. It was: the
+# snapshot was deleted from source and the deployed site went clean, while the
+# file tracked here still carried every staff name into a public repository.
+public/
