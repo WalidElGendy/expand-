@@ -164,6 +164,35 @@ async function callFn(name, body) {
 export const requestAccess = async (email) =>
   callFn('request-access', { email: String(email || '').trim().toLowerCase() });
 
+/* The code from the email, exchanged for a session.
+
+   Two types are tried because the same six digits mean different things
+   depending on who the person is: 'email' for somebody who already has an
+   account, 'invite' for somebody being let in for the first time. The screen
+   cannot know which — the person may be finishing on a different device than
+   the one that asked — and making them pick would be asking them to explain
+   our data model back to us.
+
+   Order matters. A wrong type is a lookup miss, not a spend: Supabase keys
+   the token by (token, type), so the first attempt failing leaves the code
+   intact for the second. Getting that backwards would burn the code on the
+   attempt that was always going to miss. */
+export async function verifyCode(email, code) {
+  const addr = String(email || '').trim().toLowerCase();
+  const token = String(code || '').replace(/\D/g, '');
+  let last = null;
+  for (const type of ['email', 'invite']) {
+    const { data, error } = await sb.auth.verifyOtp({ email: addr, token, type });
+    if (!error) {
+      state.session = data.session;
+      state.me = await loadMe();
+      return state.me;
+    }
+    last = error;
+  }
+  throw new Error(last?.message || 'that code did not work');
+}
+
 export async function updatePassword(password) {
   const { error } = await sb.auth.updateUser({ password });
   if (error) throw new Error(error.message);
