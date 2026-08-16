@@ -86,51 +86,72 @@ const ar = (s: string) => `<p dir="rtl" style="margin:0 0 12px;font:400 15px/1.7
 
 const hi = (name?: string | null) => name ? `Hi ${esc(name.split(' ')[0])},` : 'Hi,';
 
-/* Two facts that caused every "the link is broken" report, so they are said
-   out loud in every letter rather than assumed.
+/* Two facts that caused every "I cannot get in" report, so they are said out
+   loud in every letter rather than assumed.
 
    A DAY. MAILER_OTP_EXP was 3600 seconds while these emails promised 24
    hours, which is how a working system gets reported as broken. The setting
    is now 86400 — a day — and the wording matches it. It is not "never":
-   a link that never dies is a standing key to the app sitting in an inbox,
-   and forwarded mail outlives the person it was sent to.
+   a credential that never dies is a standing key to the app sitting in an
+   inbox, and forwarded mail outlives the person it was sent to.
 
-   AND EACH LINK CANCELS THE LAST. Supabase keeps one token per person, so
-   asking again — from the invite form, from "First time here?", from the
-   People screen — silently kills the earlier email. Three links arrived four
-   minutes apart once, and clicking the oldest gave "expired or already used",
-   which reads as a bug rather than as arithmetic. */
-const ONCE_EN = 'The link works once and lasts a day. Asking for another one cancels it, so always open the newest email — an older link will say it has expired.';
-const ONCE_AR = 'الرابط يعمل مرة واحدة وصالح ليوم كامل. طلب رابط جديد يُلغي السابق، لذا افتح دائماً أحدث رسالة — الرابط الأقدم سيقول إنه منتهي.';
-const ONCE_TXT = 'The link works once and lasts a day. Asking for another one cancels it, so always open the newest email.';
+   AND EACH ONE REPLACES THE LAST. Supabase keeps a single token per person,
+   so asking again — from the invite form, from "First time here?", from the
+   People screen — voids the earlier email. That arithmetic used to be lethal,
+   because the credential was a link: somebody who asked for another, waited,
+   then opened the mail already in their inbox was opening the link their own
+   click had just killed, and the only thing the page could tell them was
+   "expired". With a code the same arithmetic is survivable — the newest
+   number is visible in the same inbox, and the person never left the sign-in
+   page to go looking for it — but it is still stated here, because "use the
+   newest email" is the one instruction that always works. */
+const ONCE_EN = 'The code works once and lasts a day. Asking for another one replaces it, so always use the newest email.';
+const ONCE_AR = 'الرمز يعمل مرة واحدة وصالح ليوم كامل. طلب رمز جديد يُلغي السابق، لذا استخدم دائماً أحدث رسالة.';
+const ONCE_TXT = 'The code works once and lasts a day. Asking for another one replaces it, so always use the newest email.';
+
+/* The code, set large and monospaced because it is copied by eye across two
+   apps. No link accompanies it, and that absence is the fix rather than an
+   oversight: a URL in this email is a credential that anything fetching it
+   spends — mail scanners and link previewers do — and it strands the reader
+   in their inbox, where the mail they open is reliably the one their last
+   "send me another" just cancelled. A number cannot be spent by being
+   fetched, and it is typed into the page they are already looking at. */
+const codeBlock = (code: string) => `
+<table role="presentation" cellpadding="0" cellspacing="0" style="margin:6px 0 16px;">
+<tr><td style="background:#f4f2fb;border:1px solid #ded6f6;border-radius:10px;padding:14px 22px;">
+  <span style="font:700 30px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#15121c;letter-spacing:.28em;">${esc(code)}</span>
+</td></tr></table>`;
 
 /* Both languages in one message rather than guessing. The roster is Arabic
    and English speaking and an invitation is the one email that must not be
    unreadable — there is no "resend in my language" button on a sign-in page. */
 
-export const inviteMail = (name: string | null, link: string, dept: string, role: string) => ({
-  subject: 'Your Expand account — create your password',
+export const inviteMail = (name: string | null, code: string, dept: string, role: string) => ({
+  subject: `${code} is your Expand sign-in code`,
   html: layout('You have been added to Expand', [
     p(hi(name)),
-    p(`You have been added to <b>Expand</b> as <b>${esc(role)}</b>${dept ? ` in ${esc(dept)}` : ''}. Choose a password and you are in.`),
+    p(`You have been added to <b>Expand</b> as <b>${esc(role)}</b>${dept ? ` in ${esc(dept)}` : ''}. Type this code on the sign-in page to get in and choose a password.`),
+    codeBlock(code),
+    p(`Go to <a href="${esc(APP)}" style="color:#7a3fe0;">${esc(APP.replace(/^https?:\/\//, ''))}</a>, choose <b>First time here?</b>, enter your email and then this code.`),
     p(`${ONCE_EN} Nobody, including us, can see the password you pick.`),
-    p('<b>Finish in one sitting.</b> The link signs you in and asks for a password — until you save one there is no password to sign in with later.'),
-    ar(`تمت إضافتك إلى Expand. اضغط الزر لاختيار كلمة المرور الخاصة بك. ${ONCE_AR} أكمل الخطوة في نفس الجلسة: الرابط يسجّل دخولك ويطلب كلمة المرور، وقبل حفظها لا توجد كلمة مرور تدخل بها لاحقاً.`),
-  ].join(''), { href: link, label: 'Create your password' }),
-  text: `${name ? `Hi ${name.split(' ')[0]},` : 'Hi,'}\n\nYou have been added to Expand as ${role}${dept ? ` in ${dept}` : ''}.\nCreate your password: ${link}\n\n${ONCE_TXT}\nFinish in one sitting: until you save a password there is none to sign in with later.\n\nExpand — ${APP}`,
+    ar(`تمت إضافتك إلى Expand. افتح صفحة الدخول واختر «أول مرة هنا؟»، ثم أدخل بريدك وهذا الرمز لاختيار كلمة المرور. ${ONCE_AR}`),
+  ].join('')),
+  text: `${name ? `Hi ${name.split(' ')[0]},` : 'Hi,'}\n\nYou have been added to Expand as ${role}${dept ? ` in ${dept}` : ''}.\n\nYour sign-in code: ${code}\n\nGo to ${APP}, choose "First time here?", enter your email and then this code.\n\n${ONCE_TXT}\n\nExpand — ${APP}`,
 });
 
-export const resetMail = (name: string | null, link: string, byAdmin: boolean) => ({
-  subject: byAdmin ? 'Set a new Expand password' : 'Your Expand password reset link',
-  html: layout('Choose a new password', [
+export const resetMail = (name: string | null, code: string, byAdmin: boolean) => ({
+  subject: `${code} is your Expand sign-in code`,
+  html: layout('Your sign-in code', [
     p(hi(name)),
     byAdmin
-      ? p('An administrator asked us to send you a fresh link for <b>Expand</b>. Use it to set a new password.')
-      : p('Somebody asked for a password reset on your <b>Expand</b> account.'),
+      ? p('An administrator asked us to send you a fresh code for <b>Expand</b>. Type it on the sign-in page to get back in and set a new password.')
+      : p('Somebody asked for a way back into your <b>Expand</b> account. Type this code on the sign-in page.'),
+    codeBlock(code),
+    p(`Go to <a href="${esc(APP)}" style="color:#7a3fe0;">${esc(APP.replace(/^https?:\/\//, ''))}</a>, choose <b>Forgot your password?</b>, enter your email and then this code.`),
     p(`${ONCE_EN} If this was not expected you can ignore it — your current password keeps working until a new one is set.`),
-    ar(`اضغط الزر لاختيار كلمة مرور جديدة. ${ONCE_AR} إن لم تطلب ذلك يمكنك تجاهل الرسالة.`),
-  ].join(''), { href: link, label: 'Set a new password' }),
-  text: `${name ? `Hi ${name.split(' ')[0]},` : 'Hi,'}\n\nSet a new Expand password: ${link}\n\n${ONCE_TXT}\n\nExpand — ${APP}`,
+    ar(`افتح صفحة الدخول واختر «نسيت كلمة المرور؟»، ثم أدخل بريدك وهذا الرمز. ${ONCE_AR} إن لم تطلب ذلك يمكنك تجاهل الرسالة.`),
+  ].join('')),
+  text: `${name ? `Hi ${name.split(' ')[0]},` : 'Hi,'}\n\nYour Expand sign-in code: ${code}\n\nGo to ${APP}, choose "Forgot your password?", enter your email and then this code.\n\n${ONCE_TXT}\n\nExpand — ${APP}`,
 });
 
 export const welcomeMail = (name: string | null, dept: string, role: string) => ({
