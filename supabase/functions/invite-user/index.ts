@@ -20,7 +20,7 @@
         worked for as long as it did.
    ========================================================================== */
 
-import { CORS, json, EMAIL, ROLES, APP, adminClient, whoIsAsking, deptName, actionLink }
+import { CORS, json, EMAIL, ROLES, APP, adminClient, whoIsAsking, deptName, actionCode }
   from '../_shared/http.ts';
 import { send, inviteMail, resetMail } from '../_shared/mail.ts';
 
@@ -54,23 +54,23 @@ Deno.serve(async (req) => {
     );
     if (rowErr) return json({ error: rowErr.message }, 400);
 
-    /* 2. the link, then the letter. */
+    /* 2. the code, then the letter. */
     const dept = await deptName(admin, department_id);
     let kind = 'invite';
-    let { link, error } = await actionLink(admin, 'invite', email, redirectTo,
+    let { code, error } = await actionCode(admin, 'invite', email, redirectTo,
       { full_name, department_id, role });
 
     if (error && /already.*registered|already exists|email_exists|user_already/i.test(error)) {
       /* They have an account, so an invite is the wrong letter — send the one
          that lets them back in instead of reporting a failure. */
       kind = 'reset';
-      ({ link, error } = await actionLink(admin, 'recovery', email, redirectTo));
+      ({ code, error } = await actionCode(admin, 'magiclink', email, redirectTo));
     }
-    if (!link) return json({ invited: true, emailed: false, kind, email, reason: error }, 200);
+    if (!code) return json({ invited: true, emailed: false, kind, email, reason: error }, 200);
 
     const letter = kind === 'reset'
-      ? resetMail(full_name, link, true)
-      : inviteMail(full_name, link, dept, role);
+      ? resetMail(full_name, code, true)
+      : inviteMail(full_name, code, dept, role);
     const sent = await send(email, letter.subject, letter.html, letter.text);
     if (sent.ok) await admin.from('invitations').update({ last_link_at: new Date().toISOString(), last_error: null }).eq('email', email);
 
