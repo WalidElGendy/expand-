@@ -39,8 +39,11 @@ section('Why addition is the wrong model');
 test('idle team: delivery is the LONGEST stage, not the sum', () => {
   const s = mk();
   const r = s.scheduleProject({ id: 'p1', name: 'Booth', size: 'M', earliestStart: '2026-08-09' });
-  // Stages run in parallel: 3D=5d, 2D=2d, content=3d -> 5 working days, not 10.
-  assert.equal(r.leadWorkingDays, 5);
+  /* Stages run in parallel from the day of submission: 3D=3d, 2D=2d,
+     content=2d at medium -> 3 working days, not 7. This is the assertion the
+     whole engine exists to make, and the one a project manager checks by
+     counting on their fingers. */
+  assert.equal(r.leadWorkingDays, 3);
   assert.equal(r.bottleneck.team, '3d');
   assert.equal(r.queueDays, 0);
   assert.equal(r.confidence.level, 'high');
@@ -54,11 +57,11 @@ test('busy team: the same project takes far longer, and addition never sees it',
   }
   const r = s.scheduleProject({ id: 'p2', name: 'Fifth', size: 'M', earliestStart: '2026-08-09' });
 
-  assert.ok(r.leadWorkingDays > 5,
+  assert.ok(r.leadWorkingDays > 3,
     `expected the fifth project to wait; got ${r.leadWorkingDays} working days`);
   assert.ok(r.queueDays > 0, 'expected queue time');
   assert.ok(r.confidence.level !== 'high', 'a mostly-queue date should not claim high confidence');
-  console.log(`       naive answer: 5 days · engine: ${r.leadWorkingDays} working days ` +
+  console.log(`       naive answer: 3 days · engine: ${r.leadWorkingDays} working days ` +
               `(${r.queueDays} of it queue, driver = ${r.bottleneck.team})`);
 });
 
@@ -92,12 +95,34 @@ test('adding a second content person pulls the date in', () => {
     `more capacity must not delay delivery (${before.delivery} -> ${after.delivery})`);
 });
 
-test('size bands scale effort', () => {
+test('size bands are read from a table, not derived from a multiplier', () => {
   const s = mk();
-  const m = s.scheduleProject({ id: 'm', name: 'M', size: 'M', earliestStart: '2026-08-09', commit: false });
-  const l = s.scheduleProject({ id: 'l', name: 'L', size: 'L', earliestStart: '2026-08-09', commit: false });
-  assert.ok(l.totalEffortDays > m.totalEffortDays);
-  assert.equal(l.totalEffortDays, 18);   // (5+2+3) * 1.8
+  const got = Object.fromEntries(['S', 'M', 'L'].map(size => [size,
+    s.scheduleProject({ id: size, name: size, size, earliestStart: '2026-08-09', commit: false })]));
+
+  assert.ok(got.L.totalEffortDays > got.M.totalEffortDays);
+  assert.ok(got.M.totalEffortDays > got.S.totalEffortDays);
+
+  /* The exact nine numbers the teams stated. A multiplier model could not
+     produce them: 3D steps 2/3/5 and 2D steps 1/2/3, which is x1.67 and x1.5
+     from medium to large, so no single size factor yields both. That is why
+     this asserts the table rather than a ratio. */
+  const days = (r, stage) => r.stages.find(x => x.stage === stage).effortDays;
+  assert.deepEqual(['S', 'M', 'L'].map(k => days(got[k], '3d')), [2, 3, 5]);
+  assert.deepEqual(['S', 'M', 'L'].map(k => days(got[k], '2d')), [1, 2, 3]);
+  assert.deepEqual(['S', 'M', 'L'].map(k => days(got[k], 'content')), [1, 2, 3]);
+
+  /* And the whole point of running them together: a large project delivers in
+     its longest stage, not in the sum of all three. */
+  assert.equal(got.L.leadWorkingDays, 5);
+  assert.equal(got.L.totalEffortDays, 11);   // 5 + 3 + 3 of work, over 5 days
+});
+
+test('an unrecognised size falls back to medium instead of throwing', () => {
+  const s = mk();
+  const r = s.scheduleProject({ id: 'x', name: 'X', size: 'XL', earliestStart: '2026-08-09', commit: false });
+  // XL was retired; an old row carrying it must still get a date, not a crash.
+  assert.equal(r.leadWorkingDays, 3);
 });
 
 test('a team with nobody in it is reported, not silently skipped', () => {
@@ -169,9 +194,9 @@ test('a team that always runs over gets stretched estimates', () => {
 
   const s = new Scheduler({ members: staff(), calendar: cal, calibration: factors });
   const r = s.scheduleProject({ id: 'p', name: 'P', size: 'M', earliestStart: '2026-08-09', commit: false });
-  assert.ok(r.leadWorkingDays > 5, 'calibrated estimate should exceed the naive 5 days');
+  assert.ok(r.leadWorkingDays > 3, 'calibrated estimate should exceed the uncalibrated 3 days');
   console.log(`       6 projects at 1.5x -> factor ${detail['3d'].applied}, ` +
-              `estimate moves 5 -> ${r.leadWorkingDays} working days`);
+              `estimate moves 3 -> ${r.leadWorkingDays} working days`);
 });
 
 test('one disastrous project does not reprice the team', () => {
