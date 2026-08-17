@@ -36,18 +36,33 @@ import { WorkCalendar, iso, parse } from './calendar.js';
 
 /* ------------------------------- defaults -------------------------------- */
 
-/** Base effort in person-days, at size M. Expand's stated figures. */
-export const DEFAULT_STAGES = {
-  '3d':      { label: '3D design',        team: '3d',      baseDays: 5 },
-  '2d':      { label: '2D technical',     team: '2d',      baseDays: 2 },
-  'content': { label: 'Content creation', team: 'content', baseDays: 3 },
-};
+/** The three sizes. Ordered smallest first; `whatIf` steps down this list. */
+export const SIZES = ['S', 'M', 'L'];
 
 /**
- * Size multipliers. A pavilion is not a booth; treating them alike is how a
- * team ends up with three "5 day" jobs that are really 4, 5 and 14.
+ * Effort in person-days, stated per stage and per size.
+ *
+ * This used to be one base figure per team multiplied by a size factor
+ * (S x0.6, M x1.0, L x1.8), and that model could not express the real numbers.
+ * Expand's 3D goes 2 -> 3 -> 5 across the sizes and 2D goes 1 -> 2 -> 3: one
+ * of those steps is x1.67 from medium to large and the other is x1.5, so no
+ * single factor table produces both. Multiplying also invented precision
+ * nobody had asked for, like 3.6 days of 2D on a large stand.
+ *
+ * Written out instead. Nine numbers a project manager can read, check against
+ * what the teams actually say, and correct without arithmetic. The database
+ * carries the same nine in departments.days_s/days_m/days_l, and that copy is
+ * what the live app uses — these are the fallback when a department has none.
+ *
+ * Pricing and production are deliberately absent. Nobody has stated an effort
+ * figure for them, and inventing one would put a confident number on a stage
+ * that is frequently what everyone is waiting for.
  */
-export const DEFAULT_SIZE_FACTORS = { S: 0.6, M: 1.0, L: 1.8, XL: 2.6 };
+export const DEFAULT_STAGES = {
+  '3d':      { label: '3D design',        team: '3d',      days: { S: 2, M: 3, L: 5 } },
+  '2d':      { label: '2D technical',     team: '2d',      days: { S: 1, M: 2, L: 3 } },
+  'content': { label: 'Content creation', team: 'content', days: { S: 1, M: 2, L: 3 } },
+};
 
 /**
  * Fraction of a working day genuinely available for project work.
@@ -112,21 +127,18 @@ export class Scheduler {
    * @param {object} cfg
    * @param {Array}  cfg.members    [{id, name, team, availability?, focus?, leave?[]}]
    * @param {object} cfg.stages     stage definitions, defaults to DEFAULT_STAGES
-   * @param {object} cfg.sizeFactors
    * @param {object} cfg.calibration per-team learned multipliers (see calibrate())
    * @param {WorkCalendar} cfg.calendar
    */
   constructor({
     members = [],
     stages = DEFAULT_STAGES,
-    sizeFactors = DEFAULT_SIZE_FACTORS,
     calibration = {},
     focus = DEFAULT_FOCUS,
     calendar = new WorkCalendar(),
   } = {}) {
     this.cal = calendar;
     this.stages = stages;
-    this.sizeFactors = sizeFactors;
     this.calibration = calibration;
     this.members = members.map(m => new MemberLedger(m, focus));
     this.byTeam = new Map();
@@ -143,12 +155,15 @@ export class Scheduler {
   effortFor(stageKey, size) {
     const stage = this.stages[stageKey];
     if (!stage) throw new Error(`unknown stage: ${stageKey}`);
-    const sizeFactor = this.sizeFactors[size] ?? 1;
+    /* Straight lookup. An unknown size falls back to M rather than throwing,
+       because a project row imported with a size nobody recognises should get
+       a middling estimate rather than take the whole screen down. */
+    const days = stage.days?.[size] ?? stage.days?.M ?? 0;
     // Calibration is how the tool gets better: the ratio of what actually
     // happened to what was predicted, per team. Starts at 1 and moves as
     // real projects close. See calibrate().
     const cal = this.calibration[stage.team] ?? 1;
-    return stage.baseDays * sizeFactor * cal;
+    return days * cal;
   }
 
   /**
@@ -333,7 +348,7 @@ export class Scheduler {
   /** Deep copy, so what-if analysis never mutates the live plan. */
   fork(extraMembers = []) {
     const clone = new Scheduler({
-      members: [], stages: this.stages, sizeFactors: this.sizeFactors,
+      members: [], stages: this.stages,
       calibration: this.calibration, calendar: this.cal,
     });
     clone.members = this.members.map(m => {
@@ -380,7 +395,7 @@ export class Scheduler {
     }
 
     // 2. Drop one size band.
-    const order = ['S', 'M', 'L', 'XL'];
+    const order = SIZES;
     const idx = order.indexOf(project.size || 'M');
     if (idx > 0) {
       const smaller = this.fork().scheduleProject({ ...project, size: order[idx - 1], commit: false });
