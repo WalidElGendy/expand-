@@ -619,8 +619,8 @@ function wireNewProject(lang, form) {
     const f = readProjectForm();
     if (!f.stages.length) { $('#estBox').innerHTML = ''; ctx.est = null; return; }
     try {
-      const { sched } = V.buildScheduler(ctx.people, ctx.stages);
-      ctx.est = V.estimateFor(sched, f);
+      const { sched, depth } = V.buildScheduler(ctx.people, ctx.stages, ctx.projects);
+      ctx.est = V.estimateFor(sched, f, depth);
       $('#estBox').innerHTML = V.estimateBox(lang, ctx.est);
     } catch (e) {
       $('#estBox').innerHTML = `<p class="note bad">${e.message}</p>`;
