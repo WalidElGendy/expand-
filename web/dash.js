@@ -2159,10 +2159,17 @@ export function docsView(lang, ctx) {
 <section class="card">
   <div class="card__head"><h2>${esc(t.library)}</h2><span class="muted small">${files.length}</span></div>
   <form id="docForm" class="uploader">
-    <label class="f"><span>${esc(t.title)}</span>
-      <input id="dTitle" autocomplete="off" placeholder="${esc(t.titleHint)}" /></label>
-    <label class="f"><span>${esc(t.description)}</span>
-      <textarea id="dDesc" rows="3" placeholder="${esc(t.descHint)}"></textarea></label>
+    <!-- The two fields are one column, not two grid rows the picker has to
+         span. A row-spanning item cannot share an auto-sized track with
+         anything else without the browser handing that track the spanning
+         item's whole height, which is what prised Description away from
+         Title. -->
+    <div class="uploader__fields">
+      <label class="f"><span>${esc(t.title)}</span>
+        <input id="dTitle" autocomplete="off" placeholder="${esc(t.titleHint)}" /></label>
+      <label class="f"><span>${esc(t.description)}</span>
+        <textarea id="dDesc" rows="3" placeholder="${esc(t.descHint)}"></textarea></label>
+    </div>
 
     ${dropField('dFiles', t.dropHere, t.dropHint, {
       accept: '.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip,image/*',
