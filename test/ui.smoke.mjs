@@ -315,8 +315,13 @@ import * as D from '../web/dash.js';
 import * as dbmod from '../web/db.js';
 
 dbmod.state.departments = [
-  { id: '3d', name_en: '3D design', name_ar: 'ثلاثي', is_stage: true, base_days: 5, colour: '#915bf5' },
-  { id: '2d', name_en: '2D technical', name_ar: 'فني', is_stage: true, base_days: 2, colour: '#d95926' },
+  { id: '3d', name_en: '3D design', name_ar: 'ثلاثي', is_stage: true, days_s: 2, days_m: 3, days_l: 5, colour: '#915bf5' },
+  { id: '2d', name_en: '2D technical', name_ar: 'فني', is_stage: true, days_s: 1, days_m: 2, days_l: 3, colour: '#d95926' },
+  { id: 'content', name_en: 'Content creation', name_ar: 'المحتوى', is_stage: true, days_s: 1, days_m: 2, days_l: 3, colour: '#199e70' },
+  /* Priced by nobody, on purpose: pricing is frequently what everyone is
+     waiting for, and a guessed figure there is the most misleading number the
+     screen could carry. It must not claim capacity or appear in the picker. */
+  { id: 'pricing', name_en: 'Pricing', name_ar: 'التسعير', is_stage: true, days_s: null, days_m: null, days_l: null, colour: '#c98500' },
 ];
 dbmod.state.me = { id: 'u1', full_name: 'Test', role: 'admin', department_id: 'pm', is_active: true };
 
@@ -367,6 +372,84 @@ const est = D.estimateFor(sched, { name: 'x', size: 'M', start: '2026-08-10', de
 check(/^\d{4}-\d{2}-\d{2}$/.test(est.real.delivery || ''),
   `the estimator produced no delivery date (got ${JSON.stringify(est.real.delivery)})`);
 check(/\d{4}/.test(D.estimateBox('en', est)), 'the estimate box renders without a date in it');
+
+/* ================================================ the effort table and parallelism
+
+   The complaint this replaced: "projects take 18 and 19 days, why?" Three
+   separate answers, and only one of them was a bug in the arithmetic.       */
+
+/* 1. THE STAGES RUN TOGETHER. Every stage starts on the day of submission and
+      delivery is the longest one, never the sum. With an idle roster a medium
+      project is 3 working days because 3D is 3 — not 3+2+2. */
+{
+  const roster = [{ id: 'a', full_name: 'A', department_id: '3d' },
+                  { id: 'b', full_name: 'B', department_id: '2d' },
+                  { id: 'c', full_name: 'C', department_id: 'content' }];
+  const { sched, depth } = D.buildScheduler(roster, []);
+  const all = ['3d', '2d', 'content'];
+  const days = {};
+  for (const size of ['S', 'M', 'L']) {
+    const e = D.estimateFor(sched, { name: 'x', size, start: '2026-08-17', deadline: null, stages: all }, depth);
+    days[size] = e.naive.leadWorkingDays;
+    const per = Object.fromEntries(e.naive.stages.map(x => [x.stage, x.effortDays]));
+    check(per['3d'] === { S: 2, M: 3, L: 5 }[size], `${size}: 3D should be ${{ S: 2, M: 3, L: 5 }[size]} days, got ${per['3d']}`);
+    check(per['2d'] === { S: 1, M: 2, L: 3 }[size], `${size}: 2D should be ${{ S: 1, M: 2, L: 3 }[size]} days, got ${per['2d']}`);
+    check(per['content'] === { S: 1, M: 2, L: 3 }[size], `${size}: content should be ${{ S: 1, M: 2, L: 3 }[size]} days, got ${per['content']}`);
+  }
+  check(days.S === 2 && days.M === 3 && days.L === 5,
+    `an idle roster should deliver in the longest stage — 2/3/5 working days — got ${JSON.stringify(days)}`);
+}
+
+/* 2. CONTENT AND 2D COST THE SAME DAYS AND SPEND THEM AT ONCE. Two days of
+      content and two days of 2D on a medium project is two days elapsed, not
+      four. This is the specific thing that was misread as sequential. */
+{
+  const roster = [{ id: 'b', full_name: 'B', department_id: '2d' },
+                  { id: 'c', full_name: 'C', department_id: 'content' }];
+  const { sched, depth } = D.buildScheduler(roster, []);
+  const e = D.estimateFor(sched, { name: 'x', size: 'M', start: '2026-08-17', deadline: null, stages: ['2d', 'content'] }, depth);
+  check(e.naive.leadWorkingDays === 2,
+    `2D and content are 2 days each, run together — expected 2 elapsed working days, got ${e.naive.leadWorkingDays}`);
+  check(e.naive.totalEffortDays === 4,
+    `the work is still 4 person-days; only the elapsed time overlaps (got ${e.naive.totalEffortDays})`);
+}
+
+/* 3. AN UNPRICED STAGE CLAIMS NOTHING. pricing has no day figures, so it is
+      absent from the table, invisible to the size picker, and cannot silently
+      contribute a guessed number to anybody's delivery date. */
+{
+  const table = D.stageTable(dbmod.state.departments);
+  check(!table.pricing, 'pricing has no stated effort and must not be priced');
+  check(Object.keys(table).sort().join() === '2d,3d,content',
+    `the priced stages should be exactly 2d/3d/content, got ${Object.keys(table)}`);
+}
+
+/* 4. THE SIZE PICKER PRINTS DAYS, NOT MULTIPLIERS. It used to say "×2.6",
+      which a project manager cannot check against anything. */
+for (const lang of ['en', 'ar']) {
+  const html = D.sizeOptionsHtml(lang, 'M');
+  check(!html.includes('×') && !html.includes('x2.6'), `${lang}: the size picker still shows a multiplier`);
+  check(!/value="XL"/.test(html), `${lang}: XL was retired and must not be offered`);
+  check((html.match(/<option/g) || []).length === 3, `${lang}: expected exactly three sizes`);
+  check(html.includes('1') && html.includes('5'), `${lang}: the picker does not show the day range`);
+}
+
+/* 5. THE QUEUE IS EXPLAINED, NOT JUST APPLIED. A date that is mostly waiting
+      has to say whose backlog is causing it, or it is unarguable and useless. */
+{
+  const roster = [{ id: 'a', full_name: 'A', department_id: '3d' }];
+  const busy = [];
+  for (let i = 0; i < 20; i++) busy.push({ project_id: 'p' + i, department_id: '3d', planned_start: null, status: 'pending' });
+  const projects = busy.map(b => ({ id: b.project_id, size: 'M' }));
+  const { sched, depth } = D.buildScheduler(roster, busy, projects);
+  check(depth['3d'].stages === 20 && depth['3d'].people === 1 && depth['3d'].workingDays === 60,
+    `20 medium 3D stages on one person is 60 working days deep, got ${JSON.stringify(depth['3d'])}`);
+  const e = D.estimateFor(sched, { name: 'x', size: 'M', start: '2026-08-17', deadline: null, stages: ['3d'] }, depth);
+  check(e.real.delivery > e.naive.delivery, 'a loaded team must push the date out past the work-only date');
+  const box = D.estimateBox('en', e);
+  check(box.includes('60') && /working days deep/.test(box),
+    'the estimate box does not say whose backlog is causing the wait');
+}
 
 /* ------------------- filters, and the Etemad status flow -------------------
    filterProjects is the single rule the table body, the "showing n of t"
