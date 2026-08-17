@@ -7,3 +7,8 @@ node_modules/
 # snapshot was deleted from source and the deployed site went clean, while the
 # file tracked here still carried every staff name into a public repository.
 public/
+
+# The tool that turns a local commit into an anchored patch for the GitHub web
+# editor. It is scaffolding for how this repo gets pushed, not part of the app,
+# and it reads the working tree — committing it would be committing the crane.
+scripts/make-patch.mjs
