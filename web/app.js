@@ -9,11 +9,11 @@
    gap between them is the whole reason the tool exists.
    ========================================================================== */
 
-import { Scheduler, calibrate, backtest, DEFAULT_STAGES, DEFAULT_SIZE_FACTORS } from '../engine/scheduler.js';
+import { Scheduler, calibrate, backtest, DEFAULT_STAGES, SIZES } from '../engine/scheduler.js';
 import { WorkCalendar, iso, parse } from '../engine/calendar.js';
 import * as db from './db.js';
 import * as C from './controller.js';
-import { DSTR, signInView, canPlan } from './dash.js';
+import { DSTR, signInView, canPlan, sizeOptionsHtml } from './dash.js';
 
 /* ------------------------------ translations ----------------------------- */
 
@@ -34,7 +34,7 @@ const STR = {
     person: 'person', people: 'people', noProjects: 'Nothing in the pipeline yet.',
     stage3d: '3D design', stage2d: '2D technical', stagecontent: 'Content creation',
     saves: 'saves', addPerson: 'Add one person to',
-    sizes: { S: 'Small', M: 'Medium', L: 'Large', XL: 'Very large' },
+    sizes: { S: 'Small', M: 'Medium', L: 'Large' },
     effortNote: 'person-days of work',
     stages: 'stages', next20: 'next 20 working days',
     confHigh: 'Mostly hands-on work, little waiting. This date holds unless scope changes.',
@@ -60,7 +60,7 @@ const STR = {
     person: 'شخص', people: 'أشخاص', noProjects: 'لا توجد مشاريع بعد.',
     stage3d: 'تصميم ثلاثي الأبعاد', stage2d: 'الرسومات الفنية', stagecontent: 'إنتاج المحتوى',
     saves: 'يوفّر', addPerson: 'إضافة شخص إلى',
-    sizes: { S: 'صغير', M: 'متوسط', L: 'كبير', XL: 'كبير جداً' },
+    sizes: { S: 'صغير', M: 'متوسط', L: 'كبير' },
     effortNote: 'أيام عمل للفرد',
     stages: 'مراحل', next20: 'أقرب ٢٠ يوم عمل',
     confHigh: 'العمل تنفيذ في معظمه، والانتظار قليل. هذا الموعد ثابت ما لم يتغيّر النطاق.',
@@ -429,8 +429,7 @@ function formCard() {
         <label class="f f--wide"><span>${esc(T().name)}</span>
           <input id="pName" value="Riyadh Expo pavilion" /></label>
         <label class="f"><span>${esc(T().size)}</span>
-          <select id="pSize">${Object.keys(DEFAULT_SIZE_FACTORS).map(k =>
-            `<option value="${k}"${k === 'M' ? ' selected' : ''}>${esc(T().sizes[k])} ×${DEFAULT_SIZE_FACTORS[k]}</option>`).join('')}</select></label>
+          <select id="pSize">${sizeOptionsHtml(S.lang, 'M', DEFAULT_STAGES)}</select></label>
         <label class="f"><span>${esc(T().start)}</span>
           <input id="pStart" type="date" value="${today()}" /></label>
         <label class="f"><span>${esc(T().deadline)}</span>
@@ -732,7 +731,7 @@ function estimate(fromForm) {
   const start = today();
   const demo = [
     ['Jeddah Season stand', 'L'], ['LEAP tech booth', 'M'],
-    ['Ministry pavilion', 'XL'], ['Retail activation', 'S'],
+    ['Ministry pavilion', 'L'], ['Retail activation', 'S'],
   ];
   for (const [name, size] of demo) S.pipeline.push({ id: `p${++S.seq}`, name, size, start });
 
