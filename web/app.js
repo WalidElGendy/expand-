@@ -389,7 +389,16 @@ function teamsCard() {
         <div class="row">
           <span class="dot" style="background:${TEAM_COLOR[t]}"></span>
           <span class="row__label">${esc(TEAM_LABEL[S.lang][t])}</span>
-          <span class="row__meta">${DEFAULT_STAGES[t].baseDays}d</span>
+          <span class="row__meta">${(() => {
+            /* The team's effort across the three sizes, not a single base
+               figure — there is no longer any such thing. Read from the same
+               table the engine schedules with, so this row and the date below
+               it cannot disagree. */
+            const d = DEFAULT_STAGES[t]?.days;
+            if (!d) return '—';
+            const lo = d.S, hi = d.L;
+            return lo === hi ? `${lo}d` : `${lo}–${hi}d`;
+          })()}</span>
           <div class="stepper">
             <button data-hc="${t}" data-d="-1" aria-label="minus">−</button>
             <b>${S.headcount[t]}</b>
