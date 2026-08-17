@@ -241,7 +241,12 @@ html[dir="rtl"] .head::after { transform: scaleX(-1); }
    phone. One column below that, and min-width:0 so a field can always be
    narrower than the text it expects. */
 @media (max-width: 700px) { .fields { grid-template-columns: minmax(0, 1fr); } }
-.f { display: grid; gap: 5px; min-width: 0; }
+/* `align-content: start` is load-bearing. A label is a grid whose two rows
+   size to content, but as a grid ITEM it stretches to its row's height — and a
+   stretched grid container with auto rows shares the spare height out between
+   them. Beside a tall element that pushed the caption to the ceiling and the
+   input to the floor with 150px of nothing between. */
+.f { display: grid; gap: 5px; min-width: 0; align-content: start; }
 .f input, .f select, .f textarea { min-width: 0; max-width: 100%; }
 .f--wide { grid-column: 1 / -1; }
 
@@ -360,7 +365,11 @@ html[dir="rtl"] .head::after { transform: scaleX(-1); }
   padding: 13px 16px; border-bottom: 1px solid var(--line);
 }
 .card__head h2 { font-size: 13px; font-weight: 600; letter-spacing: .01em; }
-.card > :not(.card__head):not(.board):not(.loadlist):not(.deptblock) { padding: 0 16px; }
+/* Blocks that set their own padding opt out here rather than fighting this
+   rule. Four :not() clauses put it at specificity 0,5,0 — a plain `.uploader`
+   never had a chance, which is why the upload form sat flush against the card
+   header with its button on the divider. Add to the list; do not try to win. */
+.card > :not(.card__head):not(.board):not(.loadlist):not(.deptblock):not(.uploader) { padding: 0 16px; }
 .card > :not(.card__head):first-child { padding-top: 14px; }
 .card > :last-child:not(.board):not(.stats):not(.loadlist) { padding-bottom: 14px; }
 .muted { color: var(--ink3); }
@@ -758,23 +767,34 @@ select.btn--sm { height: 28px; padding: 0 6px; background: var(--s-2); border: 1
    file picker, then the button on the trailing edge where the eye finishes.
    The two fields used to sit side by side, which pushed the description off
    the page on anything narrower than a desktop. */
+/* Fixed column widths rather than `max-width` on the form. A capped form is
+   narrower than the table beneath it, so its bottom border stopped short of
+   the table's header rule and left a step in the card's left-hand edge. The
+   form now spans the card — the border runs the full width — while the fields
+   keep a readable measure instead of stretching to 900px for a title. */
 .uploader {
-  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 14px 18px; padding: 18px 16px; max-width: 1000px;
+  display: grid; grid-template-columns: minmax(0, 480px) minmax(0, 480px);
+  justify-content: start; align-items: start;
+  gap: 14px 18px; padding: 18px 16px;
   border-bottom: 1px solid var(--line);
 }
 .uploader .f input, .uploader .f textarea { width: 100%; }
-/* Title over description on the left, the drop target filling the height
-   beside them, and the button on the trailing edge of the whole form. Left
-   to itself the button floated in the middle of an empty card. */
-.uploader > .f:nth-of-type(1) { grid-area: 1 / 1; }
-.uploader > .f:nth-of-type(2) { grid-area: 2 / 1; }
-.uploader > .drop { grid-area: 1 / 2 / 3 / 3; }
-.uploader > .actions { grid-column: 1 / -1; }
-@media (max-width: 900px) {
+
+/* Fields on one side, picker on the other, button on the trailing edge of the
+   whole form. This was three grid areas pinned by `:nth-of-type`, and it broke
+   twice: once when the picker grew a wrapper and its selector stopped
+   matching, and again because a row-spanning picker taller than both fields
+   handed its height to whichever track was `auto` and prised the two fields
+   apart. Two columns and a stack — nothing spans, nothing to keep in sync. */
+.uploader__fields { display: grid; gap: 14px; align-content: start; min-width: 0; }
+.uploader > .dropwrap { align-self: stretch; grid-template-rows: minmax(0, 1fr) auto; }
+.uploader > .dropwrap > .drop { height: 100%; }
+.uploader > .actions { grid-column: 1 / -1; margin-top: 0; }
+@media (max-width: 1060px) {
   .uploader { grid-template-columns: minmax(0, 1fr); }
-  .uploader > .f:nth-of-type(1), .uploader > .f:nth-of-type(2),
-  .uploader > .drop { grid-area: auto; }
+  /* Stacked, the picker has no neighbour to match, so let it be its own size. */
+  .uploader > .dropwrap { align-self: start; grid-template-rows: auto auto; }
+  .uploader > .dropwrap > .drop { height: auto; }
 }
 
 .drop {
