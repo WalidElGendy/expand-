@@ -30,8 +30,12 @@ t('routes tasks to teams by keyword', () => {
 });
 
 t('infers size from the project name and says it guessed', () => {
-  assert.deepEqual(sizeFor({ name: 'Riyadh Expo pavilion' }), { size: 'XL', inferred: true });
+  assert.deepEqual(sizeFor({ name: 'Riyadh Expo pavilion' }), { size: 'L', inferred: true });
   assert.deepEqual(sizeFor({ name: 'X', custom_fields: [{ name: 'Size', enum_value: { name: 'Large' } }] }),
+                   { size: 'L', inferred: false });
+  /* An Asana row still labelled XL is a large project with an emphatic label,
+     not a fourth band — and it is read as stated, not as a guess. */
+  assert.deepEqual(sizeFor({ name: 'X', custom_fields: [{ name: 'Size', enum_value: { name: 'XL' } }] }),
                    { size: 'L', inferred: false });
 });
 
