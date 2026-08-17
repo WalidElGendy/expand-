@@ -9,7 +9,7 @@
      ------------------------      --------------------------------
      assignee                      which TEAM (3d / 2d / content)
      due_on                        earliest START and effort in days
-     section / custom field        project SIZE (S/M/L/XL)
+     section / custom field        project SIZE (S/M/L)
      completed_at                  ACTUAL delivery, for backtesting
 
    Only the last one is unambiguous. The rest are inferred, and every inference
@@ -58,9 +58,11 @@ export const DEFAULT_TEAM_KEYWORDS = {
   bd: ['bd', 'business development', 'tender', 'مناقصة'],
 };
 
+/* Three bands, because three is what the teams have day figures for. Pavilion
+   and expo words used to imply a fourth; they now mean large, which is the
+   biggest thing the engine can honestly price. */
 const SIZE_KEYWORDS = {
-  XL: ['pavilion', 'expo', 'giga', 'جناح'],
-  L: ['stand', 'exhibition', 'معرض'],
+  L: ['pavilion', 'expo', 'giga', 'جناح', 'stand', 'exhibition', 'معرض'],
   S: ['activation', 'popup', 'pop-up', 'kiosk', 'تفعيل'],
 };
 
@@ -85,7 +87,11 @@ export function sizeFor(project, sizeField = 'Size') {
   const explicit = custom?.enum_value?.name || custom?.text_value;
   if (explicit) {
     const v = String(explicit).trim().toUpperCase();
-    if (['S', 'M', 'L', 'XL'].includes(v)) return { size: v, inferred: false };
+    /* XL folds into L. The engine prices three sizes because those are the
+       three anybody has stated day figures for; an Asana row still labelled XL
+       is a large project with an emphatic label, not a fourth band. */
+    if (v === 'XL') return { size: 'L', inferred: false };
+    if (['S', 'M', 'L'].includes(v)) return { size: v, inferred: false };
     if (/small|صغير/i.test(explicit))  return { size: 'S', inferred: false };
     if (/medium|متوسط/i.test(explicit)) return { size: 'M', inferred: false };
     if (/large|كبير/i.test(explicit))  return { size: 'L', inferred: false };
