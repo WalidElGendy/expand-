@@ -12,7 +12,7 @@
    ========================================================================== */
 
 import * as db from './db.js';
-import { Scheduler, DEFAULT_SIZE_FACTORS } from '../engine/scheduler.js';
+import { Scheduler, SIZES, DEFAULT_STAGES } from '../engine/scheduler.js';
 import { WorkCalendar, iso, parse } from '../engine/calendar.js';
 
 const CAL = new WorkCalendar();
@@ -109,7 +109,9 @@ export const DSTR = {
     hlAtEtemad: 'Sitting at Etemad', hlAtEtemadSub: 'submitted, no verdict back',
     hlProjNoOwner: 'Projects with no owner',
     hlOfLeads: 'of {n} leads', hlOfProjects: 'of {n} projects',
-    hlNobody: 'nobody',
+    hlNobody: 'nobody', daysWord: 'days',
+    sizes: { S: 'Small', M: 'Medium', L: 'Large' },
+    whyLate: 'The work itself is quick; the wait is not. {team} is {days} working days deep — {stages} open stages between {people} people — so a new project queues behind all of it. Closing finished projects or adding capacity moves this date; nothing else will.',
     openProjects: 'Open projects', overdue_: 'Overdue', unassigned_: 'Stages unassigned',
     committedDays: 'Design days committed', openLeads: 'Open leads', nextFree: 'A new project would deliver',
     ofTotal: 'of', needsReview: 'Needs review', allRows: 'All', teamsCol: 'Teams',
@@ -286,7 +288,9 @@ export const DSTR = {
     hlAtEtemad: 'لدى اعتماد', hlAtEtemadSub: 'مقدَّمة ولم يصل قرار',
     hlProjNoOwner: 'مشاريع بلا مسؤول',
     hlOfLeads: 'من {n} عميلاً محتملاً', hlOfProjects: 'من {n} مشروعاً',
-    hlNobody: 'لا أحد',
+    hlNobody: 'لا أحد', daysWord: 'أيام',
+    sizes: { S: 'صغير', M: 'متوسط', L: 'كبير' },
+    whyLate: 'العمل نفسه سريع، لكن الانتظار ليس كذلك. {team} أمامه {days} يوم عمل من الأعمال المفتوحة — {stages} مرحلة على {people} أشخاص — لذا ينتظر أي مشروع جديد خلفها كلها. إغلاق المشاريع المنتهية أو زيادة الطاقة يقرّب هذا التاريخ، ولا شيء غير ذلك.',
     openProjects: 'مشاريع مفتوحة', overdue_: 'متأخرة', unassigned_: 'مراحل غير مسندة',
     committedDays: 'أيام تصميم ملتزم بها', openLeads: 'عملاء محتملون مفتوحون', nextFree: 'مشروع جديد يُسلَّم في',
     ofTotal: 'من', needsReview: 'تحتاج مراجعة', allRows: 'الكل', teamsCol: 'الفرق',
@@ -866,45 +870,122 @@ export function deadlineChart(lang, projects) {
    about the new project. Without the first half the answer is the naive one:
    how long the work takes, on a team with nothing else to do. */
 
-export function buildScheduler(people, openStages) {
+/* The stage table the live app schedules with, read from the database rather
+   than from the engine's defaults. departments.days_s/days_m/days_l is the
+   editable copy; a department with no figures is deliberately not estimated
+   (pricing and production have none, and a guessed number on pricing would be
+   the most misleading one on the screen). */
+export function stageTable(departments = db.state.departments || []) {
+  const out = {};
+  for (const d of departments) {
+    if (!d.is_stage) continue;
+    const days = { S: Number(d.days_s), M: Number(d.days_m), L: Number(d.days_l) };
+    if (!days.M) continue;                       // no stated effort -> not priced
+    out[d.id] = { label: d.name_en || d.id, team: d.id, days };
+  }
+  return out;
+}
+
+/* The size picker. It used to print the multiplier — "M ×1", "XL ×2.6" — which
+   told a project manager nothing they could check. It now prints the range of
+   working days that size costs across the priced stages, read from the same
+   table the engine schedules with, so the dropdown and the estimate can never
+   disagree. */
+export function sizeOptionsHtml(lang, selected = 'M', stages = null) {
+  const t = DSTR[lang];
+  const table = stages || stageTable();
+  const priced = Object.values(table).map(s => s.days).filter(Boolean);
+  return SIZES.map(k => {
+    const ds = priced.map(d => Number(d[k])).filter(n => n > 0);
+    const lo = ds.length ? Math.min(...ds) : 0, hi = ds.length ? Math.max(...ds) : 0;
+    const range = !ds.length ? '' : lo === hi ? `${lo} ${t.daysWord}` : `${lo}–${hi} ${t.daysWord}`;
+    return `<option value="${k}"${k === selected ? ' selected' : ''}>${esc(t.sizes[k])}${range ? ` · ${esc(range)}` : ''}</option>`;
+  }).join('');
+}
+
+export function buildScheduler(people, openStages, projects = []) {
+  const stages = stageTable();
   const members = people
-    .filter(p => p.department_id && db.dept(p.department_id)?.is_stage)
+    .filter(p => p.department_id && stages[p.department_id])
     .map(p => ({ id: p.id, name: p.full_name || p.email, team: p.department_id }));
 
-  const sched = new Scheduler({ members, calendar: CAL });
+  const sched = new Scheduler({ members, stages, calendar: CAL });
 
-  // Replay committed work oldest-first so the ledger reflects reality.
+  /* Replay committed work so a new project queues behind what is already
+     promised. Three things this gets right that it used to get wrong, and
+     between them they were most of the reason a medium project came back at
+     eighteen days:
+
+     SIZE. Every committed project was replayed as Medium regardless of what it
+     actually is, so 105 large projects were priced as medium and 11 small ones
+     were too. Each now uses its own size.
+
+     LATE WORK. A stage whose planned start is in the past was replayed from
+     that past date, and the scheduler happily booked capacity in weeks that
+     have already gone — so 47 stages that are late and still to do consumed no
+     present capacity at all and vanished from the queue. Starts are clamped to
+     today: work that has not happened yet competes for the days that are left,
+     whatever its paperwork says.
+
+     UNDATED WORK. 110 of 157 open stages carry no planned start. They are real
+     work, so they stay in the ledger from today — but they are counted once,
+     at their project's real size, rather than every project being assumed
+     medium and every stage being assumed to start this morning at full price. */
+  const now = today();
+  const sizeOf = new Map((projects || []).map(p => [p.id, p.size || 'M']));
   const byProject = new Map();
   for (const s of openStages) {
     if (s.status === 'done') continue;
-    if (!byProject.has(s.project_id)) byProject.set(s.project_id, { start: s.planned_start, stages: [] });
+    if (!stages[s.department_id]) continue;      // unpriced stage, no capacity claim
+    if (!byProject.has(s.project_id)) byProject.set(s.project_id, { start: null, stages: [] });
     const e = byProject.get(s.project_id);
     e.stages.push(s.department_id);
     if (s.planned_start && (!e.start || s.planned_start < e.start)) e.start = s.planned_start;
   }
-  let n = 0;
+  let n = 0, undated = 0, pulledForward = 0;
   for (const [pid, e] of byProject) {
-    const stages = e.stages.filter(d => db.dept(d)?.base_days);
-    if (!stages.length) continue;
+    if (!e.stages.length) continue;
+    if (!e.start) undated++;
+    else if (e.start < now) pulledForward++;
+    const start = !e.start || e.start < now ? now : e.start;
     try {
       sched.scheduleProject({
-        id: 'live-' + pid, name: 'committed', size: 'M',
-        earliestStart: e.start || today(), stages, commit: true,
+        id: 'live-' + pid, name: 'committed', size: sizeOf.get(pid) || 'M',
+        earliestStart: start, stages: e.stages, commit: true,
       });
       n++;
     } catch { /* a project the engine cannot place must not block the estimate */ }
   }
-  return { sched, committed: n, members };
+  /* How deep each team's backlog is, in working days: the person-days of open
+     work divided by the people who can do it. This is plain arithmetic on rows
+     that exist, not a scheduler output, and it is the honest answer to "why is
+     the date so far away" — a team 64 days deep cannot start tomorrow however
+     the estimate is phrased. */
+  const depth = {};
+  for (const key of Object.keys(stages)) {
+    const heads = members.filter(m => m.team === key).length;
+    let days = 0, count = 0;
+    for (const [pid, e] of byProject) {
+      for (const d of e.stages) {
+        if (d !== key) continue;
+        days += Number(stages[key].days[sizeOf.get(pid) || 'M']) || 0;
+        count++;
+      }
+    }
+    depth[key] = { stages: count, people: heads, days: Math.round(days),
+                   workingDays: heads ? Math.round(days / heads) : null };
+  }
+  return { sched, committed: n, members, undated, pulledForward, stages, depth };
 }
 
-export function estimateFor(sched, { name, size, start, deadline, stages }) {
+export function estimateFor(sched, { name, size, start, deadline, stages }, depth = null) {
   const real = sched.scheduleProject({
     id: '__new__', name, size, earliestStart: start, deadline: deadline || null,
     stages, commit: false,
   });
   const naive = new Scheduler({ members: sched.members ?? [], calendar: CAL })
     .scheduleProject({ id: 'n', name, size, earliestStart: start, stages, commit: false });
-  return { real, naive };
+  return { real, naive, depth };
 }
 
 /* ================================ SIGN IN ================================= */
@@ -1453,7 +1534,7 @@ export function pmView(lang, ctx) {
      empty stage throws, and one empty tile beats a blank dashboard. */
   let freeFrom = null;
   try {
-    const { sched } = buildScheduler(ctx.people || [], liveStages);
+    const { sched } = buildScheduler(ctx.people || [], liveStages, projects);
     /* Only stages the scheduler can actually price AND staff. `pricing` and
        `production` are flagged as stages but have no stated effort and nobody
        assigned, and asking the engine to schedule one throws — which took the
@@ -1702,9 +1783,7 @@ export function newProjectView(lang, ctx) {
       <label class="f f--wide"><span>${esc(t.name)}</span><input id="pName" required /></label>
       <label class="f"><span>${esc(t.client)}</span><input id="pClient" /></label>
       <label class="f"><span>${esc(t.size)}</span>
-        <select id="pSize">
-          ${['S', 'M', 'L', 'XL'].map(s => `<option value="${s}"${s === 'M' ? ' selected' : ''}>${s} · ×${DEFAULT_SIZE_FACTORS[s]}</option>`).join('')}
-        </select></label>
+        <select id="pSize">${sizeOptionsHtml(lang, 'M')}</select></label>
       <label class="f"><span>${esc(t.start)}</span><input id="pStart" type="date" value="${today()}" /></label>
       <label class="f"><span>${esc(t.deadline)}</span><input id="pDeadline" type="date" /></label>
       <label class="f f--wide"><span>${esc(t.description)}</span><textarea id="pDesc" rows="3"></textarea></label>
@@ -1762,7 +1841,21 @@ export function estimateBox(lang, est) {
       <span class="est__v">${esc(fmt(real.delivery, lang))}</span>
       ${gap > 0 ? `<span class="est__note small">${gap} ${esc(t.workingDays)} ${esc(t.queueDays)}</span>` : ''}
     </div>
-  </div>`;
+  </div>
+  ${(() => {
+    /* Naming the bottleneck turns an unarguable date into something a manager
+       can act on. "Delivers in November" invites a shrug; "3D is 64 working
+       days deep — 36 open stages between 2 people" points at the two levers
+       that actually move it. */
+    const team = real.bottleneck?.team;
+    const d = est.depth?.[team];
+    if (!d || !d.workingDays || gap <= 0) return '';
+    return `<p class="note">${esc(t.whyLate
+      .replace('{team}', deptName(team, lang))
+      .replace('{days}', d.workingDays)
+      .replace('{stages}', d.stages)
+      .replace('{people}', d.people))}</p>`;
+  })()}`;
 }
 
 /* ----------------------------------- leads -------------------------------- */
