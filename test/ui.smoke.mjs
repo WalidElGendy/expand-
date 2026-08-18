@@ -585,6 +585,55 @@ for (const lang of ['en', 'ar']) {
   }
 }
 
+/* 7. THE DOCUMENT LIBRARY SHOWS EVERY FILE. It used to query purpose =
+      'document' and render "0" while two RFPs sat on projects — a page whose
+      whole job is finding a file, reporting that none exist. */
+{
+  const files = [
+    { id: 'f1', purpose: 'document', filename: 'brand-guide.pdf', title: 'Brand guide',
+      size_bytes: 2097152, uploader: { full_name: 'Uploader One' } },
+    { id: 'f2', purpose: 'rfp', filename: 'tender.pdf', title: null, size_bytes: 1048576,
+      project_id: 'p9', project: { id: 'p9', name: 'Riyadh pavilion' }, uploader: { full_name: 'Uploader Two' } },
+    { id: 'f3', purpose: 'reference', filename: 'moodboard.jpg', title: null, size_bytes: null,
+      project_id: 'p9', project: { id: 'p9', name: 'Riyadh pavilion' }, uploader: null },
+  ];
+
+  for (const lang of ['en', 'ar']) {
+    const html = D.docsView(lang, { files, docf: 'all' });
+    for (const f of files) {
+      check(html.includes(f.filename), `${lang}: ${f.filename} is missing from the library`);
+    }
+    /* A project attachment is only findable if the row says which project.
+       "tender.pdf" alone cannot be matched to one of 378 projects. */
+    check(html.includes('Riyadh pavilion'), `${lang}: a project attachment does not name its project`);
+    check(html.includes('#/project/p9'), `${lang}: the project name is not a way to get to the project`);
+    /* And never the raw enum: 'rfp' is a column value, not a word. */
+    check(!/>rfp</.test(html), `${lang}: a raw purpose enum reached the screen`);
+    check(html.includes(D.DSTR[lang].purposes.rfp), `${lang}: the file kind is not named`);
+    check(!html.includes('undefined') && !html.includes('NaN'), `${lang}: the library rendered a hole`);
+  }
+
+  /* The three slices, and the counts that make the control worth having. */
+  const all = D.docsView('en', { files, docf: 'all' });
+  check(/data-docf="project"[^>]*>[^<]*<span class="seg__n">2</.test(all.replace(/\n\s*/g, '')),
+    'the "on projects" tab does not say how many files are behind it');
+
+  const lib = D.docsView('en', { files, docf: 'document' });
+  check(lib.includes('brand-guide.pdf') && !lib.includes('tender.pdf'),
+    'the Library slice must show only what was uploaded here');
+
+  const proj = D.docsView('en', { files, docf: 'project' });
+  check(proj.includes('tender.pdf') && proj.includes('moodboard.jpg') && !proj.includes('brand-guide.pdf'),
+    'the project slice must show only files attached to projects');
+  /* An empty slice and an empty library are different sentences. "No
+     documents yet" under a filter that hides three files is a lie. */
+  const none = D.docsView('en', { files: [files[0]], docf: 'project' });
+  check(none.includes(D.DSTR.en.noDocsInFilter) && !none.includes(D.DSTR.en.noDocsYet),
+    'an empty filter slice claims the library itself is empty');
+  check(D.docsView('en', { files: [], docf: 'all' }).includes(D.DSTR.en.noDocsYet),
+    'a genuinely empty library must say so plainly');
+}
+
 /* ------------------- filters, and the Etemad status flow -------------------
    filterProjects is the single rule the table body, the "showing n of t"
    count and these tests all read. When the count and the rows are computed
