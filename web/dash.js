@@ -112,6 +112,19 @@ export const DSTR = {
     hlNobody: 'nobody', daysWord: 'days',
     sizes: { S: 'Small', M: 'Medium', L: 'Large' },
     whyLate: 'The work itself is quick; the wait is not. {team} is {days} working days deep — {stages} open stages between {people} people — so a new project queues behind all of it. Closing finished projects or adding capacity moves this date; nothing else will.',
+    wcTitle: 'Workload calendar', wcSub: 'free person-days per team, month by month',
+    wcOf: 'of', wcPersonDays: 'person-days', wcNoPeople: 'no one on this team',
+    wcRestOf: 'rest of month', wcFreeOf: 'free of {n}',
+    wcHead: '{p} people · {d} days a {size} project',
+    wcHead1: '1 person · {d} days a {size} project',
+    wcHead0: 'nobody · {d} days a {size} project',
+    wcNobodyRow: 'Nobody is on this team, so none of its stages ever start.',
+    wcAnswer: 'The next {size} project can start in {m} without queueing behind anything — that is the first month every team it needs has a whole stage of room left.',
+    wcAnswerNone: 'No month in the next {n} has room for a whole {size} project on every team it needs. Submitting one now means it queues; the calendar above shows which team runs out first.',
+    wcAnswerNobody: 'Nobody is on {teams}, so no month is free — a stage with no one to do it never comes up in the queue at all. Assign someone before reading anything else here as capacity.',
+    wcPerTeam: 'Team by team, the first month with a whole {size} stage free: {list}.',
+    wcNever: 'not in the next {n}',
+    wcStale: 'Holidays are only listed to the end of 2026, so months after that are counted as if nothing is closed. Add next year’s dates to keep this honest.',
     openProjects: 'Open projects', overdue_: 'Overdue', unassigned_: 'Stages unassigned',
     committedDays: 'Design days committed', openLeads: 'Open leads', nextFree: 'A new project would deliver',
     ofTotal: 'of', needsReview: 'Needs review', allRows: 'All', teamsCol: 'Teams',
@@ -291,6 +304,19 @@ export const DSTR = {
     hlNobody: 'لا أحد', daysWord: 'أيام',
     sizes: { S: 'صغير', M: 'متوسط', L: 'كبير' },
     whyLate: 'العمل نفسه سريع، لكن الانتظار ليس كذلك. {team} أمامه {days} يوم عمل من الأعمال المفتوحة — {stages} مرحلة على {people} أشخاص — لذا ينتظر أي مشروع جديد خلفها كلها. إغلاق المشاريع المنتهية أو زيادة الطاقة يقرّب هذا التاريخ، ولا شيء غير ذلك.',
+    wcTitle: 'تقويم الأحمال', wcSub: 'أيام العمل المتاحة لكل فريق، شهراً بشهر',
+    wcOf: 'من', wcPersonDays: 'يوم عمل', wcNoPeople: 'لا أحد في هذا الفريق',
+    wcRestOf: 'بقية الشهر', wcFreeOf: 'متاح من {n}',
+    wcHead: '{p} أشخاص · {d} أيام للمشروع {size}',
+    wcHead1: 'شخص واحد · {d} أيام للمشروع {size}',
+    wcHead0: 'لا أحد · {d} أيام للمشروع {size}',
+    wcNobodyRow: 'لا أحد في هذا الفريق، لذا لا تبدأ أي من مراحله إطلاقاً.',
+    wcAnswer: 'يمكن بدء المشروع {size} القادم في {m} دون انتظار خلف أي عمل آخر — وهو أول شهر يتوفر فيه لكل فريق يحتاجه مساحة مرحلة كاملة.',
+    wcAnswerNone: 'لا يوجد خلال الأشهر الـ{n} القادمة شهر يتسع لمشروع {size} كامل في كل الفرق التي يحتاجها. تقديم مشروع الآن يعني أنه سينتظر؛ والتقويم أعلاه يبيّن أي فريق ينفد أولاً.',
+    wcAnswerNobody: 'لا أحد في {teams}، لذا لا يوجد شهر متاح — المرحلة التي لا أحد ينفذها لا تدخل الطابور أصلاً. أسنِد شخصاً قبل اعتبار أي رقم هنا طاقة متاحة.',
+    wcPerTeam: 'فريقاً بفريق، أول شهر تتوفر فيه مساحة مرحلة {size} كاملة: {list}.',
+    wcNever: 'ليس خلال الأشهر الـ{n} القادمة',
+    wcStale: 'العطلات مسجّلة حتى نهاية ٢٠٢٦ فقط، لذا تُحسب الأشهر بعدها كأن لا عطلة فيها. أضف تواريخ السنة القادمة ليبقى هذا دقيقاً.',
     openProjects: 'مشاريع مفتوحة', overdue_: 'متأخرة', unassigned_: 'مراحل غير مسندة',
     committedDays: 'أيام تصميم ملتزم بها', openLeads: 'عملاء محتملون مفتوحون', nextFree: 'مشروع جديد يُسلَّم في',
     ofTotal: 'من', needsReview: 'تحتاج مراجعة', allRows: 'الكل', teamsCol: 'الفرق',
@@ -976,6 +1002,114 @@ export function buildScheduler(people, openStages, projects = []) {
                    workingDays: heads ? Math.round(days / heads) : null };
   }
   return { sched, committed: n, members, undated, pulledForward, stages, depth };
+}
+
+/* ========================== THE WORKLOAD CALENDAR =========================
+
+   "When can I submit the next one?" is a different question from "when does
+   this one land", and the estimator only ever answered the second. This
+   answers the first: for each team, month by month, how many person-days
+   exist and how many are already spoken for.
+
+   It reads the SAME ledger the estimate reads — the scheduler returned by
+   buildScheduler(), with every committed stage already booked into it. That
+   is the whole reason it is computed here and not from a separate query. A
+   calendar assembled from its own SQL would drift from the date beside it
+   within a week, and then neither could be trusted.
+
+   Capacity is people × working days, and working days come from the Saudi
+   calendar: Friday and Saturday are weekend, Eid and National Day are
+   holidays. September has a national day in it, so September is a shorter
+   month than August whatever the wall calendar says.
+   ========================================================================== */
+
+/** First and last day of the month `n` months after `from`.
+    Not `monthWindow` — that one already exists above and means the months a
+    chart spans, which is a different thing that happens to sound the same. */
+export function capacityMonth(from, n = 0) {
+  const d = parse(from);
+  const y = d.getUTCFullYear(), m = d.getUTCMonth() + n;
+  const first = new Date(Date.UTC(y, m, 1));
+  const last = new Date(Date.UTC(y, m + 1, 0));
+  return { key: iso(first).slice(0, 7), first: iso(first), last: iso(last) };
+}
+
+/* Month AND year. Six months forward from August crosses into next year, and
+   a column headed "Jan" beside one headed "Dec" is ambiguous exactly where
+   the decision gets made. */
+export function capacityMonthLabel(key, lang) {
+  return parse(key + '-01').toLocaleDateString(
+    lang === 'ar' ? 'ar-SA-u-ca-gregory' : 'en-GB',
+    { month: 'short', year: '2-digit', timeZone: 'UTC' });
+}
+
+/**
+ * Per team, per month: capacity, what is committed, and what is left.
+ *
+ * @param sched   the scheduler from buildScheduler(), work already booked
+ * @param months  how many months forward, including the current one
+ * @param fromISO today, normally
+ */
+export function monthlyLoad(sched, months = 6, fromISO = today()) {
+  /* Teams come from the STAGE TABLE, not from the roster. A team with nobody
+     in it has no members and would drop out of the calendar entirely — which
+     renders as absence, and absence reads as "fine". Content has had zero
+     active people for most of this year; that is the single most important
+     thing this screen can tell anyone, and it is exactly the row that
+     disappears if you enumerate people instead of teams. */
+  const teams = [...new Set(Object.values(sched.stages || {}).map(s => s.team))];
+  if (!teams.length) teams.push(...new Set((sched.members || []).map(m => m.team)));
+  const out = [];
+  for (let n = 0; n < months; n++) {
+    const w = capacityMonth(fromISO, n);
+    /* The current month starts TODAY, not on the 1st. Days that have already
+       gone are not free slots, and counting them would report a comfortable
+       month on the 28th of it. */
+    const from = n === 0 && fromISO > w.first ? fromISO : w.first;
+    const u = sched.utilisation(from, w.last);
+    const row = { key: w.key, from, to: w.last, partial: from !== w.first, teams: {} };
+    for (const team of teams) {
+      const v = u[team] || { committed: 0, capacity: 0, headcount: 0 };
+      const capacity = Math.round(v.capacity);
+      const committed = Math.round(v.committed);
+      row.teams[team] = {
+        capacity, committed,
+        free: Math.max(0, capacity - committed),
+        /* Over-committed months exist and must be allowed to read above 100%.
+           Clamping them to "full" hides the difference between a team with
+           nothing left and a team three weeks past what it can hold. */
+        pct: capacity ? Math.round((committed / capacity) * 100) : 0,
+        headcount: v.headcount || 0,
+      };
+    }
+    out.push(row);
+  }
+  return out;
+}
+
+/**
+ * The first month each team could actually take a project of `size`, and the
+ * first month they ALL could — which is the answer to "when do I submit".
+ * A month counts only if the free days cover the whole stage; half a stage's
+ * worth of room is not a slot, it is a split.
+ */
+export function firstFreeMonth(load, stages, size = 'M') {
+  const per = {};
+  /* A team nobody is on is a different failure from a team that is busy, and
+     collapsing them loses the only one you can fix this afternoon. "No month
+     has room" invites hiring or waiting; "nobody is on Content" invites
+     assigning somebody, which takes a minute. */
+  const staffless = [];
+  for (const [team, st] of Object.entries(stages || {})) {
+    const need = Number(st.days?.[size]) || 0;
+    if (load.every(m => !(m.teams[team]?.capacity))) { staffless.push(team); per[team] = null; continue; }
+    per[team] = load.find(m => (m.teams[team]?.free ?? 0) >= need)?.key || null;
+  }
+  const keys = Object.values(per);
+  const all = keys.length && keys.every(Boolean)
+    ? keys.reduce((a, b) => (a > b ? a : b))     // everyone free = the latest of them
+    : null;
+  return { per, all, staffless };
 }
 
 export function estimateFor(sched, { name, size, start, deadline, stages }, depth = null) {
@@ -1820,6 +1954,120 @@ export function newProjectView(lang, ctx) {
       <button type="button" class="btn" data-act="go" data-route="#/home">${esc(t.cancel)}</button>
     </div>
   </form>
+</section>`;
+}
+
+/**
+ * Teams down the side, months across the top, free days in the cells.
+ *
+ * The free-day count is the headline in every cell and the colour only
+ * repeats it, because a calendar whose meaning lives in a red square is
+ * unreadable to a colourblind manager and unprintable in black and white.
+ */
+export function workloadCalendar(lang, load, stages, size = 'M', opts = {}) {
+  const t = DSTR[lang];
+  if (!load || !load.length) return '';
+  const teams = Object.keys(stages || {}).filter(k => k in (load[0].teams || {}));
+  if (!teams.length) return '';
+  const free = firstFreeMonth(load, stages, size);
+
+  const cell = (m, team) => {
+    const c = m.teams[team] || { free: 0, capacity: 0, pct: 0 };
+    const need = Number(stages[team]?.days?.[size]) || 0;
+    /* Three states, and the middle one is the useful one: room, but not
+       enough for a whole project of this size. A manager who sees "3 free"
+       and submits anyway is the person this column is for. */
+    const state = !c.capacity ? 'none' : c.free >= need ? 'ok' : c.free > 0 ? 'tight' : 'full';
+    /* The caption says "free of 63", not "of 63". Without the word, a big
+       number over a long bar is ambiguous — 15 over a three-quarters-full bar
+       could be read as fifteen days of work booked. It is fifteen days left. */
+    const label = c.capacity ? `${c.free} ${t.wcFreeOf.replace('{n}', c.capacity)}` : t.wcNoPeople;
+    return `
+      <td class="wc__c wc__c--${state}" title="${esc(`${deptName(team, lang)} · ${capacityMonthLabel(m.key, lang)} — ${c.committed}/${c.capacity} ${t.wcPersonDays} (${c.pct}%)`)}">
+        <span class="wc__free">${c.capacity ? c.free : '—'}</span>
+        <span class="wc__of">${esc(c.capacity ? t.wcFreeOf.replace('{n}', c.capacity) : t.wcNoPeople)}</span>
+        <!-- The bar is the FREE share, not the used one, so its length agrees
+             with the number above it. Drawn the other way round, October's
+             "15 free of 63" carried a three-quarters-full green bar, and the
+             bar is the thing people read first. -->
+        <span class="wc__bar"><i style="width:${
+          c.capacity ? Math.max(0, Math.min(100, Math.round((c.free / c.capacity) * 100))) : 0}%"></i></span>
+        <span class="sr">${esc(label)}</span>
+      </td>`;
+  };
+
+  /* Three answers, in order of what a reader can do about it. An empty team
+     is named first because it is the one that is fixable today and the one
+     that would otherwise be reported as "we are simply full for six months". */
+  const answer = free.staffless?.length
+    ? t.wcAnswerNobody.replace('{teams}',
+        free.staffless.map(x => deptName(x, lang)).join(lang === 'ar' ? '، ' : ', '))
+    : free.all
+      ? t.wcAnswer.replace('{m}', capacityMonthLabel(free.all, lang)).replace('{size}', t.sizes[size])
+      : t.wcAnswerNone.replace('{size}', t.sizes[size]).replace('{n}', load.length);
+
+  /* The headline is about the whole project, so one empty team makes it read
+     "never" — and that would bury the fact that 2D opens up in October and 3D
+     in December, which is what you actually plan around. Print the per-team
+     months underneath, always. */
+  const perTeamLine = teams.length < 2 ? '' : t.wcPerTeam
+    .replace('{size}', t.sizes[size])
+    .replace('{list}', teams.map(team => `${deptName(team, lang)} — ${
+      free.per[team] ? capacityMonthLabel(free.per[team], lang)
+                     : free.staffless?.includes(team) ? t.wcNoPeople
+                     : t.wcNever.replace('{n}', load.length)}`)
+      .join(lang === 'ar' ? '، ' : '; '));
+
+  return `
+<section class="card">
+  <div class="card__head">
+    <h2>${esc(t.wcTitle)}</h2>
+    <span class="muted small">${esc(t.wcSub)}</span>
+  </div>
+  <div class="wc">
+    <table class="wc__t">
+      <thead>
+        <tr>
+          <th class="wc__corner">${esc(t.teamsCol)}</th>
+          ${load.map(m => `<th class="wc__m${m.partial ? ' is-part' : ''}">
+            ${esc(capacityMonthLabel(m.key, lang))}
+            ${m.partial ? `<span class="wc__part">${esc(t.wcRestOf)}</span>` : ''}
+          </th>`).join('')}
+        </tr>
+      </thead>
+      <tbody>
+        ${teams.map(team => {
+          const heads = load[0].teams[team]?.headcount || 0;
+          /* "0 people" is a sentence no one writes; in Arabic it is also
+             ungrammatical. Zero is the case that matters most here, so it
+             gets its own wording rather than a plural with a nought in it. */
+          const sub = (heads === 0 ? t.wcHead0 : heads === 1 ? t.wcHead1 : t.wcHead)
+            .replace('{p}', heads)
+            .replace('{d}', stages[team]?.days?.[size] ?? '—')
+            .replace('{size}', t.sizes[size]);
+          return `
+          <tr>
+            <th class="wc__team">
+              <i style="background:${esc(db.dept(team)?.colour || 'var(--ink3)')}"></i>
+              <span>${esc(deptName(team, lang))}</span>
+              <span class="muted small">${esc(sub)}</span>
+            </th>
+            ${heads === 0
+              /* Six identical "no one on this team" cells is noise standing in
+                 for one fact. Say it once, across the row, where it reads as
+                 the finding it is instead of a pattern in the wallpaper. */
+              ? `<td class="wc__c wc__c--none wc__c--row" colspan="${load.length}">
+                   <span class="wc__nobody">${esc(t.wcNobodyRow)}</span>
+                 </td>`
+              : load.map(m => cell(m, team)).join('')}
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  </div>
+  <p class="note note--lead">${esc(answer)}</p>
+  ${perTeamLine ? `<p class="note">${esc(perTeamLine)}</p>` : ''}
+  ${opts.staleHolidays ? `<p class="note note--warn">${esc(t.wcStale)}</p>` : ''}
 </section>`;
 }
 
