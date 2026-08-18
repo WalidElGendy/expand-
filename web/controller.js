@@ -33,6 +33,10 @@ export const ctx = {
      sharing — and rather than inside the view because the view is a pure
      function of (lang, ctx) and re-runs on every render. */
   pf: { ...V.PF_DEFAULT },
+
+  /* Which slice of the document library is on screen. Same reasoning as `pf`:
+     a working session's question, not an address worth sharing. */
+  docf: 'all',
 };
 
 let rerender = () => {};
@@ -120,7 +124,14 @@ export async function loadFor(route, id) {
       jobs.push(db.listPeople().then(p => { ctx.people = p; }));
     }
     if (route === 'docs' || me.department_id === 'content') {
-      jobs.push(db.listFiles({ purpose: 'document' }).then(f => { ctx.files = f; }));
+      /* Every file, not just the ones uploaded on this page. `purpose:
+         'document'` meant the library showed 0 while two RFPs sat on
+         projects, which reads as "nothing has ever been uploaded" — the
+         opposite of the truth. The read policy on `files` is is_active_user(),
+         so these rows were always readable by anyone signed in; the filter was
+         hiding them from the one screen built to find them, not protecting
+         them. The purpose survives as a column and a filter instead. */
+      jobs.push(db.listFiles().then(f => { ctx.files = f; }));
     }
     if (route === 'admin') {
       jobs.push(db.listPeople().then(p => { ctx.people = p; }));
@@ -500,6 +511,8 @@ export function wireApp(lang) {
       await loadFor('docs'); rerender();
     } catch (err) { fail(err); btn.disabled = false; }
   };
+
+  $$('[data-docf]').forEach(b => b.onclick = () => { ctx.docf = b.dataset.docf; rerender(); });
 
   $$('[data-open]').forEach(b => b.onclick = async () => {
     const f = ctx.files.find(x => x.id === b.dataset.open);
