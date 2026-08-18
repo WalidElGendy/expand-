@@ -514,9 +514,17 @@ for (const lang of ['en', 'ar']) {
       projects.push({ id: 'q' + i, size: 'L' });
     }
     const { sched } = D.buildScheduler(roster, busy, projects);
-    const load = D.monthlyLoad(sched, 6, '2026-08-17');
-    check(load[0].teams['3d'].free === 0 && load[0].teams['3d'].pct >= 100,
-      `300 person-days on one person leaves this month full, got ${JSON.stringify(load[0].teams['3d'])}`);
+    /* No fixed start date here, and the assertion is about the first WHOLE
+       month rather than this one. buildScheduler books committed work from
+       the real today(), so pinning the window to a hard-coded date makes the
+       test pass until the clock rolls past it and then fail at 9am for a
+       reason that has nothing to do with the code. The stub of the current
+       month is also a poor subject: it can hold one leftover day and read as
+       "not quite full" while the team is buried for half a year. */
+    const load = D.monthlyLoad(sched, 6);
+    const whole = load.find(m => !m.partial);
+    check(whole && whole.teams['3d'].free === 0 && whole.teams['3d'].pct >= 100,
+      `300 person-days on one person leaves a whole month full, got ${JSON.stringify(whole?.teams['3d'])}`);
     const free = D.firstFreeMonth(load, { '3d': stages['3d'] }, 'M');
     check(free.all === null, `nothing fits in six months, so there is no answer month; got ${free.all}`);
     const html = D.workloadCalendar('en', load, { '3d': stages['3d'] }, 'M');
