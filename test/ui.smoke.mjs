@@ -451,6 +451,132 @@ for (const lang of ['en', 'ar']) {
     'the estimate box does not say whose backlog is causing the wait');
 }
 
+/* 6. THE WORKLOAD CALENDAR. "When can I submit the next one" is a different
+      question from "when does this one land", and the answer has to come off
+      the same ledger as the estimate or the two will disagree by next week. */
+{
+  /* Six months of month windows, walked from a date late in a month so the
+     partial-first-month rule is actually exercised. */
+  const w0 = D.capacityMonth('2026-08-28', 0);
+  const w5 = D.capacityMonth('2026-08-28', 5);
+  check(w0.key === '2026-08' && w0.first === '2026-08-01' && w0.last === '2026-08-31',
+    `August is 1–31, got ${JSON.stringify(w0)}`);
+  check(w5.key === '2027-01' && w5.last === '2027-01-31',
+    `five months past August is January of the next year, got ${JSON.stringify(w5)}`);
+  check(D.capacityMonthLabel('2027-01', 'en').includes('27'),
+    'a month label that crosses the year must carry the year, or Jan and Dec are ambiguous');
+
+  const stages = D.stageTable(dbmod.state.departments);
+
+  /* An idle team: nothing booked, so every month is free and the first free
+     month is this one. The trap here is counting days already gone. */
+  {
+    const { sched } = D.buildScheduler(
+      [{ id: 'a', full_name: 'A', department_id: '3d' }], [], []);
+    const load = D.monthlyLoad(sched, 6, '2026-08-28');
+    check(load.length === 6, `expected six months, got ${load.length}`);
+    check(load[0].partial && load[0].from === '2026-08-28',
+      'the current month must start today, not on the 1st — days already gone are not free slots');
+    check(load[0].teams['3d'].capacity < load[1].teams['3d'].capacity,
+      'the stub of this month cannot hold as many days as a whole month');
+    check(load[1].teams['3d'].free === load[1].teams['3d'].capacity,
+      'an idle team must show every day of the month free');
+    /* September 2026 contains National Day. If the calendar is being applied
+       the month is short by exactly that one day. */
+    const sep = load.find(m => m.key === '2026-09');
+    check(sep && sep.teams['3d'].capacity === 21,
+      `September has a national day in it — expected 21 working days, got ${sep?.teams['3d'].capacity}`);
+    /* Two working days are left in August (the 30th and 31st — the 28th is a
+       Friday and the weekend here is Friday–Saturday), and a Medium 3D stage
+       needs three. So the honest answer is September, not "start now". A
+       partial month must never claim a slot it cannot actually hold. */
+    check(load[0].teams['3d'].capacity === 2,
+      `only the 30th and 31st are left of August, got ${load[0].teams['3d'].capacity}`);
+    const free = D.firstFreeMonth(load, { '3d': stages['3d'] }, 'M');
+    check(free.all === '2026-09',
+      `two days left in August cannot hold a three-day stage, got ${free.all}`);
+    /* And with the other two teams in scope, the answer is not "we are busy"
+       — it is "nobody is on them", which is a different problem with a
+       different fix. Collapsing the two is how an empty team stays empty. */
+    const allThree = D.firstFreeMonth(load, stages, 'M');
+    check(allThree.staffless.includes('2d') && allThree.staffless.includes('content'),
+      `teams with nobody on them must be named, got ${JSON.stringify(allThree.staffless)}`);
+    check(allThree.all === null, 'a team nobody is on cannot report a free month');
+  }
+
+  /* A team buried under a year of work: no month has room, and the screen has
+     to say so rather than pointing at an arbitrary month. */
+  {
+    const roster = [{ id: 'a', full_name: 'A', department_id: '3d' }];
+    const busy = [], projects = [];
+    for (let i = 0; i < 60; i++) {
+      busy.push({ project_id: 'q' + i, department_id: '3d', planned_start: null, status: 'pending' });
+      projects.push({ id: 'q' + i, size: 'L' });
+    }
+    const { sched } = D.buildScheduler(roster, busy, projects);
+    const load = D.monthlyLoad(sched, 6, '2026-08-17');
+    check(load[0].teams['3d'].free === 0 && load[0].teams['3d'].pct >= 100,
+      `300 person-days on one person leaves this month full, got ${JSON.stringify(load[0].teams['3d'])}`);
+    const free = D.firstFreeMonth(load, { '3d': stages['3d'] }, 'M');
+    check(free.all === null, `nothing fits in six months, so there is no answer month; got ${free.all}`);
+    const html = D.workloadCalendar('en', load, { '3d': stages['3d'] }, 'M');
+    check(html.includes(D.DSTR.en.wcTitle), 'the calendar lost its own title');
+    check(/wc__c--full/.test(html), 'a month with nothing left is not marked as full');
+    check(html.includes('No month in the next 6'),
+      'the calendar does not say that no month has room — it must not stay silent');
+    check(!html.includes('undefined') && !html.includes('NaN'),
+      'the workload calendar rendered "undefined" or "NaN"');
+  }
+
+  /* The middle state is the one worth having: room, but not a whole stage of
+     it. Someone who sees "3 free" and submits a Large is the reason it exists. */
+  {
+    const roster = [{ id: 'a', full_name: 'A', department_id: '3d' }];
+    const load = [{
+      key: '2026-09', from: '2026-09-01', to: '2026-09-30', partial: false,
+      teams: { '3d': { capacity: 21, committed: 18, free: 3, pct: 86, headcount: 1 } },
+    }];
+    const html = D.workloadCalendar('en', load, { '3d': stages['3d'] }, 'L');
+    check(/wc__c--tight/.test(html),
+      'three free days against a five-day stage is tight, not free — it must not read as room');
+    check(html.includes('>3<'), 'the cell does not print the free-day count');
+    /* Colour must not be the only carrier: the number and a text alternative
+       have to be in the markup for print, forced colours and screen readers. */
+    check(/class="sr"/.test(html), 'the cell has no text alternative behind the colour');
+  }
+
+  /* Both languages render, and Arabic is not quietly falling back to English. */
+  for (const lang of ['en', 'ar']) {
+    const { sched } = D.buildScheduler([{ id: 'a', full_name: 'A', department_id: '2d' }], [], []);
+    const load = D.monthlyLoad(sched, 6, '2026-08-17');
+    const html = D.workloadCalendar(lang, load, stages, 'M');
+    check(html.includes(D.DSTR[lang].wcTitle), `${lang}: the calendar title is missing`);
+    check(!html.includes('undefined') && !html.includes('NaN'), `${lang}: the calendar rendered a hole`);
+    if (lang === 'ar') check(!html.includes('Workload calendar'), 'the Arabic calendar fell back to English');
+  }
+
+  /* A team with nobody in it must say so. Content had zero active people for
+     most of this year, and a blank cell there reads as "wide open". */
+  {
+    const { sched } = D.buildScheduler([{ id: 'a', full_name: 'A', department_id: '3d' }], [], []);
+    const load = D.monthlyLoad(sched, 3, '2026-08-17');
+    const html = D.workloadCalendar('en', load, stages, 'M');
+    check(html.includes(D.DSTR.en.wcNoPeople),
+      'a team with no people must say so — an empty cell there reads as free capacity');
+    check(/Nobody is on/.test(html) && /2D technical/.test(html) && /Content creation/.test(html),
+      'the answer line must name the teams nobody is on, not just report "no room"');
+    /* One empty team makes the headline read "never". The months that ARE
+       free are the thing you plan around, so they have to survive it. */
+    check(html.includes(D.DSTR.en.wcPerTeam.split('{')[0].trim()),
+      'the per-team line is missing — one empty team must not hide the free months');
+    check(/3D design — /.test(html), 'the per-team line does not give 3D a month');
+    /* The row itself has to survive too. Enumerating people instead of teams
+       silently drops the empty team, and an absent row reads as "fine". */
+    check((html.match(/class="wc__team"/g) || []).length === 3,
+      'a team with nobody on it dropped out of the calendar entirely');
+  }
+}
+
 /* ------------------- filters, and the Etemad status flow -------------------
    filterProjects is the single rule the table body, the "showing n of t"
    count and these tests all read. When the count and the rows are computed
