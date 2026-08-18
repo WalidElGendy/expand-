@@ -134,6 +134,12 @@ export const DSTR = {
     dropHint: 'PDF, Word, PowerPoint, Excel or images. You can pick several at once.',
     filesQueued: '{n} to upload', removeFile: 'Remove',
     noDocsYet: 'No documents yet. The first upload appears here.',
+    noDocsInFilter: 'Nothing in this slice. The other tabs above still have files in them.',
+    docAll: 'Everything', docLibrary: 'Library', docFromProjects: 'On projects',
+    docWhere: 'Where it lives',
+    /* An RFP and a reference image are not the same thing to somebody
+       deciding what to open, and neither is a raw enum. */
+    purposes: { document: 'Uploaded here', rfp: 'RFP / tender', reference: 'Reference' },
     attachments: 'Attachments',
     onlineNow: 'Online now', onlineNowSub: 'with the app open right now',
     waitingApproval: 'Waiting for approval', waitingSub: 'signed up, cannot get in yet',
@@ -326,6 +332,10 @@ export const DSTR = {
     dropHint: 'PDF أو وورد أو باوربوينت أو إكسل أو صور. يمكن اختيار عدة ملفات.',
     filesQueued: '{n} للرفع', removeFile: 'إزالة',
     noDocsYet: 'لا توجد مستندات بعد. أول رفع سيظهر هنا.',
+    noDocsInFilter: 'لا شيء في هذا التصنيف. التبويبات الأخرى أعلاه ما زالت تحتوي ملفات.',
+    docAll: 'الكل', docLibrary: 'المكتبة', docFromProjects: 'على المشاريع',
+    docWhere: 'مكان الملف',
+    purposes: { document: 'مرفوع هنا', rfp: 'كراسة شروط', reference: 'مرجع' },
     attachments: 'المرفقات',
     onlineNow: 'متصل الآن', onlineNowSub: 'التطبيق مفتوح لديهم الآن',
     waitingApproval: 'بانتظار الموافقة', waitingSub: 'سجّلوا ولا يستطيعون الدخول بعد',
@@ -2402,10 +2412,29 @@ export const leadFormHtml = (lang, people) => {
 
 export function docsView(lang, ctx) {
   const t = DSTR[lang];
-  const files = ctx.files || [];
+  const all = ctx.files || [];
+  const f = ctx.docf || 'all';
+  const rows = f === 'all' ? all
+             : f === 'document' ? all.filter(x => x.purpose === 'document')
+             : all.filter(x => x.purpose !== 'document');
+  const counts = {
+    all: all.length,
+    document: all.filter(x => x.purpose === 'document').length,
+    project: all.filter(x => x.purpose !== 'document').length,
+  };
+  /* The count beside the title is now "showing / total", because the filter
+     can hide rows and a bare number next to an empty-looking table is the
+     kind of thing that gets read as "we have lost the files". */
+  const shown = rows.length === all.length ? `${all.length}` : `${rows.length} ${esc(t.ofTotal)} ${all.length}`;
   return `
 <section class="card">
-  <div class="card__head"><h2>${esc(t.library)}</h2><span class="muted small">${files.length}</span></div>
+  <div class="card__head">
+    <h2>${esc(t.library)}</h2><span class="muted small">${shown}</span>
+    <div class="segbar">
+      ${[['all', t.docAll], ['document', t.docLibrary], ['project', t.docFromProjects]].map(([k, label]) =>
+        `<button class="seg${f === k ? ' is-on' : ''}" data-docf="${k}">${esc(label)} <span class="seg__n">${counts[k]}</span></button>`).join('')}
+    </div>
+  </div>
   <form id="docForm" class="uploader">
     <!-- The two fields are one column, not two grid rows the picker has to
          span. A row-spanning item cannot share an auto-sized track with
@@ -2431,17 +2460,29 @@ export function docsView(lang, ctx) {
 
   <div class="tblwrap">
     <table class="tbl">
-      <thead><tr><th>${esc(t.name)}</th><th>${esc(t.title)}</th><th class="num">${esc(lang === 'ar' ? 'الحجم' : 'Size')}</th><th></th></tr></thead>
+      <thead><tr>
+        <th>${esc(t.name)}</th><th>${esc(t.title)}</th><th>${esc(t.docWhere)}</th>
+        <th class="num">${esc(lang === 'ar' ? 'الحجم' : 'Size')}</th><th></th>
+      </tr></thead>
       <tbody>
-        ${files.length ? files.map(f => `<tr>
-          <td>${esc(f.filename)}<span class="muted small block">${esc(f.uploader?.full_name || '')}</span></td>
-          <td class="muted small">${esc(f.title || '')}</td>
+        ${rows.length ? rows.map(x => `<tr>
+          <td>${esc(x.filename)}<span class="muted small block">${esc(x.uploader?.full_name || '')}</span></td>
+          <td class="muted small">${esc(x.title || '')}</td>
+          <!-- Where the file came from. A project attachment is only findable
+               if the row says which project, and the kind (RFP, reference)
+               is what tells a reader whether it is worth opening. -->
+          <td class="small">
+            ${x.project?.name
+              ? `<button class="link small" data-act="go" data-route="#/project/${esc(x.project.id)}">${esc(x.project.name)}</button>`
+              : `<span class="muted">${esc(t.docLibrary)}</span>`}
+            <span class="muted small block">${esc(t.purposes?.[x.purpose] || x.purpose || '')}</span>
+          </td>
           <!-- dir=ltr because bidi reorders "4.0 MB" into "MB 4.0" in an
                Arabic paragraph; the unit belongs after the number. -->
-          <td class="num muted small" dir="ltr">${f.size_bytes ? (f.size_bytes / 1048576).toFixed(1) + ' MB' : '—'}</td>
-          <td class="num"><button class="link small" data-open="${esc(f.id)}">${esc(lang === 'ar' ? 'فتح' : 'Open')}</button></td>
+          <td class="num muted small" dir="ltr">${x.size_bytes ? (x.size_bytes / 1048576).toFixed(1) + ' MB' : '—'}</td>
+          <td class="num"><button class="link small" data-open="${esc(x.id)}">${esc(lang === 'ar' ? 'فتح' : 'Open')}</button></td>
         </tr>`).join('')
-        : `<tr><td class="tbl__empty" colspan="4">${esc(t.noDocsYet)}</td></tr>`}
+        : `<tr><td class="tbl__empty" colspan="5">${esc(all.length ? t.noDocsInFilter : t.noDocsYet)}</td></tr>`}
       </tbody>
     </table>
   </div>
