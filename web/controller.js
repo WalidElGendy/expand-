@@ -87,7 +87,15 @@ export async function loadFor(route, id) {
        the roster (the free-capacity tile runs the scheduler over it) and the
        leads (there is an open-leads tile). Loading only some of that renders
        a confident zero, which is a lie an absent tile would not tell. */
+    /* 'estimate' joins this list because the workload calendar on that screen
+       is built from real committed stages, not from the sandbox pipeline
+       beside it. Without the projects it would render six empty months and
+       call them free — the most expensive possible way to be wrong, since the
+       whole point of the screen is deciding when to take on more work. It
+       shows team totals only, never who is on what, so it needs no more
+       clearance than the estimator already has. */
     const wantsProjects = route === 'projects' || route === 'highlights' ||
+      route === 'estimate' ||
       (['home', 'new'].includes(route) && V.canPlan(me));
     const isDesigner = !['pm', 'bd', 'content'].includes(me.department_id);
 
