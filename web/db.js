@@ -544,9 +544,13 @@ export async function uploadFile(bucket, file, meta = {}) {
   }).select().single());
 }
 
+/* The project name comes back with the row. The Documents page lists files
+   from every project, and "AJ-14-RFP-final.pdf" with no project beside it is
+   a filename, not a document — the reader cannot tell which of 378 projects
+   it belongs to, which is the one thing they need in order to use it. */
 export const listFiles = async (filter = {}) => {
   let q = sb.from('files')
-    .select('id, purpose, title, description, bucket, path, filename, mime, size_bytes, created_at, project_id, lead_id, uploader:uploaded_by ( id, full_name )')
+    .select('id, purpose, title, description, bucket, path, filename, mime, size_bytes, created_at, project_id, lead_id, project:project_id ( id, name ), uploader:uploaded_by ( id, full_name )')
     .order('created_at', { ascending: false });
   if (filter.project_id) q = q.eq('project_id', filter.project_id);
   if (filter.purpose)    q = q.eq('purpose', filter.purpose);
