@@ -13,7 +13,10 @@ import { Scheduler, calibrate, backtest, DEFAULT_STAGES, SIZES } from '../engine
 import { WorkCalendar, iso, parse } from '../engine/calendar.js';
 import * as db from './db.js';
 import * as C from './controller.js';
-import { DSTR, signInView, canPlan, sizeOptionsHtml } from './dash.js';
+import {
+  DSTR, signInView, canPlan, sizeOptionsHtml,
+  buildScheduler, monthlyLoad, workloadCalendar,
+} from './dash.js';
 
 /* ------------------------------ translations ----------------------------- */
 
@@ -87,6 +90,11 @@ const S = {
   route: '#/',
   q: '',                 // the top-bar filter, kept across re-renders
   headcount: { '3d': 2, '2d': 2, content: 1 },
+  /* The picked size lives here rather than only in the DOM. It is read by the
+     workload calendar, and any re-render — a language toggle, a headcount
+     nudge — used to rebuild the select with Medium selected and silently
+     throw the choice away. */
+  size: 'M',
   pipeline: [],
   seq: 0,
   result: null,
@@ -222,12 +230,31 @@ function render() {
   if (APP.includes(r.name)) C.wireApp(S.lang);
 }
 
+/* The calendar is the one block on this screen made of real rows rather than
+   the sandbox beside it: the actual roster, the actual open stages, the
+   actual sizes. The cards above it answer "what if"; this answers "what is".
+   Keeping them on one screen is deliberate — the moment you see February is
+   the first month with room is the moment you want to model February. */
+function realWorkloadCard() {
+  const { people, stages, projects } = C.ctx;
+  if (!people?.length || !projects?.length) return '';
+  let built;
+  try { built = buildScheduler(people, stages || [], projects); }
+  catch { return ''; }                       // a broken row must not blank the page
+  if (!built.members.length) return '';
+  const load = monthlyLoad(built.sched, 6);
+  return workloadCalendar(S.lang, load, built.stages, S.size, {
+    staleHolidays: CAL.holidayCoverageEndsBefore(load[load.length - 1].to),
+  });
+}
+
 const estimatorBody = () => `
     <div class="grid">
       <aside class="col">${teamsCard()}${pipelineCard()}</aside>
       <main class="col">${formCard()}${S.result ? resultCard() : emptyResult()}</main>
       <aside class="col">${utilCard()}${S.whatIf ? leversCard() : ''}</aside>
     </div>
+    ${realWorkloadCard()}
     ${S.result ? timelineCard() : ''}`;
 
 function headTitle(r) {
@@ -438,7 +465,7 @@ function formCard() {
         <label class="f f--wide"><span>${esc(T().name)}</span>
           <input id="pName" value="Riyadh Expo pavilion" /></label>
         <label class="f"><span>${esc(T().size)}</span>
-          <select id="pSize">${sizeOptionsHtml(S.lang, 'M', DEFAULT_STAGES)}</select></label>
+          <select id="pSize">${sizeOptionsHtml(S.lang, S.size, DEFAULT_STAGES)}</select></label>
         <label class="f"><span>${esc(T().start)}</span>
           <input id="pStart" type="date" value="${today()}" /></label>
         <label class="f"><span>${esc(T().deadline)}</span>
@@ -670,6 +697,14 @@ function wire() {
   act('lang', () => { S.lang = S.lang === 'en' ? 'ar' : 'en'; render(); });
   act('signout', async () => { db.leavePresence(); await db.signOut(); location.hash = '#/'; render(); });
   act('reset', () => { S.pipeline = []; S.result = null; S.whatIf = null; S.seq = 0; render(); });
+  const sizeSel = $('#pSize');
+  if (sizeSel) sizeSel.onchange = () => {
+    /* The calendar's answer is size-dependent — three free days is a slot for
+       a Small project and not for a Large one — so the picker has to repaint
+       it. Re-estimating too would be wrong: nobody asked for a new date. */
+    S.size = sizeSel.value;
+    if (S.result) estimate(false); else render();
+  };
   act('estimate', () => estimate(true));
   act('add', () => {
     const f = readForm();
@@ -709,7 +744,7 @@ function applyFilter() {
 
 const readForm = () => ({
   name: ($('#pName')?.value || 'Untitled').trim(),
-  size: $('#pSize')?.value || 'M',
+  size: (S.size = $('#pSize')?.value || S.size),
   start: $('#pStart')?.value || today(),
   deadline: $('#pDeadline')?.value || null,
 });
