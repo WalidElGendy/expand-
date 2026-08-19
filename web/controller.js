@@ -119,7 +119,7 @@ export async function loadFor(route, id) {
     // The PM dashboard shows an open-leads tile, so it needs the leads too.
     // Without this the tile renders a confident zero, which is a lie a
     // missing tile would not have told.
-    if (route === 'leads' || me.department_id === 'bd' || wantsProjects) {
+    if (route === 'leads' || route === 'pipeline' || me.department_id === 'bd' || wantsProjects) {
       jobs.push(db.listLeads().then(l => { ctx.leads = l; }).catch(() => { ctx.leads = []; }));
       jobs.push(db.listPeople().then(p => { ctx.people = p; }));
     }
@@ -713,6 +713,7 @@ function bodyFor(lang, route, id) {
   if (route === 'project')  return V.projectView(lang, ctx);
   if (route === 'lead')     return V.leadView(lang, ctx);
   if (route === 'leads') return V.leadsView(lang, ctx);
+  if (route === 'pipeline') return V.pipelineView(lang, ctx);
   if (route === 'docs')  return V.docsView(lang, ctx);
   if (route === 'admin') return V.adminView(lang, ctx);
   /* Gated in the view as well as in the sidebar. A hidden nav item is a
