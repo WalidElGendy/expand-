@@ -610,6 +610,24 @@ html[dir="rtl"] .deal__ar { direction: rtl; }
 .deal__meta { display: flex; justify-content: space-between; gap: 8px; margin-top: 5px; }
 .deal__cost { color: var(--ink2); border-top: 1px solid var(--line); padding-top: 7px; margin-top: 5px; }
 
+/* The whole card is the target, not a link buried in it. A 176-card column
+   asks for a lot of small clicks, and a name-sized hit area is where that
+   becomes annoying. `text-align: start` because a <button> centres its
+   content by default and would undo the grid inside it. */
+.deal--btn {
+  width: 100%; text-align: start; font: inherit; color: inherit;
+  cursor: pointer; transition: border-color .12s, background .12s;
+}
+.deal--btn:hover { border-color: var(--brand); background: var(--s-3); }
+/* Settled leads: contacted, and nothing more will happen without new contact
+   details. They stay in the column — deleting them from view would overstate
+   how much of the pipeline is live — but they must not read as work in hand. */
+.deal--btn.is-spent { opacity: .58; }
+.deal--btn.is-spent:hover { opacity: 1; }
+/* A pill is a label, not a bar. Inside the card's grid it would stretch to
+   the full column width and read as a status banner. */
+.board .st { margin-top: 6px; justify-self: start; }
+
 .unpriced { padding: 14px 16px 2px; border-top: 1px solid var(--line); }
 .unpriced__head { color: var(--ink3); line-height: 1.6; }
 .batches { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
@@ -641,6 +659,11 @@ select.btn--sm { height: 28px; padding: 0 6px; background: var(--s-2); border: 1
 @media (max-width: 760px)  { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 /* Eight tiles want four across, not six-plus-an-orphan. */
 .kpis--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+/* One tile per pipeline column plus the live total. Explicit five rather than
+   auto-fit, which lands on 4+1 and leaves an orphan reading as a mistake. */
+.kpis--5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+@media (max-width: 1320px) { .kpis--5 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 760px)  { .kpis--5 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 1180px) { .kpis--4 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 760px)  { .kpis--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .kpi {
