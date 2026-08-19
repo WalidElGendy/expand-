@@ -634,6 +634,65 @@ for (const lang of ['en', 'ar']) {
     'a genuinely empty library must say so plainly');
 }
 
+/* 8. THE BUSINESS PIPELINE. Four columns over ten raw statuses, so the
+      mapping is the thing worth testing: every lead lands somewhere, nothing
+      lands twice, and a column never overstates how much work is live. */
+{
+  const lead = (id, status, extra = {}) => ({
+    id, status, name: 'Lead ' + id, company: 'Co ' + id,
+    owner: null, next_follow_up_on: null, ...extra,
+  });
+  const leads = [
+    lead('a', 'new'), lead('b', 'not_contacted'),
+    lead('c', 'contacted'), lead('d', 'wrong_number'), lead('e', 'not_interested'),
+    lead('f', 'proposal'), lead('g', 'qualified'),
+    lead('h', 'won'),
+  ];
+
+  const { cols, unmapped } = D.pipelineStages(leads);
+  check(cols.map(c => c.key).join(',') === 'new,contacted,progress,closed',
+    'the columns are not in pipeline order');
+  check(cols[0].leads.length === 2, `new holds 'new' and 'not_contacted', got ${cols[0].leads.length}`);
+  check(cols[1].leads.length === 3, `contacted holds the tried-and-failed outcomes too, got ${cols[1].leads.length}`);
+  check(cols[2].leads.length === 2, `in progress holds proposal and qualified, got ${cols[2].leads.length}`);
+  check(cols[3].leads.length === 1, `closed is won only, got ${cols[3].leads.length}`);
+  check(!unmapped.length, 'a known status fell through the mapping');
+
+  /* Every lead exactly once. A board that drops rows or double-counts them is
+     worse than no board: both failures are invisible until someone reconciles
+     it against the list by hand. */
+  const placed = cols.flatMap(c => c.leads.map(l => l.id));
+  check(placed.length === leads.length && new Set(placed).size === leads.length,
+    `each lead must appear exactly once, got ${placed.join(',')}`);
+
+  /* An unknown status must surface rather than vanish. This is the check that
+     survives somebody adding a status to the database next month. */
+  const withNew = D.pipelineStages([...leads, lead('z', 'brand_new_status')]);
+  check(withNew.unmapped.length === 1, 'an unrecognised status silently disappeared from the board');
+
+  /* "Will not move again" is counted, not hidden: dropping those cards would
+     make the pipeline look healthier than it is, and leaving them undistinguished
+     would make it look busier. */
+  check(cols[1].spent === 2, `wrong_number and not_interested are spent, got ${cols[1].spent}`);
+
+  for (const lang of ['en', 'ar']) {
+    const html = D.pipelineView(lang, { leads });
+    for (const l of leads) check(html.includes(l.name), `${lang}: ${l.name} is missing from the board`);
+    check(html.includes('#/l/h'), `${lang}: a card is not a way through to the lead`);
+    check((html.match(/class="bcol"/g) || []).length === 4, `${lang}: expected four columns`);
+    check(html.includes(D.DSTR[lang].pipe.progress), `${lang}: a column lost its heading`);
+    check(!html.includes('undefined') && !html.includes('NaN'), `${lang}: the board rendered a hole`);
+    check(!/>not_interested</.test(html), `${lang}: a raw status enum reached the board`);
+    /* Live excludes the spent ones: 8 leads, minus 2 spent, minus 1 won. */
+    check(html.includes('>5<'), `${lang}: the live count does not exclude settled leads`);
+  }
+
+  /* Empty is a sentence. */
+  const none = D.pipelineView('en', { leads: [] });
+  check(none.includes(D.DSTR.en.pipeNone), 'an empty pipeline renders columns with nothing said in them');
+  check(!none.includes('undefined'), 'the empty pipeline rendered a hole');
+}
+
 /* ------------------- filters, and the Etemad status flow -------------------
    filterProjects is the single rule the table body, the "showing n of t"
    count and these tests all read. When the count and the rows are computed
