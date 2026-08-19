@@ -167,6 +167,8 @@ function currentRoute() {
   const h = location.hash || '#/';
   if (h.startsWith('#/estimate')) return { name: 'estimate' };
   if (h.startsWith('#/highlights')) return { name: 'highlights' };
+  /* Before '#/leads', or the prefix match below swallows it. */
+  if (h.startsWith('#/pipeline')) return { name: 'pipeline' };
   if (h.startsWith('#/signin'))   return { name: 'signin' };
   if (h.startsWith('#/reset'))    return { name: 'signin' };   // recovery lands here
   if (h.startsWith('#/home'))     return { name: 'home' };
@@ -191,7 +193,7 @@ function currentRoute() {
    to arrive from a page that had loaded them. A deep link or a refresh
    showed an empty table and called it zero projects. */
 const APP_ROUTES = ['home', 'projects', 'project', 'new', 'leads', 'lead', 'docs', 'admin',
-  'estimate', 'highlights'];
+  'estimate', 'highlights', 'pipeline'];
 
 function render() {
   document.documentElement.lang = S.lang;
@@ -268,6 +270,7 @@ function headTitle(r) {
   if (r.name === 'estimate')   return { h1: T().title, sub: T().sub };
   if (r.name === 'highlights') return { h1: d.highlights, sub: d.highlightsSub };
   if (r.name === 'projects')   return { h1: d.projects, sub: '' };
+  if (r.name === 'pipeline')   return { h1: d.pipeline, sub: d.pipelineSub };
   return { h1: 'expand', sub: '' };
 }
 
@@ -320,6 +323,7 @@ function appNav() {
   if (canPlan(me)) {
     items.push({ group: 'insight', route: '#/highlights', icon: 'chart', label: () => d.highlights });
   }
+  items.push({ group: 'insight', route: '#/pipeline', icon: 'board', label: () => d.pipeline });
   items.push({ group: 'insight', route: '#/estimate', icon: 'spark', label: () => d.openEstimator });
   if (me.role === 'admin') items.push({ group: 'workspace', route: '#/admin', icon: 'team', label: () => d.people });
   return items;
@@ -382,7 +386,7 @@ function sidebar() {
 
 /* Only routes that actually render a filterable table get a search box. A
    search field that filters nothing is worse than no search field. */
-const SEARCHABLE = ['home', 'leads', 'docs', 'admin'];
+const SEARCHABLE = ['home', 'leads', 'docs', 'admin', 'pipeline'];
 
 function topbar(r) {
   const { h1, sub } = headTitle(r);
@@ -716,6 +720,31 @@ function wire() {
 /** Hide table rows that do not contain the query, and say so when none do. */
 function applyFilter() {
   const needle = S.q.trim().toLowerCase();
+
+  /* The pipeline board is cards, not rows, and one of its columns holds well
+     over a hundred of them. Filtering only tables would leave the search box
+     sitting above a screen it silently does nothing to — worse than having no
+     search box at all. The column count follows the filter, because a heading
+     that still says 176 above four visible cards is the disagreement people
+     notice first. */
+  document.querySelectorAll('.bcol').forEach(col => {
+    let shown = 0;
+    col.querySelectorAll('.deal--btn').forEach(cardEl => {
+      const hit = !needle || cardEl.textContent.toLowerCase().includes(needle);
+      cardEl.hidden = !hit;
+      if (hit) shown++;
+    });
+    const n = col.querySelector('.bcol__title span:last-child');
+    if (n) {
+      if (n.dataset.total === undefined) n.dataset.total = n.textContent;
+      n.textContent = needle ? String(shown) : n.dataset.total;
+    }
+    /* The "+N more" line is about what the cap hid, not about the search. It
+       would be a lie beside a filtered column, so it goes while filtering. */
+    const more = col.querySelector('p.muted');
+    if (more) more.hidden = !!needle;
+  });
+
   document.querySelectorAll('.tbl tbody').forEach(body => {
     let shown = 0;
     body.querySelectorAll('tr').forEach(tr => {
