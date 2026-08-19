@@ -135,6 +135,11 @@ export const DSTR = {
     filesQueued: '{n} to upload', removeFile: 'Remove',
     noDocsYet: 'No documents yet. The first upload appears here.',
     noDocsInFilter: 'Nothing in this slice. The other tabs above still have files in them.',
+    pipeline: 'Business pipeline', pipelineSub: 'every lead, by how far it has got',
+    pipe: { new: 'New', contacted: 'Contacted', progress: 'In progress', closed: 'Won' },
+    pipeLive: 'Live leads', pipeSpent: '{n} will not move again',
+    pipeNone: 'Nothing at this stage.', pipeMore: '{n} more — open Leads to filter them',
+    pipeUnmapped: '{n} leads carry a status this board does not place yet: {s}. They are counted in the list total but appear in no column — tell me and I will put them where they belong.',
     docAll: 'Everything', docLibrary: 'Library', docFromProjects: 'On projects',
     docWhere: 'Where it lives',
     /* An RFP and a reference image are not the same thing to somebody
@@ -333,6 +338,11 @@ export const DSTR = {
     filesQueued: '{n} للرفع', removeFile: 'إزالة',
     noDocsYet: 'لا توجد مستندات بعد. أول رفع سيظهر هنا.',
     noDocsInFilter: 'لا شيء في هذا التصنيف. التبويبات الأخرى أعلاه ما زالت تحتوي ملفات.',
+    pipeline: 'مسار الأعمال', pipelineSub: 'كل العملاء المحتملين حسب مرحلتهم',
+    pipe: { new: 'جديد', contacted: 'تم التواصل', progress: 'قيد التقدم', closed: 'تم الفوز' },
+    pipeLive: 'عملاء نشطون', pipeSpent: '{n} لن يتحرك مجدداً',
+    pipeNone: 'لا شيء في هذه المرحلة.', pipeMore: '{n} إضافيون — افتح صفحة العملاء لتصفيتهم',
+    pipeUnmapped: '{n} من العملاء يحملون حالة لا يضعها هذا اللوح بعد: {s}. هم ضمن الإجمالي لكن لا يظهرون في أي عمود — أخبرني لأضعهم في مكانهم.',
     docAll: 'الكل', docLibrary: 'المكتبة', docFromProjects: 'على المشاريع',
     docWhere: 'مكان الملف',
     purposes: { document: 'مرفوع هنا', rfp: 'كراسة شروط', reference: 'مرجع' },
@@ -2208,6 +2218,126 @@ function leadFilterBar(lang, ctx, all) {
     { v: 'name', l: t.sortName }, { v: 'company', l: t.sortCompany }])}
   ${active ? `<button class="btn btn--sm" data-lf-clear="1">${esc(t.clearFilters)}</button>` : ''}
 </div>`;
+}
+
+/* ========================= THE BUSINESS PIPELINE =========================
+
+   420 leads across ten raw statuses, as four columns you can act on. The
+   table on the Leads screen answers "tell me about this lead"; this answers
+   "where is the business", which is a different question and wants a
+   different shape.
+
+   The mapping is the whole design, so it is stated once, here, and read by
+   the board, the counts and the tests:
+
+   NEW is its own column rather than folded into contacted. 211 of 420 leads
+   have never been touched — the largest single fact in this pipeline — and
+   burying it inside "contacted" would hide exactly the distinction that
+   decides who gets called today.
+
+   CONTACTED holds the four "we tried and could not reach them" outcomes
+   alongside plain contacted, because from a reader's point of view they are
+   the same event: somebody attempted contact. They are drawn muted, since
+   nothing more will happen to them without new contact details.
+
+   CLOSED is won only, as asked. `not_interested` is therefore not closed —
+   but it is not live either, so it sits in Contacted wearing the same muted
+   treatment rather than padding "in progress" with work that will never
+   move. A column that overstates live work is the one failure this screen
+   cannot afford.
+   ========================================================================= */
+
+export const PIPE_STAGES = [
+  { key: 'new',        statuses: ['new', 'not_contacted'] },
+  { key: 'contacted',  statuses: ['contacted', 'wrong_number', 'no_answer',
+                                  'not_delivered', 'address_not_found', 'not_interested'] },
+  { key: 'progress',   statuses: ['interested', 'follow_up', 'qualified', 'proposal'] },
+  { key: 'closed',     statuses: ['won'] },
+];
+
+/* Statuses that will not move again without something changing outside this
+   app. They stay in their column but read as settled, not as work in hand. */
+const SPENT = new Set(['wrong_number', 'no_answer', 'not_delivered',
+                       'address_not_found', 'not_interested']);
+
+export function pipelineStages(leads = []) {
+  const seen = new Set();
+  const cols = PIPE_STAGES.map(st => {
+    const rows = (leads || []).filter(l => st.statuses.includes(l.status));
+    rows.forEach(l => seen.add(l.id));
+    return { ...st, leads: rows, spent: rows.filter(l => SPENT.has(l.status)).length };
+  });
+  /* Anything the mapping does not name. A status added to the database next
+     month must appear somewhere rather than silently vanishing from a board
+     people use to decide what to work on. */
+  const rest = (leads || []).filter(l => !seen.has(l.id));
+  return { cols, unmapped: rest };
+}
+
+export function pipelineView(lang, ctx) {
+  const t = DSTR[lang];
+  const leads = ctx.leads || [];
+  const { cols, unmapped } = pipelineStages(leads);
+  const live = cols.slice(0, 3).reduce((n, c) => n + c.leads.length - c.spent, 0);
+
+  const card = (l) => {
+    const late = lateBy(l.next_follow_up_on);
+    const co = leadCompany(l);
+    const spent = SPENT.has(l.status);
+    return `
+      <button class="deal deal--btn${spent ? ' is-spent' : ''}" data-act="go" data-route="#/l/${esc(l.id)}">
+        <span class="deal__name">${esc(l.name)}</span>
+        ${co ? `<span class="muted small">${esc(co)}</span>` : ''}
+        <span class="deal__meta">
+          <span class="muted small">${esc(l.owner?.full_name || t.unassigned)}</span>
+          <span class="small ${late ? 'bad' : 'muted'}">${esc(fmt(l.next_follow_up_on, lang))}</span>
+        </span>
+        <!-- Only on settled cards, and only because the reason matters:
+             "wrong number" and "not interested" are different problems. A
+             pill on a won card would just repeat its own column heading in
+             different words — the shared vocabulary calls won "Accepted".
+             (No backticks in this comment: it lives inside a template
+             literal, and one would end the string.) -->
+        ${spent ? statusPill(l.status, lang) : ''}
+      </button>`;
+  };
+
+  /* A column of 176 cards is a scroll, not a screen. Show the ones a person
+     could act on and say plainly how many are behind them, rather than
+     rendering everything and calling that thoroughness. */
+  const CAP = 40;
+
+  return `
+<div class="kpis kpis--5">
+  ${kpi(live, t.pipeLive, { colour: 'var(--brand)',
+    sub: `${leads.length} ${lang === 'ar' ? 'في القائمة' : 'in the list'}` })}
+  ${cols.map(c => kpi(c.leads.length, t.pipe[c.key], {
+    colour: c.key === 'closed' ? 'var(--ok)' : c.key === 'new' ? 'var(--ink3)' : 'var(--warn)',
+    sub: c.spent ? t.pipeSpent.replace('{n}', c.spent) : '',
+  })).join('')}
+</div>
+
+<section class="card">
+  <div class="card__head">
+    <h2>${esc(t.pipeline)}</h2>
+    <span class="muted small">${esc(t.pipelineSub)}</span>
+  </div>
+  <div class="board">
+    ${cols.map(c => `
+      <div class="bcol">
+        <div class="bcol__title"><span>${esc(t.pipe[c.key])}</span><span>${c.leads.length}</span></div>
+        ${c.leads.length
+          ? c.leads.slice(0, CAP).map(card).join('') +
+            (c.leads.length > CAP
+              ? `<p class="muted small">${esc(t.pipeMore
+                  .replace('{n}', c.leads.length - CAP))}</p>` : '')
+          : `<p class="muted small">${esc(t.pipeNone)}</p>`}
+      </div>`).join('')}
+  </div>
+  ${unmapped.length ? `<p class="note note--warn">${esc(t.pipeUnmapped
+      .replace('{n}', unmapped.length)
+      .replace('{s}', [...new Set(unmapped.map(l => l.status))].join(', ')))}</p>` : ''}
+</section>`;
 }
 
 export function leadsView(lang, ctx) {
