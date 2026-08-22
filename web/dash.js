@@ -135,6 +135,25 @@ export const DSTR = {
     filesQueued: '{n} to upload', removeFile: 'Remove',
     noDocsYet: 'No documents yet. The first upload appears here.',
     noDocsInFilter: 'Nothing in this slice. The other tabs above still have files in them.',
+    perf: 'Performance', perfSub: 'your score this quarter',
+    perfMine: 'Your score', perfNoScore: 'No score yet',
+    perfNoScoreSub: 'Nobody has reviewed you for this quarter.',
+    perfAuto: 'From the tool', perfForm: 'From your supervisor',
+    perfOf: 'of', perfPts: 'pts',
+    perfSales: 'Lead conversion', perfRfp: 'Proposals won',
+    perfCovSales: 'from {n} leads assigned to you',
+    perfCovRfp: 'from {n} proposals with a verdict',
+    perfNoSales: 'No leads are assigned to you, so this scores zero.',
+    perfNoRfp: 'No proposal of yours has been marked won or lost, so this scores zero. {a} are still waiting on a verdict.',
+    perfFormOnly: 'Your whole score comes from your supervisor\u2019s review.',
+    perfNotFilled: 'Not filled in yet',
+    perfMyTeam: 'People you review', perfNobody: 'Nobody is assigned to you.',
+    perfReview: 'Review', perfSave: 'Save review', perfSaved: 'Saved',
+    perfRate: 'Rating (1\u20135)', perfKpi: 'Indicator',
+    perfStrengths: 'Strengths', perfImprove: 'Areas to improve',
+    perfPrivate: 'Only you and your supervisor can see this. It is enforced by the database, not by this screen.',
+    perfQuarter: 'Quarter', perfUnrated: '\u2014',
+    perfSupervisor: 'Supervisor', perfNoSupervisor: 'None',
     pipeline: 'Business pipeline', pipelineSub: 'every lead, by how far it has got',
     pipe: { new: 'New', contacted: 'Contacted', progress: 'In progress', closed: 'Won' },
     pipeLive: 'Live leads', pipeSpent: '{n} will not move again',
@@ -338,6 +357,25 @@ export const DSTR = {
     filesQueued: '{n} للرفع', removeFile: 'إزالة',
     noDocsYet: 'لا توجد مستندات بعد. أول رفع سيظهر هنا.',
     noDocsInFilter: 'لا شيء في هذا التصنيف. التبويبات الأخرى أعلاه ما زالت تحتوي ملفات.',
+    perf: 'الأداء', perfSub: 'درجتك في هذا الربع',
+    perfMine: 'درجتك', perfNoScore: 'لا توجد درجة بعد',
+    perfNoScoreSub: 'لم يقم أحد بتقييمك في هذا الربع.',
+    perfAuto: 'من النظام', perfForm: 'من مديرك',
+    perfOf: 'من', perfPts: 'نقطة',
+    perfSales: 'تحويل العملاء المحتملين', perfRfp: 'العروض الفائزة',
+    perfCovSales: 'من {n} عميل مسند إليك',
+    perfCovRfp: 'من {n} عرض صدر بشأنه قرار',
+    perfNoSales: 'لا يوجد عملاء مسندون إليك، لذا فهذه الدرجة صفر.',
+    perfNoRfp: 'لم يُسجَّل فوز أو خسارة لأي من عروضك، لذا فهذه الدرجة صفر. ولا يزال {a} بانتظار القرار.',
+    perfFormOnly: 'درجتك كاملة تأتي من تقييم مديرك.',
+    perfNotFilled: 'لم يُملأ بعد',
+    perfMyTeam: 'من تقوم بتقييمهم', perfNobody: 'لا أحد مسند إليك.',
+    perfReview: 'تقييم', perfSave: 'حفظ التقييم', perfSaved: 'تم الحفظ',
+    perfRate: 'التقييم (١-٥)', perfKpi: 'المؤشر',
+    perfStrengths: 'نقاط القوة', perfImprove: 'مجالات للتحسين',
+    perfPrivate: 'أنت ومديرك فقط من يرى هذا. القاعدة مطبّقة في قاعدة البيانات وليست مجرد إخفاء في الشاشة.',
+    perfQuarter: 'الربع', perfUnrated: '\u2014',
+    perfSupervisor: 'المدير المباشر', perfNoSupervisor: 'لا يوجد',
     pipeline: 'مسار الأعمال', pipelineSub: 'كل العملاء المحتملين حسب مرحلتهم',
     pipe: { new: 'جديد', contacted: 'تم التواصل', progress: 'قيد التقدم', closed: 'تم الفوز' },
     pipeLive: 'عملاء نشطون', pipeSpent: '{n} لن يتحرك مجدداً',
@@ -1133,12 +1171,20 @@ export function firstFreeMonth(load, stages, size = 'M') {
 }
 
 export function estimateFor(sched, { name, size, start, deadline, stages }, depth = null) {
+  /* The new project's start is clamped to today, exactly as committed work is
+     in buildScheduler. Without this, a proposal dated last week is scheduled
+     into days that have already gone — and because the committed queue starts
+     at today, it jumps in FRONT of it and comes back with the same date as the
+     empty-team answer. The estimator was quietly promising delivery on
+     capacity that no longer exists, and the two numbers whose difference is
+     the whole point of the screen collapsed into one. */
+  const from = !start || start < today() ? today() : start;
   const real = sched.scheduleProject({
-    id: '__new__', name, size, earliestStart: start, deadline: deadline || null,
+    id: '__new__', name, size, earliestStart: from, deadline: deadline || null,
     stages, commit: false,
   });
   const naive = new Scheduler({ members: sched.members ?? [], calendar: CAL })
-    .scheduleProject({ id: 'n', name, size, earliestStart: start, stages, commit: false });
+    .scheduleProject({ id: 'n', name, size, earliestStart: from, stages, commit: false });
   return { real, naive, depth };
 }
 
@@ -2274,6 +2320,270 @@ export function pipelineStages(leads = []) {
   return { cols, unmapped: rest };
 }
 
+/* ========================== PERFORMANCE SCORING ==========================
+
+   One score per person per quarter, out of 100.
+
+   For Business development and Project management it is 60 automatic + 40
+   from the supervisor's form. For every other team the automatic half has no
+   meaning, so the form is the whole score — inventing a metric for a 3D
+   designer just to keep the arithmetic symmetrical would be worse than
+   having none.
+
+   THE AUTOMATIC HALF SCORES ZERO WHEN THERE IS NO DATA. That is a deliberate
+   instruction and not an accident, but it is a loaded one right now: no
+   project in the database has ever been marked won or lost, so today every
+   project manager's automatic 60 is zero through no fault of their own.
+   Every automatic figure therefore carries its own coverage — how many rows
+   it was computed from — and the screen prints it beside the number. A zero
+   that explains itself can be argued with; a bare zero on an appraisal
+   cannot.
+   ========================================================================= */
+
+/* The fourteen KPIs from the company's evaluation sheet, in the sheet's own
+   order. Arabic is the original; the English is a translation for the other
+   half of the interface, not a second source of truth. */
+export const KPI_ROWS = [
+  { k: 'accuracy',    ar: 'دقة إنجاز المهام',                                    en: 'Accuracy of task completion' },
+  { k: 'comms',       ar: 'مهارات التواصل والتفاعل',                              en: 'Communication and interaction' },
+  { k: 'resilience',  ar: 'المرونه وتحمل الضغط',                                  en: 'Flexibility and working under pressure' },
+  { k: 'values',      ar: 'الالتزام بقيم وأخلاقيات المؤسسة',                       en: 'Commitment to company values and ethics' },
+  { k: 'timemgmt',    ar: 'القدرة على إدارة الوقت وتنظيم العمل',                    en: 'Time management and organisation' },
+  { k: 'attendance',  ar: 'الالتزام بمواعيد الحضور والانصراف',                      en: 'Punctuality of arrival and departure' },
+  { k: 'satisfaction',ar: 'معدل رضا العملاء والمستخدمين',                          en: 'Client and user satisfaction' },
+  { k: 'technical',   ar: 'استخدام المهارات التقنية الحديثة',                       en: 'Use of current technical skills' },
+  { k: 'reqdata',     ar: 'الالتزام بمتطلبات تنفيذ المشروع (توفير البيانات)',        en: 'Project requirements — providing data' },
+  { k: 'reqstruct',   ar: 'الالتزام بمتطلبات تنفيذ المشروع (الهيكليات)',            en: 'Project requirements — structures' },
+  { k: 'sitework',    ar: 'الالتزام بمتابعة تنفيذ المشروع (التنفيذ الميداني)',       en: 'Delivery follow-up — on-site execution' },
+  { k: 'certs',       ar: 'الالتزام بمتابعة تنفيذ المشروع (شهادات الانجاز)',        en: 'Delivery follow-up — completion certificates' },
+  { k: 'invoices',    ar: 'تصدير ومتابعة الفواتير',                                en: 'Issuing and following up invoices' },
+  { k: 'collections', ar: 'التحصيل',                                            en: 'Collections' },
+];
+
+/* The sheet weights all fourteen at 10%, which totals 140% and caps its own
+   "total" at 7 rather than 100. Rather than carry that arithmetic forward,
+   the score is the share of the achievable maximum: every KPI at 5 is 100%,
+   every KPI at 3 is 60%. Equal weighting is preserved — only the scale moves.
+   Unrated rows are excluded from both halves of the fraction, so a partly
+   filled form reads as what it is instead of scoring the blanks as zero. */
+export function formScore(ratings = {}) {
+  let got = 0, max = 0, answered = 0;
+  for (const row of KPI_ROWS) {
+    const v = Number(ratings?.[row.k]);
+    if (!Number.isFinite(v) || v < 1 || v > 5) continue;
+    got += v; max += 5; answered++;
+  }
+  return {
+    answered, of: KPI_ROWS.length,
+    pct: max ? Math.round((got / max) * 100) : null,
+  };
+}
+
+/* Leads this person owns that reached "won", over the leads they own. The
+   denominator is ownership, not activity: a lead nobody was given is not a
+   conversion anyone failed to make. 363 of 420 leads currently have no owner
+   at all, which is why `covered` travels with the number. */
+export function salesConversion(personId, leads = []) {
+  const mine = (leads || []).filter(l => l.owner_id === personId);
+  const won = mine.filter(l => l.status === 'won').length;
+  return {
+    kind: 'sales', covered: mine.length, hit: won,
+    pct: mine.length ? Math.round((won / mine.length) * 100) : 0,
+    measurable: mine.length > 0,
+  };
+}
+
+/* Proposals this person owns that came back won, over the ones that got a
+   verdict either way. Projects still sitting at "submitted" are excluded:
+   Etemad not having answered yet is not a loss, and counting it as one would
+   punish a PM for somebody else's silence. */
+export function rfpWinRate(personId, projects = []) {
+  const mine = (projects || []).filter(p => p.owner_id === personId);
+  const decided = mine.filter(p => p.status === 'won' || p.status === 'lost');
+  const won = decided.filter(p => p.status === 'won').length;
+  return {
+    kind: 'rfp', covered: decided.length, hit: won,
+    awaiting: mine.filter(p => p.status === 'submitted').length,
+    pct: decided.length ? Math.round((won / decided.length) * 100) : 0,
+    measurable: decided.length > 0,
+  };
+}
+
+/** Which half-and-half applies to a person, by department. */
+export const AUTO_WEIGHT = 60, FORM_WEIGHT = 40;
+export const autoKindFor = (dept) =>
+  dept === 'bd' ? 'sales' : dept === 'pm' ? 'rfp' : null;
+
+/**
+ * The whole score for one person.
+ * @param person  a profile row
+ * @param review  their review row for the period, or null
+ * @param ctx     { leads, projects }
+ */
+export function personScore(person, review, ctx = {}) {
+  const form = formScore(review?.ratings);
+  const kind = autoKindFor(person?.department_id);
+  const auto = kind === 'sales' ? salesConversion(person.id, ctx.leads)
+             : kind === 'rfp'   ? rfpWinRate(person.id, ctx.projects)
+             : null;
+
+  /* No automatic half: the form is the whole score, and a person with no
+     review yet has no score rather than a zero. Those are different facts and
+     the screen says so. */
+  if (!auto) {
+    return { kind: null, auto: null, form,
+             formPoints: form.pct, autoPoints: null,
+             total: form.pct, reviewed: form.answered > 0 };
+  }
+  const autoPoints = Math.round((auto.pct / 100) * AUTO_WEIGHT);
+  const formPoints = form.pct === null ? null : Math.round((form.pct / 100) * FORM_WEIGHT);
+  return {
+    kind, auto, form, autoPoints, formPoints,
+    /* An unfilled form contributes nothing rather than blocking the score —
+       the automatic half is real on its own and a supervisor who has not got
+       to the form yet should not make the number disappear. */
+    total: autoPoints + (formPoints ?? 0),
+    reviewed: form.answered > 0,
+  };
+}
+
+/** '2026-Q3' for a date. Reviews are quarterly, as on the company's sheet. */
+export function quarterOf(d = new Date()) {
+  const x = d instanceof Date ? d : parse(d);
+  return `${x.getUTCFullYear()}-Q${Math.floor(x.getUTCMonth() / 3) + 1}`;
+}
+
+/**
+ * One person's score, as a card. Used for yourself at the top of the screen
+ * and for each of your reports below it.
+ */
+function scoreCard(lang, person, sc, opts = {}) {
+  const t = DSTR[lang];
+  const mine = opts.mine;
+  const shown = sc.total === null ? null : sc.total;
+
+  /* The automatic half always states what it was computed from. A "0" beside
+     "from 0 proposals with a verdict" is a fact about the records; a bare "0"
+     on somebody's appraisal is an accusation. */
+  const autoLine = !sc.auto ? `<p class="muted small">${esc(t.perfFormOnly)}</p>` : (() => {
+    const a = sc.auto;
+    const label = a.kind === 'sales' ? t.perfSales : t.perfRfp;
+    const cov = a.kind === 'sales'
+      ? t.perfCovSales.replace('{n}', a.covered)
+      : t.perfCovRfp.replace('{n}', a.covered);
+    const warn = a.measurable ? '' : (a.kind === 'sales'
+      ? t.perfNoSales
+      : t.perfNoRfp.replace('{a}', a.awaiting || 0));
+    return `
+      <div class="pscore__part">
+        <span class="pscore__k">${esc(label)}</span>
+        <span class="pscore__v">${a.pct}%</span>
+        <span class="pscore__n">${esc(cov)}</span>
+        <span class="pscore__pts">${sc.autoPoints} ${esc(t.perfOf)} ${AUTO_WEIGHT} ${esc(t.perfPts)}</span>
+      </div>
+      ${warn ? `<p class="note note--warn">${esc(warn)}</p>` : ''}`;
+  })();
+
+  const formLine = `
+    <div class="pscore__part">
+      <span class="pscore__k">${esc(t.perfForm)}</span>
+      <span class="pscore__v">${sc.form.pct === null ? esc(t.perfUnrated) : sc.form.pct + '%'}</span>
+      <span class="pscore__n">${sc.form.answered}/${sc.form.of}</span>
+      <span class="pscore__pts">${sc.formPoints === null ? esc(t.perfNotFilled)
+        : `${sc.formPoints} ${esc(t.perfOf)} ${sc.auto ? FORM_WEIGHT : 100} ${esc(t.perfPts)}`}</span>
+    </div>`;
+
+  return `
+  <div class="pscore${mine ? ' pscore--mine' : ''}">
+    <div class="pscore__head">
+      <span class="pscore__who">${esc(mine ? t.perfMine : (person.full_name || person.email || ''))}</span>
+      ${!mine ? `<span class="muted small">${esc(deptName(person.department_id, lang))}</span>` : ''}
+    </div>
+    ${shown === null || (!sc.reviewed && !sc.auto)
+      ? `<div class="pscore__big pscore__big--none">${esc(t.perfNoScore)}</div>
+         <p class="muted small">${esc(t.perfNoScoreSub)}</p>`
+      : `<div class="pscore__big"><b>${shown}</b><i>/100</i></div>
+         <div class="pscore__bar"><span style="width:${Math.min(shown, 100)}%"></span></div>`}
+    ${autoLine}
+    ${formLine}
+  </div>`;
+}
+
+/** The 14-row form a supervisor fills in for one person. */
+function reviewForm(lang, person, review) {
+  const t = DSTR[lang];
+  const r = review?.ratings || {};
+  return `
+  <form class="revform" data-review="${esc(person.id)}">
+    <table class="tbl tbl--tight">
+      <thead><tr><th>${esc(t.perfKpi)}</th><th class="num">${esc(t.perfRate)}</th></tr></thead>
+      <tbody>
+        ${KPI_ROWS.map(row => `<tr>
+          <td class="small">${esc(lang === 'ar' ? row.ar : row.en)}</td>
+          <td class="num">
+            <select class="btn--sm rk" data-k="${esc(row.k)}">
+              <option value=""${r[row.k] ? '' : ' selected'}>—</option>
+              ${[1, 2, 3, 4, 5].map(n =>
+                `<option value="${n}"${Number(r[row.k]) === n ? ' selected' : ''}>${n}</option>`).join('')}
+            </select>
+          </td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    <label class="f"><span>${esc(t.perfStrengths)}</span>
+      <textarea class="rstr" rows="2">${esc(review?.strengths || '')}</textarea></label>
+    <label class="f"><span>${esc(t.perfImprove)}</span>
+      <textarea class="rimp" rows="2">${esc(review?.improvements || '')}</textarea></label>
+    <div class="actions actions--end">
+      <button class="btn btn--primary btn--sm" type="submit">${esc(t.perfSave)}</button>
+    </div>
+  </form>`;
+}
+
+export function performanceView(lang, ctx) {
+  const t = DSTR[lang];
+  const me = db.state.me;
+  if (!me) return '';
+  const period = ctx.period || quarterOf();
+  const bySubject = new Map((ctx.reviews || []).map(r => [r.subject_id, r]));
+  const scoreCtx = { leads: ctx.leads || [], projects: ctx.projects || [] };
+
+  const mine = personScore(me, bySubject.get(me.id), scoreCtx);
+
+  /* Only the people currently assigned to me. This mirrors the read policy
+     rather than reimplementing it: the rows simply are not there for anyone
+     else, so a bug here cannot widen what a supervisor sees. */
+  const team = (ctx.people || []).filter(p => p.supervisor_id === me.id && p.is_active);
+
+  return `
+<section class="card">
+  <div class="card__head">
+    <h2>${esc(t.perf)}</h2>
+    <span class="muted small">${esc(t.perfQuarter)} ${esc(period)}</span>
+  </div>
+  <div class="pgrid">${scoreCard(lang, me, mine, { mine: true })}</div>
+  <p class="note">${esc(t.perfPrivate)}</p>
+</section>
+
+${team.length ? `
+<section class="card">
+  <div class="card__head">
+    <h2>${esc(t.perfMyTeam)}</h2><span class="muted small">${team.length}</span>
+  </div>
+  ${team.map(p => {
+    const sc = personScore(p, bySubject.get(p.id), scoreCtx);
+    return `
+    <div class="preview">
+      ${scoreCard(lang, p, sc)}
+      <details class="pdet"${ctx.openReview === p.id ? ' open' : ''}>
+        <summary>${esc(t.perfReview)}</summary>
+        ${reviewForm(lang, p, bySubject.get(p.id))}
+      </details>
+    </div>`;
+  }).join('')}
+</section>` : ''}`;
+}
+
 export function pipelineView(lang, ctx) {
   const t = DSTR[lang];
   const leads = ctx.leads || [];
@@ -2645,6 +2955,11 @@ export function adminView(lang, ctx) {
     return 'roster';
   };
 
+  /* Anyone who could be given the job, not a hard-coded list of four names.
+     Who supervises whom changes; a constant in the source would have to be
+     edited and redeployed every time somebody is promoted or leaves. */
+  const supervisors = people.filter(p => p.is_active && ['lead', 'manager', 'admin'].includes(p.role));
+
   const waiting = people.filter(p => keyOf(p) === 'waiting');
   const invited = people.filter(p => keyOf(p) === 'invited');
   const roster  = people.filter(p => keyOf(p) === 'roster');
@@ -2731,7 +3046,7 @@ export function adminView(lang, ctx) {
     <table class="tbl">
       <thead><tr>
         <th>${esc(t.name)}</th><th>${esc(t.status)}</th><th>${esc(t.department)}</th>
-        <th>${esc(t.role)}</th><th>${esc(t.lastSeen)}</th><th class="num"></th>
+        <th>${esc(t.role)}</th><th>${esc(t.perfSupervisor)}</th><th>${esc(t.lastSeen)}</th><th class="num"></th>
       </tr></thead>
       <tbody>
         ${sorted.map(p => {
@@ -2753,6 +3068,15 @@ export function adminView(lang, ctx) {
             </select></td>
             <td><select class="pRole btn--sm" data-p="${esc(p.id)}">
               ${['member', 'lead', 'manager', 'admin'].map(r => `<option value="${r}"${r === p.role ? ' selected' : ''}>${esc(t.roles[r] || r)}</option>`).join('')}
+            </select></td>
+            <!-- Who reviews this person. Explicit rather than derived from
+                 department, and admin-only: the database guard rejects the
+                 change from anyone else, so this select is the interface to a
+                 rule rather than the rule itself. -->
+            <td><select class="btn--sm" data-supervisor="${esc(p.id)}">
+              <option value="">${esc(t.perfNoSupervisor)}</option>
+              ${supervisors.filter(sv => sv.id !== p.id).map(sv =>
+                `<option value="${esc(sv.id)}"${sv.id === p.supervisor_id ? ' selected' : ''}>${esc(sv.full_name || sv.email)}</option>`).join('')}
             </select></td>
             <td class="muted small">${esc(st.seen)}</td>
             <td class="num">${st.action}</td>
