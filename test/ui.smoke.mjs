@@ -76,6 +76,7 @@ const ROUTES = [
   ['#/who',                     'signin'],   // was the roster
   ['#/me/1200000000000000',     'signin'],   // was a named person's profile
   ['#/pipeline',                'signin'],   // was the deal list
+  ['#/performance',             'signin'],   // appraisals — must never render to a stranger
   ['#/estimate',                'signin'],
   ['#/highlights',              'signin'],
   ['#/projects',                'signin'],
