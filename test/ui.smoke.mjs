@@ -444,8 +444,17 @@ for (const lang of ['en', 'ar']) {
   const { sched, depth } = D.buildScheduler(roster, busy, projects);
   check(depth['3d'].stages === 20 && depth['3d'].people === 1 && depth['3d'].workingDays === 60,
     `20 medium 3D stages on one person is 60 working days deep, got ${JSON.stringify(depth['3d'])}`);
-  const e = D.estimateFor(sched, { name: 'x', size: 'M', start: '2026-08-17', deadline: null, stages: ['3d'] }, depth);
+  /* No hard-coded start. A date in the past is now clamped to today, which is
+     the fix for a real bug — the estimator used to schedule a back-dated
+     proposal into days that had already gone, jumping in front of the queue
+     and returning the same date as the empty-team answer. Pinning a date here
+     is also how this test quietly stopped meaning anything once the clock
+     passed it. */
+  const e = D.estimateFor(sched, { name: 'x', size: 'M', start: null, deadline: null, stages: ['3d'] }, depth);
   check(e.real.delivery > e.naive.delivery, 'a loaded team must push the date out past the work-only date');
+  const backdated = D.estimateFor(sched, { name: 'x', size: 'M', start: '2020-01-01', deadline: null, stages: ['3d'] }, depth);
+  check(backdated.real.delivery === e.real.delivery,
+    'a proposal dated in the past must not be scheduled into capacity that has already gone');
   const box = D.estimateBox('en', e);
   check(box.includes('60') && /working days deep/.test(box),
     'the estimate box does not say whose backlog is causing the wait');
@@ -691,6 +700,100 @@ for (const lang of ['en', 'ar']) {
   const none = D.pipelineView('en', { leads: [] });
   check(none.includes(D.DSTR.en.pipeNone), 'an empty pipeline renders columns with nothing said in them');
   check(!none.includes('undefined'), 'the empty pipeline rendered a hole');
+}
+
+/* 9. PERFORMANCE. Two things are worth testing here and they are not the
+      layout: that the arithmetic is right, and that an unmeasurable metric
+      says so instead of passing a bare zero off as a judgement. The privacy
+      itself is not testable from here at all — it lives in the policies, and
+      supabase/rls-test.sql is where it is proven. */
+{
+  const full = Object.fromEntries(D.KPI_ROWS.map(r => [r.k, 5]));
+  const mid  = Object.fromEntries(D.KPI_ROWS.map(r => [r.k, 3]));
+
+  check(D.KPI_ROWS.length === 14, `the company's sheet has 14 indicators, got ${D.KPI_ROWS.length}`);
+  check(D.KPI_ROWS.every(r => r.ar && r.en && r.k), 'every indicator needs a key and both languages');
+  check(new Set(D.KPI_ROWS.map(r => r.k)).size === 14, 'two indicators share a key, so one would overwrite the other');
+
+  /* The sheet weights 14 indicators at 10% each — 140% — and caps its own
+     total at 7. The score is a share of the achievable maximum instead. */
+  check(D.formScore(full).pct === 100, 'a perfect review must read 100%');
+  check(D.formScore(mid).pct === 60, 'every indicator at 3 of 5 is 60%');
+  check(D.formScore({}).pct === null, 'an untouched form has no score, which is not the same as zero');
+  /* A half-filled form scores what was actually assessed. Counting blanks as
+     zero would score the supervisor's unfinished afternoon against the person. */
+  const partial = D.formScore({ [D.KPI_ROWS[0].k]: 5, [D.KPI_ROWS[1].k]: 4 });
+  check(partial.answered === 2 && partial.pct === 90,
+    `a partly filled form scores only what was rated, got ${JSON.stringify(partial)}`);
+
+  const leads = [
+    { owner_id: 'u1', status: 'won' }, { owner_id: 'u1', status: 'won' },
+    { owner_id: 'u1', status: 'contacted' }, { owner_id: 'u1', status: 'new' },
+    { owner_id: 'other', status: 'won' },
+  ];
+  const projects = [
+    { owner_id: 'u2', status: 'won' }, { owner_id: 'u2', status: 'lost' },
+    { owner_id: 'u2', status: 'submitted' }, { owner_id: 'u2', status: 'in_design' },
+  ];
+
+  const sales = D.salesConversion('u1', leads);
+  check(sales.pct === 50 && sales.covered === 4,
+    `2 won of 4 owned is 50%, got ${JSON.stringify(sales)}`);
+  check(D.salesConversion('nobody', leads).measurable === false,
+    'a person with no leads must be flagged unmeasurable, not scored');
+
+  /* Proposals still sitting at Etemad are excluded from the denominator.
+     Counting a missing verdict as a loss punishes a PM for somebody else's
+     silence — and 79 of your projects are in exactly that state. */
+  const rfp = D.rfpWinRate('u2', projects);
+  check(rfp.pct === 50 && rfp.covered === 2 && rfp.awaiting === 1,
+    `1 won of 2 decided is 50%, with 1 still awaiting, got ${JSON.stringify(rfp)}`);
+  check(D.rfpWinRate('u2', [{ owner_id: 'u2', status: 'submitted' }]).measurable === false,
+    'a PM whose proposals have no verdict yet must be flagged unmeasurable');
+
+  /* The 60/40 split, and the departments that have no automatic half. */
+  const bd = D.personScore({ id: 'u1', department_id: 'bd' }, { ratings: full }, { leads, projects });
+  check(bd.autoPoints === 30 && bd.formPoints === 40 && bd.total === 70,
+    `50% conversion and a perfect form is 30 + 40, got ${JSON.stringify(bd)}`);
+
+  const designer = D.personScore({ id: 'u9', department_id: '3d' }, { ratings: mid }, { leads, projects });
+  check(designer.kind === null && designer.total === 60,
+    `a designer has no automatic half, so the form is the whole score, got ${JSON.stringify(designer)}`);
+
+  /* THE CASE THAT MATTERS TODAY. No project in the database has ever been
+     marked won or lost, so every PM's automatic 60 is zero. That was asked
+     for explicitly, and it is correct here — but the metric must carry
+     `measurable: false` so the screen can say why rather than leaving a bare
+     zero on somebody's appraisal. */
+  const blind = D.personScore({ id: 'u3', department_id: 'pm' }, { ratings: full }, { leads: [], projects: [] });
+  check(blind.autoPoints === 0 && blind.total === 40,
+    `an unmeasurable automatic half scores zero as instructed, got ${JSON.stringify(blind)}`);
+  check(blind.auto.measurable === false,
+    'the zero must be marked unmeasurable, or the screen cannot explain it');
+
+  for (const lang of ['en', 'ar']) {
+    dbmod.state.me = { id: 'u1', full_name: 'Me', department_id: 'bd', role: 'manager', is_active: true };
+    const people = [
+      { id: 'u5', full_name: 'My Report', department_id: 'pm', supervisor_id: 'u1', is_active: true },
+      { id: 'u6', full_name: 'Not Mine', department_id: 'pm', supervisor_id: 'u9', is_active: true },
+    ];
+    const html = D.performanceView(lang, {
+      people, leads, projects, period: '2026-Q3',
+      reviews: [{ subject_id: 'u1', ratings: full }],
+    });
+    check(html.includes(D.DSTR[lang].perfMine), `${lang}: your own score is missing`);
+    check(html.includes('My Report'), `${lang}: a person assigned to me is missing from my list`);
+    /* The screen only ever renders people assigned to me. RLS would not have
+       sent the other row anyway; this checks the view does not widen it. */
+    check(!html.includes('Not Mine'), `${lang}: the screen listed somebody who does not report to me`);
+    check(html.includes(D.DSTR[lang].perfPrivate), `${lang}: the privacy statement is missing`);
+    check((html.match(/class="btn--sm rk"/g) || []).length === 14, `${lang}: the review form lost some indicators`);
+    check(!html.includes('undefined') && !html.includes('NaN'), `${lang}: performance rendered a hole`);
+  }
+  dbmod.state.me = { id: 'u1', full_name: 'Test', role: 'admin', department_id: 'pm', is_active: true };
+  /* Somebody with nobody assigned to them sees only their own card. */
+  const alone = D.performanceView('en', { people: [], leads: [], projects: [], reviews: [] });
+  check(!alone.includes(D.DSTR.en.perfMyTeam), 'a person who supervises nobody must not get an empty team section');
 }
 
 /* ------------------- filters, and the Etemad status flow -------------------
