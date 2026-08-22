@@ -148,6 +148,18 @@ export const DSTR = {
     perfFormOnly: 'Your whole score comes from your supervisor\u2019s review.',
     perfNotFilled: 'Not filled in yet',
     perfMyTeam: 'People you review', perfNobody: 'Nobody is assigned to you.',
+    perfTeamTotal: 'Team score', perfTeamCov: '{n} of {m} scored',
+    /* The same facts said about somebody else. Every one of these drops the
+       possessive rather than swapping the pronoun: it reads correctly for a
+       person of any gender, which matters most in the Arabic. */
+    perfNoScoreSubOther: 'No review has been filled in for this quarter.',
+    perfFormOther: 'From your review',
+    perfFormOnlyOther: 'The whole score comes from the review.',
+    perfCovSalesOther: 'from {n} leads assigned',
+    perfNoSalesOther: 'No leads are assigned, so this scores zero.',
+    perfNoRfpOther: 'No proposal has been marked won or lost, so this scores zero. {a} are still waiting on a verdict.',
+    perfTeamNone: 'Nobody on your team has a score yet.',
+    perfTeamBlank: '{n} of these have nothing recorded yet \u2014 no verdict and no review \u2014 so they count as zero.',
     perfReview: 'Review', perfSave: 'Save review', perfSaved: 'Saved',
     perfRate: 'Rating (1\u20135)', perfKpi: 'Indicator',
     perfStrengths: 'Strengths', perfImprove: 'Areas to improve',
@@ -370,6 +382,15 @@ export const DSTR = {
     perfFormOnly: 'درجتك كاملة تأتي من تقييم مديرك.',
     perfNotFilled: 'لم يُملأ بعد',
     perfMyTeam: 'من تقوم بتقييمهم', perfNobody: 'لا أحد مسند إليك.',
+    perfTeamTotal: 'درجة الفريق', perfTeamCov: 'تم احتساب {n} من {m}',
+    perfNoScoreSubOther: 'لم يُملأ تقييم لهذا الربع.',
+    perfFormOther: 'من تقييمك',
+    perfFormOnlyOther: 'الدرجة كاملة تأتي من التقييم.',
+    perfCovSalesOther: 'من {n} عميل مسند',
+    perfNoSalesOther: 'لا يوجد عملاء مسندون، لذا فهذه الدرجة صفر.',
+    perfNoRfpOther: 'لم يُسجَّل فوز أو خسارة لأي عرض، لذا فهذه الدرجة صفر. ولا يزال {a} بانتظار القرار.',
+    perfTeamNone: 'لا أحد في فريقك لديه درجة بعد.',
+    perfTeamBlank: '{n} منهم لم يُسجَّل لهم شيء بعد \u2014 لا قرار ولا تقييم \u2014 لذا تُحتسب درجتهم صفراً.',
     perfReview: 'تقييم', perfSave: 'حفظ التقييم', perfSaved: 'تم الحفظ',
     perfRate: 'التقييم (١-٥)', perfKpi: 'المؤشر',
     perfStrengths: 'نقاط القوة', perfImprove: 'مجالات للتحسين',
@@ -2447,6 +2468,42 @@ export function personScore(person, review, ctx = {}) {
   };
 }
 
+/**
+ * Whether a score is a real number rather than an absence.
+ *
+ * scoreCard and teamScore MUST agree on this. A card that reads "no score yet"
+ * while that same person sits inside the team average is a contradiction the
+ * supervisor can see on one screen, so both ask this one question.
+ */
+export const hasScore = (sc) => sc && sc.total !== null && (sc.reviewed || !!sc.auto);
+
+/**
+ * The roll-up for one supervisor's people.
+ *
+ * The average is over their REPORTS only \u2014 the supervisor's own score stays at
+ * the top of the screen, because it is their appraisal, not their team's result.
+ * People with no score at all are left out of the average rather than counted as
+ * zero, and the count is returned so the screen can say so out loud; an average
+ * that quietly skips people is worse than no average.
+ *
+ * `blank` is the number of scores that ARE counted but rest on nothing recorded
+ * \u2014 no verdict, no review. Those are genuine zeros, as instructed, but a
+ * supervisor reading a low team number deserves to know it is a records problem
+ * and not a people problem.
+ */
+export function teamScore(scores = []) {
+  const counted = scores.filter(hasScore);
+  const blank = counted.filter(sc => !sc.reviewed && sc.auto && !sc.auto.measurable).length;
+  return {
+    total: counted.length
+      ? Math.round(counted.reduce((n, sc) => n + sc.total, 0) / counted.length)
+      : null,
+    scored: counted.length,
+    of: scores.length,
+    blank,
+  };
+}
+
 /** '2026-Q3' for a date. Reviews are quarterly, as on the company's sheet. */
 export function quarterOf(d = new Date()) {
   const x = d instanceof Date ? d : parse(d);
@@ -2465,15 +2522,17 @@ function scoreCard(lang, person, sc, opts = {}) {
   /* The automatic half always states what it was computed from. A "0" beside
      "from 0 proposals with a verdict" is a fact about the records; a bare "0"
      on somebody's appraisal is an accusation. */
-  const autoLine = !sc.auto ? `<p class="muted small">${esc(t.perfFormOnly)}</p>` : (() => {
+  const autoLine = !sc.auto
+    ? `<p class="muted small">${esc(mine ? t.perfFormOnly : t.perfFormOnlyOther)}</p>`
+    : (() => {
     const a = sc.auto;
     const label = a.kind === 'sales' ? t.perfSales : t.perfRfp;
     const cov = a.kind === 'sales'
-      ? t.perfCovSales.replace('{n}', a.covered)
+      ? (mine ? t.perfCovSales : t.perfCovSalesOther).replace('{n}', a.covered)
       : t.perfCovRfp.replace('{n}', a.covered);
     const warn = a.measurable ? '' : (a.kind === 'sales'
-      ? t.perfNoSales
-      : t.perfNoRfp.replace('{a}', a.awaiting || 0));
+      ? (mine ? t.perfNoSales : t.perfNoSalesOther)
+      : (mine ? t.perfNoRfp : t.perfNoRfpOther).replace('{a}', a.awaiting || 0));
     return `
       <div class="pscore__part">
         <span class="pscore__k">${esc(label)}</span>
@@ -2486,7 +2545,7 @@ function scoreCard(lang, person, sc, opts = {}) {
 
   const formLine = `
     <div class="pscore__part">
-      <span class="pscore__k">${esc(t.perfForm)}</span>
+      <span class="pscore__k">${esc(mine ? t.perfForm : t.perfFormOther)}</span>
       <span class="pscore__v">${sc.form.pct === null ? esc(t.perfUnrated) : sc.form.pct + '%'}</span>
       <span class="pscore__n">${sc.form.answered}/${sc.form.of}</span>
       <span class="pscore__pts">${sc.formPoints === null ? esc(t.perfNotFilled)
@@ -2499,9 +2558,9 @@ function scoreCard(lang, person, sc, opts = {}) {
       <span class="pscore__who">${esc(mine ? t.perfMine : (person.full_name || person.email || ''))}</span>
       ${!mine ? `<span class="muted small">${esc(deptName(person.department_id, lang))}</span>` : ''}
     </div>
-    ${shown === null || (!sc.reviewed && !sc.auto)
+    ${!hasScore(sc)
       ? `<div class="pscore__big pscore__big--none">${esc(t.perfNoScore)}</div>
-         <p class="muted small">${esc(t.perfNoScoreSub)}</p>`
+         <p class="muted small">${esc(mine ? t.perfNoScoreSub : t.perfNoScoreSubOther)}</p>`
       : `<div class="pscore__big"><b>${shown}</b><i>/100</i></div>
          <div class="pscore__bar"><span style="width:${Math.min(shown, 100)}%"></span></div>`}
     ${autoLine}
@@ -2554,6 +2613,10 @@ export function performanceView(lang, ctx) {
      rather than reimplementing it: the rows simply are not there for anyone
      else, so a bug here cannot widen what a supervisor sees. */
   const team = (ctx.people || []).filter(p => p.supervisor_id === me.id && p.is_active);
+  /* Scored once, then used for both the roll-up and the cards, so the total can
+     never be an average of numbers different from the ones printed under it. */
+  const teamScores = team.map(p => personScore(p, bySubject.get(p.id), scoreCtx));
+  const roll = teamScore(teamScores);
 
   return `
 <section class="card">
@@ -2570,8 +2633,17 @@ ${team.length ? `
   <div class="card__head">
     <h2>${esc(t.perfMyTeam)}</h2><span class="muted small">${team.length}</span>
   </div>
-  ${team.map(p => {
-    const sc = personScore(p, bySubject.get(p.id), scoreCtx);
+  <div class="pteam">
+    <div class="pteam__k">${esc(t.perfTeamTotal)}</div>
+    ${roll.total === null
+      ? `<div class="pteam__big pteam__big--none">${esc(t.perfTeamNone)}</div>`
+      : `<div class="pteam__big"><b>${roll.total}</b><i>/100</i></div>
+         <div class="pscore__bar"><span style="width:${Math.min(roll.total, 100)}%"></span></div>`}
+    <div class="pteam__cov muted small">${esc(t.perfTeamCov.replace('{n}', roll.scored).replace('{m}', roll.of))}</div>
+    ${roll.blank ? `<p class="note note--warn">${esc(t.perfTeamBlank.replace('{n}', roll.blank))}</p>` : ''}
+  </div>
+  ${team.map((p, i) => {
+    const sc = teamScores[i];
     return `
     <div class="preview">
       ${scoreCard(lang, p, sc)}
