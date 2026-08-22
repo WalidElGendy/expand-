@@ -264,7 +264,7 @@ export const dept = (id) => state.departments.find(d => d.id === id) || null;
 
 export const listPeople = async () => ok(await sb
   .from('profiles')
-  .select('id, full_name, email, department_id, role, is_active, asana_gid, user_id, last_seen_at')
+  .select('id, full_name, email, department_id, supervisor_id, role, is_active, asana_gid, user_id, last_seen_at')
   .order('full_name'));
 
 export const listInvitations = async () => ok(await sb
@@ -548,6 +548,25 @@ export async function uploadFile(bucket, file, meta = {}) {
    from every project, and "AJ-14-RFP-final.pdf" with no project beside it is
    a filename, not a document — the reader cannot tell which of 378 projects
    it belongs to, which is the one thing they need in order to use it. */
+/* --------------------------------------------------------------- reviews --
+   Every one of these is filtered by RLS before it leaves the database: you
+   get your own row and the rows of the people assigned to you, and there is
+   no query here that could widen that. The screen does not do the hiding. */
+
+export const listReviews = async (period) => ok(await sb.from('reviews')
+  .select('id, subject_id, author_id, period, ratings, strengths, improvements, submitted_at, updated_at')
+  .eq('period', period));
+
+/* One row per person per quarter, edited in place. Upsert on that pair rather
+   than insert-then-update so a supervisor revising a score does not create a
+   second review nobody knows which of to believe. */
+export const saveReview = async (row) => ok(await sb.from('reviews')
+  .upsert({ ...row, author_id: state.me?.id }, { onConflict: 'subject_id,period' })
+  .select().single());
+
+export const setSupervisor = async (personId, supervisorId) => ok(await sb.from('profiles')
+  .update({ supervisor_id: supervisorId || null }).eq('id', personId).select().single());
+
 export const listFiles = async (filter = {}) => {
   let q = sb.from('files')
     .select('id, purpose, title, description, bucket, path, filename, mime, size_bytes, created_at, project_id, lead_id, project:project_id ( id, name ), uploader:uploaded_by ( id, full_name )')
