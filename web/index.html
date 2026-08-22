@@ -424,6 +424,23 @@ html[dir="rtl"] .head::after { transform: scaleX(-1); }
 .pscore__pts { font-size: 11px; color: var(--ink3); text-align: end; white-space: nowrap; }
 .pscore .note { margin: 6px 0 0; padding-inline-start: 10px !important; }
 
+/* The team roll-up. It sits ABOVE the individual cards and is deliberately
+   quieter than they are: the people are the subject of this screen, the average
+   is context. The coverage line under the number is not optional furniture —
+   an average that silently skips people is worse than showing no average. */
+.pteam {
+  /* No bottom border: the first .preview below already draws one, and two
+     lines 1px apart read as a rendering fault rather than a divider. */
+  display: grid; gap: 6px; padding: 12px 16px 14px;
+}
+.pteam__k { font-size: 12px; color: var(--ink2); }
+.pteam__big { font-size: 15px; color: var(--ink3); display: flex; align-items: baseline; gap: 2px; }
+.pteam__big b { font-size: 26px; font-weight: 700; color: var(--ink1); line-height: 1.05; font-variant-numeric: tabular-nums; }
+.pteam__big i { font-style: normal; font-size: 13px; }
+.pteam__big--none { font-size: 13px; font-weight: 600; }
+.pteam .pscore__bar { max-width: 320px; }
+.pteam .note { margin: 4px 0 0; padding-inline-start: 10px !important; }
+
 .preview { padding: 14px 16px; border-top: 1px solid var(--line); }
 .pdet { margin-top: 10px; }
 .pdet > summary {
