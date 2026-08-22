@@ -169,6 +169,7 @@ function currentRoute() {
   if (h.startsWith('#/highlights')) return { name: 'highlights' };
   /* Before '#/leads', or the prefix match below swallows it. */
   if (h.startsWith('#/pipeline')) return { name: 'pipeline' };
+  if (h.startsWith('#/performance')) return { name: 'performance' };
   if (h.startsWith('#/signin'))   return { name: 'signin' };
   if (h.startsWith('#/reset'))    return { name: 'signin' };   // recovery lands here
   if (h.startsWith('#/home'))     return { name: 'home' };
@@ -193,7 +194,7 @@ function currentRoute() {
    to arrive from a page that had loaded them. A deep link or a refresh
    showed an empty table and called it zero projects. */
 const APP_ROUTES = ['home', 'projects', 'project', 'new', 'leads', 'lead', 'docs', 'admin',
-  'estimate', 'highlights', 'pipeline'];
+  'estimate', 'highlights', 'pipeline', 'performance'];
 
 function render() {
   document.documentElement.lang = S.lang;
@@ -271,6 +272,7 @@ function headTitle(r) {
   if (r.name === 'highlights') return { h1: d.highlights, sub: d.highlightsSub };
   if (r.name === 'projects')   return { h1: d.projects, sub: '' };
   if (r.name === 'pipeline')   return { h1: d.pipeline, sub: d.pipelineSub };
+  if (r.name === 'performance') return { h1: d.perf, sub: d.perfSub };
   return { h1: 'expand', sub: '' };
 }
 
@@ -325,6 +327,7 @@ function appNav() {
   }
   items.push({ group: 'insight', route: '#/pipeline', icon: 'board', label: () => d.pipeline });
   items.push({ group: 'insight', route: '#/estimate', icon: 'spark', label: () => d.openEstimator });
+  items.push({ group: 'workspace', route: '#/performance', icon: 'chart', label: () => d.perf });
   if (me.role === 'admin') items.push({ group: 'workspace', route: '#/admin', icon: 'team', label: () => d.people });
   return items;
 }
