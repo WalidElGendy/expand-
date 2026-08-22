@@ -92,3 +92,81 @@ begin
   reset role;
   raise exception E'\n=== RLS TEST ===\n%(rolled back)', r;
 end $$;
+
+-- =========================================================================
+-- Performance reviews.
+--
+-- Same shape as above, and the same rollback-by-exception ending. This one
+-- guards a promise made to every person in the company: your score is yours
+-- and your supervisor's, and nobody else's. That promise lives in the
+-- policies, not in the screen that hides the numbers, so this is the only
+-- place it can actually be proven.
+--
+-- The self-supervisor check at the end is the subtle one. `prof_update_self`
+-- lets a person edit their own row, and the review policies grant write to
+-- "the supervisor of this row's subject" — so without supervisor_id in the
+-- self-edit guard, anyone could point that column at themselves and author
+-- their own appraisal.
+-- =========================================================================
+do $$
+declare
+  bossu uuid := '33333333-3333-3333-3333-333333333333';   -- the supervisor
+  staffu uuid := '44444444-4444-4444-4444-444444444444';  -- their report
+  otheru uuid := '55555555-5555-5555-5555-555555555555';  -- an unrelated colleague
+  bp uuid; sp uuid; op uuid; rid uuid; r text := '';
+begin
+  insert into auth.users (id, instance_id, aud, role, email, created_at, updated_at) values
+    (bossu,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','rls-boss@test.invalid',now(),now()),
+    (staffu,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','rls-staff@test.invalid',now(),now()),
+    (otheru,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','rls-other@test.invalid',now(),now());
+  update profiles set department_id='pm', role='manager', is_active=true where user_id=bossu returning id into bp;
+  update profiles set department_id='pm', role='member',  is_active=true where user_id=staffu returning id into sp;
+  update profiles set department_id='pm', role='member',  is_active=true where user_id=otheru returning id into op;
+  update profiles set supervisor_id = bp where id = sp;
+
+  set local role authenticated;
+
+  perform set_config('request.jwt.claims', json_build_object('sub', bossu, 'role','authenticated')::text, true);
+  begin insert into reviews (subject_id, author_id, period, ratings)
+        values (sp, bp, '2026-Q3', '{"a":5}'::jsonb) returning id into rid;
+        r := r || 'PASS  supervisor CAN review their own report' || E'\n';
+  exception when others then r := r || 'FAIL  supervisor blocked from own report: ' || sqlerrm || E'\n'; end;
+
+  begin insert into reviews (subject_id, author_id, period, ratings) values (op, bp, '2026-Q3', '{"a":1}'::jsonb);
+        r := r || 'FAIL  supervisor reviewed somebody NOT assigned to them' || E'\n';
+  exception when others then r := r || 'PASS  supervisor cannot review outside their own people' || E'\n'; end;
+
+  begin insert into reviews (subject_id, author_id, period, ratings) values (bp, bp, '2026-Q3', '{"a":5}'::jsonb);
+        r := r || 'FAIL  supervisor reviewed THEMSELVES' || E'\n';
+  exception when others then r := r || 'PASS  nobody can review themselves' || E'\n'; end;
+
+  if (select count(*) from reviews where subject_id = sp) = 1
+    then r := r || 'PASS  supervisor CAN read their own report''s review' || E'\n';
+    else r := r || 'FAIL  supervisor cannot read the review they wrote' || E'\n'; end if;
+
+  perform set_config('request.jwt.claims', json_build_object('sub', staffu, 'role','authenticated')::text, true);
+  if (select count(*) from reviews where subject_id = sp) = 1
+    then r := r || 'PASS  a person CAN read their own score' || E'\n';
+    else r := r || 'FAIL  a person cannot read their own score' || E'\n'; end if;
+  begin update reviews set ratings = '{"a":5,"b":5}'::jsonb where id = rid;
+        if found then r := r || 'FAIL  the subject edited their own review' || E'\n';
+        else r := r || 'PASS  the subject cannot edit their own review' || E'\n'; end if;
+  exception when others then r := r || 'PASS  the subject cannot edit their own review' || E'\n'; end;
+
+  perform set_config('request.jwt.claims', json_build_object('sub', otheru, 'role','authenticated')::text, true);
+  if (select count(*) from reviews) = 0
+    then r := r || 'PASS  a colleague sees NO reviews at all' || E'\n';
+    else r := r || 'FAIL  a colleague read somebody else''s review' || E'\n'; end if;
+
+  begin update profiles set supervisor_id = op where id = op;
+        r := r || 'FAIL  a member made THEMSELVES their own supervisor' || E'\n';
+  exception when others then r := r || 'PASS  a member cannot set their own supervisor' || E'\n'; end;
+
+  reset role; set local role anon;
+  perform set_config('request.jwt.claims', null, true);
+  if (select count(*) from reviews) = 0 then r := r || 'PASS  anon sees no reviews' || E'\n';
+  else r := r || 'FAIL  anon read reviews' || E'\n'; end if;
+
+  reset role;
+  raise exception E'\n=== REVIEW RLS ===\n%(rolled back)', r;
+end $$;
