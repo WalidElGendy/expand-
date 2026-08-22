@@ -772,6 +772,52 @@ for (const lang of ['en', 'ar']) {
   check(blind.auto.measurable === false,
     'the zero must be marked unmeasurable, or the screen cannot explain it');
 
+  /* ---------------- the team roll-up a supervisor is judged on ----------------
+     Three properties matter here, and each of them is a way the number could
+     lie to somebody:
+       1. it is an average of the REPORTS, never of the supervisor themselves;
+       2. a person with no score at all is left OUT of it, not counted as zero;
+       3. it never disagrees with the cards printed underneath it. */
+  const scored = (t) => ({ total: t, reviewed: true, auto: null, form: { pct: t, answered: 14, of: 14 } });
+  const unscored = { total: null, reviewed: false, auto: null, form: { pct: null, answered: 0, of: 14 } };
+
+  const roll = D.teamScore([scored(80), scored(60), unscored]);
+  check(roll.total === 70 && roll.scored === 2 && roll.of === 3,
+    `80 and 60 average to 70 over the two people who have a score, got ${JSON.stringify(roll)}`);
+  check(D.teamScore([unscored, unscored]).total === null,
+    'a team where nobody has been scored has no average, not a zero');
+  check(D.teamScore([]).total === null, 'an empty team has no average');
+
+  /* hasScore is the single rule the card and the roll-up both consult. If these
+     two ever drift apart, a card reads "no score yet" while that same person is
+     silently inside the average — a contradiction visible on one screen. */
+  check(D.hasScore(scored(80)) === true && D.hasScore(unscored) === false,
+    'hasScore must agree with what the card prints');
+  const zeroPm = D.personScore({ id: 'z', department_id: 'pm' }, null, { leads: [], projects: [] });
+  check(D.hasScore(zeroPm) === true && zeroPm.total === 0,
+    'a PM with no verdicts scores a real zero and is counted, as instructed');
+  check(D.teamScore([zeroPm, scored(80)]).blank === 1,
+    'a counted score resting on nothing recorded must be reported, so a low team number reads as a records gap');
+
+  /* A card about somebody else must not address them as "you". The screen shows
+     your own appraisal and your team's on one page, so the second-person copy
+     from the top card would read as if the supervisor were being told their own
+     review is missing. Every third-person string drops the possessive rather
+     than picking a pronoun, which is what keeps the Arabic genderless. */
+  for (const lang of ['en', 'ar']) {
+    dbmod.state.me = { id: 'b1', full_name: 'Boss', department_id: 'bd', role: 'manager', is_active: true };
+    const html = D.performanceView(lang, {
+      people: [{ id: 'b2', full_name: 'Unreviewed', department_id: '3d', supervisor_id: 'b1', is_active: true }],
+      leads: [{ id: 'x', owner_id: 'b1', status: 'won' }], projects: [], reviews: [],
+    });
+    check(html.includes(D.DSTR[lang].perfNoScoreSubOther),
+      `${lang}: a report with no review should be described in the third person`);
+    check(!html.includes(D.DSTR[lang].perfNoScoreSub),
+      `${lang}: a card about somebody else is addressing them as "you"`);
+    check(html.includes(D.DSTR[lang].perfTeamNone),
+      `${lang}: a team with nobody scored must say so rather than print a zero`);
+  }
+
   for (const lang of ['en', 'ar']) {
     dbmod.state.me = { id: 'u1', full_name: 'Me', department_id: 'bd', role: 'manager', is_active: true };
     const people = [
@@ -790,6 +836,11 @@ for (const lang of ['en', 'ar']) {
     check(html.includes(D.DSTR[lang].perfPrivate), `${lang}: the privacy statement is missing`);
     check((html.match(/class="btn--sm rk"/g) || []).length === 14, `${lang}: the review form lost some indicators`);
     check(!html.includes('undefined') && !html.includes('NaN'), `${lang}: performance rendered a hole`);
+    check(html.includes(D.DSTR[lang].perfTeamTotal), `${lang}: the team total is missing`);
+    /* My own score is 70 and my one report scores 0; the team number must be the
+       report's, not a blend of the two. */
+    check(html.includes('>0</b>') && !html.includes('>35</b>'),
+      `${lang}: the team total folded in the supervisor's own score`);
   }
   dbmod.state.me = { id: 'u1', full_name: 'Test', role: 'admin', department_id: 'pm', is_active: true };
   /* Somebody with nobody assigned to them sees only their own card. */
