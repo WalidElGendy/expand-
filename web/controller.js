@@ -37,6 +37,11 @@ export const ctx = {
   /* Which slice of the document library is on screen. Same reasoning as `pf`:
      a working session's question, not an address worth sharing. */
   docf: 'all',
+
+  /* The quarter on screen, the reviews readable for it, and which report's
+     form is expanded. `reviews` holds only what RLS let through — your own
+     row and your own people's — so nothing here needs to filter for privacy. */
+  period: null, reviews: [], openReview: null,
 };
 
 let rerender = () => {};
@@ -132,6 +137,17 @@ export async function loadFor(route, id) {
          hiding them from the one screen built to find them, not protecting
          them. The purpose survives as a column and a filter instead. */
       jobs.push(db.listFiles().then(f => { ctx.files = f; }));
+    }
+    /* The score needs the leads and the projects the automatic half is
+       computed from, plus the roster to know who reports to whom. All three
+       are already readable by any active user; the reviews are not, and the
+       policies are what keep them that way. */
+    if (route === 'performance') {
+      ctx.period = ctx.period || V.quarterOf();
+      jobs.push(db.listPeople().then(p => { ctx.people = p; }));
+      jobs.push(db.listLeads().then(l => { ctx.leads = l; }).catch(() => { ctx.leads = []; }));
+      jobs.push(db.listProjects().then(p => { ctx.projects = p; }).catch(() => { ctx.projects = []; }));
+      jobs.push(db.listReviews(ctx.period).then(r => { ctx.reviews = r; }).catch(() => { ctx.reviews = []; }));
     }
     if (route === 'admin') {
       jobs.push(db.listPeople().then(p => { ctx.people = p; }));
@@ -512,6 +528,37 @@ export function wireApp(lang) {
     } catch (err) { fail(err); btn.disabled = false; }
   };
 
+  /* --- performance --- */
+  $$('.revform').forEach(f => f.onsubmit = async (e) => {
+    e.preventDefault();
+    const subject = f.dataset.review;
+    const btn = f.querySelector('button[type=submit]');
+    /* Only the rows actually rated are sent. A blank select means "not
+       assessed", which formScore() excludes from both halves of the
+       fraction — storing it as 0 would score the supervisor's unfinished
+       form against the person. */
+    const ratings = {};
+    $$('.rk', f).forEach(sel => { if (sel.value) ratings[sel.dataset.k] = Number(sel.value); });
+    btn.disabled = true;
+    try {
+      await db.saveReview({
+        subject_id: subject,
+        period: ctx.period || V.quarterOf(),
+        ratings,
+        strengths: $('.rstr', f).value.trim() || null,
+        improvements: $('.rimp', f).value.trim() || null,
+      });
+      ctx.openReview = subject;      // keep the panel open over the reload
+      await loadFor('performance'); rerender();
+    } catch (err) { fail(err); btn.disabled = false; }
+  });
+
+  $$('[data-supervisor]').forEach(sel => sel.onchange = async () => {
+    try { await db.setSupervisor(sel.dataset.supervisor, sel.value || null);
+          await loadFor('admin'); rerender(); }
+    catch (e) { fail(e); }
+  });
+
   $$('[data-docf]').forEach(b => b.onclick = () => { ctx.docf = b.dataset.docf; rerender(); });
 
   $$('[data-open]').forEach(b => b.onclick = async () => {
@@ -714,6 +761,7 @@ function bodyFor(lang, route, id) {
   if (route === 'lead')     return V.leadView(lang, ctx);
   if (route === 'leads') return V.leadsView(lang, ctx);
   if (route === 'pipeline') return V.pipelineView(lang, ctx);
+  if (route === 'performance') return V.performanceView(lang, ctx);
   if (route === 'docs')  return V.docsView(lang, ctx);
   if (route === 'admin') return V.adminView(lang, ctx);
   /* Gated in the view as well as in the sidebar. A hidden nav item is a
