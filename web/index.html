@@ -393,6 +393,52 @@ html[dir="rtl"] .head::after { transform: scaleX(-1); }
 .chip--warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 40%, transparent); }
 .note--warn { color: var(--warn); border-inline-start-color: var(--warn); }
 
+/* --------------------------------- performance ---------------------------
+   One person's score. The number is the headline and the breakdown sits
+   under it, because "72" is what somebody wants and "60% conversion, 30 of 60
+   points" is what they need when they disagree with it. */
+.pgrid { display: grid; gap: 12px; padding: 14px 16px; }
+.pscore {
+  display: grid; gap: 8px; padding: 14px; border-radius: var(--r);
+  background: var(--s-2); border: 1px solid var(--line2);
+}
+.pscore--mine { background: linear-gradient(135deg, color-mix(in srgb, var(--midnight) 22%, var(--s-2)), var(--s-2)); }
+.pscore__head { display: flex; align-items: baseline; gap: 10px; }
+.pscore__who { font-size: 13px; font-weight: 600; }
+.pscore__big { font-size: 15px; color: var(--ink3); display: flex; align-items: baseline; gap: 2px; }
+.pscore__big b { font-size: 34px; font-weight: 700; color: var(--ink1); line-height: 1.05; font-variant-numeric: tabular-nums; }
+.pscore__big i { font-style: normal; font-size: 14px; }
+.pscore__big--none { font-size: 15px; color: var(--ink3); font-weight: 600; }
+.pscore__bar { height: 4px; border-radius: 2px; background: var(--line2); overflow: hidden; }
+.pscore__bar span { display: block; height: 100%; border-radius: 2px; background: var(--brand); }
+/* The two halves of the score, each with what it was computed from. The
+   count is not decoration: it is the difference between a zero that is a
+   judgement and a zero that is an empty table. */
+.pscore__part {
+  display: grid; grid-template-columns: 1fr auto; gap: 1px 10px;
+  padding-top: 8px; border-top: 1px solid var(--line);
+}
+.pscore__k { font-size: 12px; color: var(--ink2); }
+.pscore__v { font-size: 13px; font-weight: 600; text-align: end; font-variant-numeric: tabular-nums; }
+.pscore__n { font-size: 11px; color: var(--ink4); }
+.pscore__pts { font-size: 11px; color: var(--ink3); text-align: end; white-space: nowrap; }
+.pscore .note { margin: 6px 0 0; padding-inline-start: 10px !important; }
+
+.preview { padding: 14px 16px; border-top: 1px solid var(--line); }
+.pdet { margin-top: 10px; }
+.pdet > summary {
+  cursor: pointer; font-size: 12px; color: var(--brand); width: fit-content;
+  padding: 4px 0; list-style: none;
+}
+.pdet > summary::-webkit-details-marker { display: none; }
+.pdet > summary::before { content: "\25B8"; display: inline-block; margin-inline-end: 6px; transition: transform .12s; }
+.pdet[open] > summary::before { transform: rotate(90deg); }
+html[dir="rtl"] .pdet > summary::before { content: "\25C2"; }
+html[dir="rtl"] .pdet[open] > summary::before { transform: rotate(-90deg); }
+.revform { display: grid; gap: 12px; margin-top: 8px; }
+.revform .tbl td { vertical-align: middle; }
+.revform .f { max-width: 640px; }
+
 /* A three-way slice sitting in a card header. `margin-inline-start: auto`
    rather than a float or a spacer div, so it sits on the trailing edge in
    both text directions without either language needing its own rule. */
