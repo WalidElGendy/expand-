@@ -122,24 +122,43 @@ const codeBlock = (code: string) => `
   <span style="font:700 30px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#15121c;letter-spacing:.28em;">${esc(code)}</span>
 </td></tr></table>`;
 
+/* Every code voids the one before it, and under pressure people reach for the
+   older email still open in their inbox. Stamping the moment it was sent — and
+   saying outright that earlier codes are dead — lets the reader pick the live
+   email without guessing which arrived last. Riyadh time, because that is
+   where the roster is; the hour is what disambiguates two codes minutes apart. */
+const sentStamp = () => new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Asia/Riyadh', day: 'numeric', month: 'short',
+  hour: '2-digit', minute: '2-digit', hour12: false,
+}).format(new Date());
+const stampHtml = (t: string) =>
+  `<p style="margin:2px 0 14px;font:600 13px/1.6 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#7a3fe0;">Sent ${esc(t)}, Riyadh time \u2014 any earlier code has stopped working, so use this one.</p>` +
+  `<p dir="rtl" style="margin:-8px 0 14px;font:600 13px/1.7 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#7a3fe0;">\u0623\u064f\u0631\u0633\u0650\u0644 ${esc(t)} \u0628\u062a\u0648\u0642\u064a\u062a \u0627\u0644\u0631\u064a\u0627\u0636 \u2014 \u0623\u064a \u0631\u0645\u0632 \u0645\u0646 \u0631\u0633\u0627\u0644\u0629 \u0623\u0633\u0628\u0642 \u0644\u0645 \u064a\u0639\u062f \u0635\u0627\u0644\u062d\u0627\u064b\u060c \u0627\u0633\u062a\u062e\u062f\u0645 \u0647\u0630\u0627 \u0627\u0644\u0631\u0645\u0632.</p>`;
+
 /* Both languages in one message rather than guessing. The roster is Arabic
    and English speaking and an invitation is the one email that must not be
    unreadable — there is no "resend in my language" button on a sign-in page. */
 
-export const inviteMail = (name: string | null, code: string, dept: string, role: string) => ({
+export const inviteMail = (name: string | null, code: string, dept: string, role: string) => {
+  const t = sentStamp();
+  return {
   subject: `${code} is your Expand sign-in code`,
   html: layout('You have been added to Expand', [
     p(hi(name)),
     p(`You have been added to <b>Expand</b> as <b>${esc(role)}</b>${dept ? ` in ${esc(dept)}` : ''}. Type this code on the sign-in page to get in and choose a password.`),
     codeBlock(code),
+    stampHtml(t),
     p(`Go to <a href="${esc(APP)}" style="color:#7a3fe0;">${esc(APP.replace(/^https?:\/\//, ''))}</a>, choose <b>First time here?</b>, enter your email and then this code.`),
     p(`${ONCE_EN} Nobody, including us, can see the password you pick.`),
     ar(`تمت إضافتك إلى Expand. افتح صفحة الدخول واختر «أول مرة هنا؟»، ثم أدخل بريدك وهذا الرمز لاختيار كلمة المرور. ${ONCE_AR}`),
   ].join('')),
-  text: `${name ? `Hi ${name.split(' ')[0]},` : 'Hi,'}\n\nYou have been added to Expand as ${role}${dept ? ` in ${dept}` : ''}.\n\nYour sign-in code: ${code}\n\nGo to ${APP}, choose "First time here?", enter your email and then this code.\n\n${ONCE_TXT}\n\nExpand — ${APP}`,
-});
+  text: `${name ? `Hi ${name.split(' ')[0]},` : 'Hi,'}\n\nYou have been added to Expand as ${role}${dept ? ` in ${dept}` : ''}.\n\nYour sign-in code: ${code}\nSent ${t}, Riyadh time — any earlier code no longer works.\n\nGo to ${APP}, choose "First time here?", enter your email and then this code.\n\n${ONCE_TXT}\n\nExpand — ${APP}`,
+  };
+};
 
-export const resetMail = (name: string | null, code: string, byAdmin: boolean) => ({
+export const resetMail = (name: string | null, code: string, byAdmin: boolean) => {
+  const t = sentStamp();
+  return {
   subject: `${code} is your Expand sign-in code`,
   html: layout('Your sign-in code', [
     p(hi(name)),
@@ -147,12 +166,14 @@ export const resetMail = (name: string | null, code: string, byAdmin: boolean) =
       ? p('An administrator asked us to send you a fresh code for <b>Expand</b>. Type it on the sign-in page to get back in and set a new password.')
       : p('Somebody asked for a way back into your <b>Expand</b> account. Type this code on the sign-in page.'),
     codeBlock(code),
+    stampHtml(t),
     p(`Go to <a href="${esc(APP)}" style="color:#7a3fe0;">${esc(APP.replace(/^https?:\/\//, ''))}</a>, choose <b>Forgot your password?</b>, enter your email and then this code.`),
     p(`${ONCE_EN} If this was not expected you can ignore it — your current password keeps working until a new one is set.`),
     ar(`افتح صفحة الدخول واختر «نسيت كلمة المرور؟»، ثم أدخل بريدك وهذا الرمز. ${ONCE_AR} إن لم تطلب ذلك يمكنك تجاهل الرسالة.`),
   ].join('')),
-  text: `${name ? `Hi ${name.split(' ')[0]},` : 'Hi,'}\n\nYour Expand sign-in code: ${code}\n\nGo to ${APP}, choose "Forgot your password?", enter your email and then this code.\n\n${ONCE_TXT}\n\nExpand — ${APP}`,
-});
+  text: `${name ? `Hi ${name.split(' ')[0]},` : 'Hi,'}\n\nYour Expand sign-in code: ${code}\nSent ${t}, Riyadh time — any earlier code no longer works.\n\nGo to ${APP}, choose "Forgot your password?", enter your email and then this code.\n\n${ONCE_TXT}\n\nExpand — ${APP}`,
+  };
+};
 
 export const welcomeMail = (name: string | null, dept: string, role: string) => ({
   subject: 'Your Expand account is ready',
