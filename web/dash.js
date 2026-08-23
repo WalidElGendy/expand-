@@ -33,21 +33,22 @@ export const DSTR = {
     signIn: 'Sign in', signOut: 'Sign out', email: 'Email', password: 'Password',
     firstTime: 'First time here?', setPassword: 'Create your password',
     firstTimeTitle: 'Getting in for the first time',
-    firstTimePrompt: 'Enter your work email. If you are on the team, we will email you a six-digit code to type here. You do not need a password yet.',
-    forgotPrompt: 'Enter your work email and we will send you a six-digit code to type here.',
+    firstTimePrompt: 'Enter your work email. If you are on the team, we will email you a code to type here. You do not need a password yet.',
+    forgotPrompt: 'Enter your work email and we will send you a code to type here.',
     emailMeLink: 'Email me a code',
     linkOnTheWay: 'If that address belongs to someone here, a code is on its way. Type it below. It lasts a day, and asking for another one replaces it — so use the newest email. Check your junk folder if it is not there.',
     forgot: 'Forgot your password?', sendReset: 'Email me a code',
 
     /* --- the code step --- */
-    codeTitle: 'Enter your code', codeLabel: 'Six-digit code',
-    codePrompt: 'We emailed a six-digit code to {e}. Type it here — you can stay on this page.',
+    codeTitle: 'Enter your code', codeLabel: 'Your code',
+    codePromptCold: 'Enter your work email and the code we emailed you. You can stay on this page.',
+    codePrompt: 'We emailed a code to {e}. Type it here — you can stay on this page.',
     codeGo: 'Continue', codeResend: 'Send another code', codeWrongAddr: 'Use a different address',
     codeBad: 'That code did not work. Check you are reading the newest email — a newer code replaces the one before it.',
     backToSignIn: 'Back to sign in', checkInbox: 'Check your inbox.',
     newPassword: 'Choose a new password', setIt: 'Save my new password',
     linkExpired: 'That link has expired or was already used.',
-    linkExpiredWhy: 'Old sign-in links no longer work at all — we email a six-digit code instead, which you type on this page. Ask for a code below and use the newest email.',
+    linkExpiredWhy: 'Old sign-in links no longer work at all — we email a code instead, which you type on this page. Ask for a code below and use the newest email.',
     sendFresh: 'Email me a code', passwordSaved: 'Password saved. Signing you in…',
     recoverPrompt: 'Choose it now, before you close this page. The code has signed you in, but until a password is saved there is nothing to sign in with next time.',
     noInvite: 'Your account exists but has not been activated. Ask an admin to add you.',
@@ -189,7 +190,7 @@ export const DSTR = {
     sendLink: 'Send code', sendingLink: 'Sending…',
     linkSent: 'Emailed {email} a sign-in code.',
     linkFailed: 'Could not email {email}: {reason}',
-    resetHint: 'Nobody can set a password for somebody else, so the button emails them a six-digit code. They type it on the sign-in page and choose a password themselves.',
+    resetHint: 'Nobody can set a password for somebody else, so the button emails them a code. They type it on the sign-in page and choose a password themselves.',
     roles: { member: 'Member', lead: 'Lead', manager: 'Manager', admin: 'Admin' },
     sending: 'Sending…', inviteNoReason: 'the mail server gave no reason',
     inviteSent: 'Invited {email}. They have an email with a link to set their password.',
@@ -267,21 +268,22 @@ export const DSTR = {
     signIn: 'تسجيل الدخول', signOut: 'تسجيل الخروج', email: 'البريد الإلكتروني', password: 'كلمة المرور',
     firstTime: 'أول مرة هنا؟', setPassword: 'أنشئ كلمة المرور',
     firstTimeTitle: 'الدخول لأول مرة',
-    firstTimePrompt: 'أدخل بريد العمل. إن كنت ضمن الفريق سنرسل لك رمزاً من ستة أرقام تكتبه هنا. لا تحتاج كلمة مرور الآن.',
-    forgotPrompt: 'أدخل بريد العمل وسنرسل لك رمزاً من ستة أرقام تكتبه هنا.',
+    firstTimePrompt: 'أدخل بريد العمل. إن كنت ضمن الفريق سنرسل لك رمزاً تكتبه هنا. لا تحتاج كلمة مرور الآن.',
+    forgotPrompt: 'أدخل بريد العمل وسنرسل لك رمزاً تكتبه هنا.',
     emailMeLink: 'أرسل لي رمزاً',
     linkOnTheWay: 'إن كان هذا البريد يخص أحداً هنا، فالرمز في طريقه إليك. اكتبه بالأسفل. صالح ليوم كامل، وكل طلب جديد يُلغي السابق — لذا استخدم أحدث رسالة. راجع مجلد الرسائل غير المرغوبة إن لم تجدها.',
     forgot: 'نسيت كلمة المرور؟', sendReset: 'أرسل لي رمزاً',
 
     /* --- خطوة الرمز --- */
-    codeTitle: 'أدخل الرمز', codeLabel: 'رمز من ستة أرقام',
-    codePrompt: 'أرسلنا رمزاً من ستة أرقام إلى {e}. اكتبه هنا — يمكنك البقاء في هذه الصفحة.',
+    codeTitle: 'أدخل الرمز', codeLabel: 'الرمز',
+    codePromptCold: 'أدخل بريد العمل والرمز الذي أرسلناه إليك. يمكنك البقاء في هذه الصفحة.',
+    codePrompt: 'أرسلنا رمزاً إلى {e}. اكتبه هنا — يمكنك البقاء في هذه الصفحة.',
     codeGo: 'متابعة', codeResend: 'أرسل رمزاً آخر', codeWrongAddr: 'استخدام بريد آخر',
     codeBad: 'الرمز غير صحيح. تأكد أنك تقرأ أحدث رسالة — كل رمز جديد يُلغي ما قبله.',
     backToSignIn: 'رجوع لتسجيل الدخول', checkInbox: 'تحقق من بريدك.',
     newPassword: 'اختر كلمة مرور جديدة', setIt: 'حفظ كلمة المرور',
     linkExpired: 'انتهت صلاحية الرابط أو تم استخدامه من قبل.',
-    linkExpiredWhy: 'روابط الدخول القديمة لم تعد تعمل — نرسل الآن رمزاً من ستة أرقام تكتبه في هذه الصفحة. اطلب رمزاً بالأسفل واستخدم أحدث رسالة.',
+    linkExpiredWhy: 'روابط الدخول القديمة لم تعد تعمل — نرسل الآن رمزاً تكتبه في هذه الصفحة. اطلب رمزاً بالأسفل واستخدم أحدث رسالة.',
     sendFresh: 'أرسل لي رمزاً', passwordSaved: 'تم حفظ كلمة المرور. جارٍ تسجيل دخولك…',
     recoverPrompt: 'اخترها الآن قبل إغلاق الصفحة. الرمز سجّل دخولك، لكن قبل حفظ كلمة المرور لا يوجد ما تدخل به في المرة القادمة.',
     noInvite: 'حسابك موجود لكنه غير مفعّل. اطلب من المسؤول إضافتك.',
@@ -418,7 +420,7 @@ export const DSTR = {
     sendLink: 'أرسل رمزاً', sendingLink: 'جارٍ الإرسال…',
     linkSent: 'أُرسل إلى {email} رمز دخول.',
     linkFailed: 'تعذّر الإرسال إلى {email}: {reason}',
-    resetHint: 'لا أحد يضبط كلمة مرور نيابة عن غيره، لذا يرسل الزر رمزاً من ستة أرقام، يكتبه صاحبه في صفحة الدخول ويختار كلمة المرور بنفسه.',
+    resetHint: 'لا أحد يضبط كلمة مرور نيابة عن غيره، لذا يرسل الزر رمزاً، يكتبه صاحبه في صفحة الدخول ويختار كلمة المرور بنفسه.',
     roles: { member: 'عضو', lead: 'قائد', manager: 'مدير', admin: 'مسؤول' },
     sending: 'جارٍ الإرسال…', inviteNoReason: 'لم يذكر خادم البريد سبباً',
     inviteSent: 'تمت دعوة {email}. وصلته رسالة فيها رابط لضبط كلمة المرور.',
@@ -1234,10 +1236,15 @@ export function signInView(lang, mode = 'in', msg = '', authErr = null, addr = '
      first-time screen used to take a password too, which meant whoever typed
      an address first owned it — and an address is what decides a role here. */
   const wantsPassword = mode === 'in' || mode === 'reset';
-  const wantsEmail = mode !== 'reset' && mode !== 'code';
+  /* The code step normally already knows the address — it was just typed on
+     the previous screen. But a person can also arrive on it cold, from the
+     link in an emailed code, and then there is no address to carry, so the
+     email field comes back and they enter both together. */
+  const coldCode = mode === 'code' && !addr;
+  const wantsEmail = mode !== 'reset' && (mode !== 'code' || coldCode);
   const prompt = mode === 'up' ? t.firstTimePrompt
                : mode === 'forgot' ? t.forgotPrompt
-               : mode === 'code' ? t.codePrompt.replace('{e}', addr || t.email)
+               : mode === 'code' ? (coldCode ? t.codePromptCold : t.codePrompt.replace('{e}', addr))
                : '';
   const go = mode === 'reset' ? t.setIt
            : mode === 'up' ? t.emailMeLink
@@ -1277,8 +1284,8 @@ export function signInView(lang, mode = 'in', msg = '', authErr = null, addr = '
              one-time-code lets iOS and Android offer the code straight from
              the notification, so it never has to be memorised across apps. -->
         <input id="aCode" class="codein" name="one-time-code" required
-               type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6"
-               autocomplete="one-time-code" autofocus placeholder="000000" />
+               type="text" inputmode="numeric" pattern="[0-9]*" maxlength="8"
+               autocomplete="one-time-code" autofocus placeholder="00000000" />
       </label>`}
       ${!wantsPassword ? '' : `
       <label class="f f--wide">
