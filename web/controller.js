@@ -212,7 +212,9 @@ export function wireAuth(lang) {
   $$('[data-resend]').forEach(b => b.onclick = async () => {
     b.disabled = true;
     try {
-      await db.requestAccess(ctx.authAddr);
+      const addr = ctx.authAddr || ($('#aEmail')?.value || '').trim().toLowerCase();
+      ctx.authAddr = addr;
+      await db.requestAccess(addr);
       ctx.codeSentAt = Date.now();   // restart the hold on the new code
       ctx.authMsg = V.DSTR[lang].linkOnTheWay;
     } catch (err) { ctx.authMsg = '!' + err.message; }
@@ -243,9 +245,13 @@ export function wireAuth(lang) {
         location.hash = '#/home';
       } else if (ctx.authMode === 'code') {
         /* The code buys a session; the password screen comes next, exactly as
-           it did when a link bought the session. Nothing downstream of here
-           had to change. */
-        await db.verifyCode(ctx.authAddr, code);
+           it did when a link bought the session. The address is normally
+           already known, but on a cold landing from the emailed link the
+           person types it here alongside the code, so take it from the field
+           when there is one and remember it for the resend button. */
+        const addr = (ctx.authAddr || email || '').trim().toLowerCase();
+        ctx.authAddr = addr;
+        await db.verifyCode(addr, code);
         ctx.authErr = null; ctx.authMsg = '';
         ctx.authMode = 'reset';
         location.hash = '#/reset';
