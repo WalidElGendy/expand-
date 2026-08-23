@@ -14,9 +14,16 @@ import * as V from './dash.js';
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
+/* The resend button stays shut while a code is fresh (V.resendLeft / the
+   server cooldown). Holding it is the point: the trap was a reflex resend that
+   mints a new code and kills the one already in the inbox. One countdown at a
+   time. */
+let resendTimer = null;
+
 export const ctx = {
   projects: [], stages: [], people: [], leads: [], files: [], invites: [],
   loading: false, error: null, authMode: 'in', authMsg: '', authAddr: '', est: null,
+  codeSentAt: 0,        // when the current code was sent, for the resend hold
   inviteMsg: null,      // what actually happened to the last invitation
   authErr: null,        // whatever Supabase sent back in the URL fragment
 
@@ -163,6 +170,32 @@ export async function loadFor(route, id) {
 
 /* -------------------------------------------------------------------- wire */
 
+/* Tick the resend button's own label down to zero, then enable it. Driven by
+   ctx.codeSentAt so it survives a rerender: whatever repaints the screen, the
+   remaining time is recomputed from when the code actually went, not from when
+   this happened to be called. */
+function armResendHold(lang) {
+  if (resendTimer) { clearInterval(resendTimer); resendTimer = null; }
+  const btn = $('[data-resend]');
+  if (!btn) return;
+  const label = V.DSTR[lang].codeResend;
+  const tick = () => {
+    const live = $('[data-resend]');
+    if (!live) { clearInterval(resendTimer); resendTimer = null; return; }
+    const left = V.resendLeft(ctx.codeSentAt, Date.now());
+    if (left > 0) {
+      live.disabled = true;
+      live.textContent = `${label} (${left}s)`;
+    } else {
+      live.disabled = false;
+      live.textContent = label;
+      clearInterval(resendTimer); resendTimer = null;
+    }
+  };
+  tick();
+  resendTimer = setInterval(tick, 1000);
+}
+
 export function wireAuth(lang) {
   const form = $('#authForm');
   if (!form) return;
@@ -180,10 +213,16 @@ export function wireAuth(lang) {
     b.disabled = true;
     try {
       await db.requestAccess(ctx.authAddr);
+      ctx.codeSentAt = Date.now();   // restart the hold on the new code
       ctx.authMsg = V.DSTR[lang].linkOnTheWay;
     } catch (err) { ctx.authMsg = '!' + err.message; }
     finally { rerender(); }
   });
+
+  /* Keep the resend shut until a resend would actually send. The countdown
+     runs on the button itself rather than through rerender(), so a typed code
+     is never interrupted by the whole screen repainting once a second. */
+  armResendHold(lang);
 
   form.onsubmit = async (e) => {
     e.preventDefault();
@@ -223,6 +262,7 @@ export function wireAuth(lang) {
            so there is no stale tab to come back through and no older email to
            open by mistake. */
         ctx.authAddr = String(email || '').trim().toLowerCase();
+        ctx.codeSentAt = Date.now();
         ctx.authMode = 'code';
       } else {
         await db.signIn(email, pass);
