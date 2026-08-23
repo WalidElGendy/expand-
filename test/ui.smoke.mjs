@@ -77,6 +77,7 @@ const ROUTES = [
   ['#/me/1200000000000000',     'signin'],   // was a named person's profile
   ['#/pipeline',                'signin'],   // was the deal list
   ['#/performance',             'signin'],   // appraisals — must never render to a stranger
+  ['#/code',                    'signin'],   // the emailed-code link lands on the sign-in code step
   ['#/estimate',                'signin'],
   ['#/highlights',              'signin'],
   ['#/projects',                'signin'],
@@ -1562,6 +1563,22 @@ dbmod.state.me = savedMe;
   // The code screen must actually carry a resend control for the hold to sit on.
   const codeScreen = D.signInView('en', 'code', '', null, 'x@y.com');
   check(/data-resend/.test(codeScreen), 'the code screen lost its resend button');
+
+  /* The eight-vs-six mess: codes are 8 digits, the box was capped at 6, so the
+     last two were unreachable and no code ever verified. The box must take the
+     whole code, and nothing on screen may still promise "six". */
+  for (const lang of ['en', 'ar']) {
+    const known = D.signInView(lang, 'code', '', null, 'x@y.com');
+    check(/maxlength="8"/.test(known), `${lang}: the code box must hold all eight digits`);
+    check(!/maxlength="6"/.test(known), `${lang}: the code box still truncates at six`);
+    check(!/six-digit|Six-digit|ستة أرقام/.test(known), `${lang}: something still says the code is six digits`);
+    // A cold landing from the emailed link carries no address, so it asks for both.
+    const cold = D.signInView(lang, 'code', '', null, '');
+    check(/id="aEmail"/.test(cold), `${lang}: the link landing must let them enter their email`);
+    check(/id="aCode"/.test(cold), `${lang}: the link landing must let them enter the code`);
+    // When the address is already known, the email field does not come back.
+    check(!/id="aEmail"/.test(known), `${lang}: the code step re-asked for an address it already had`);
+  }
 
   // A code that matches nothing is still a clean rejection, not a hang.
   let threw = false;
