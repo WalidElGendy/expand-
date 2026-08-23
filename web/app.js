@@ -172,6 +172,7 @@ function currentRoute() {
   if (h.startsWith('#/performance')) return { name: 'performance' };
   if (h.startsWith('#/signin'))   return { name: 'signin' };
   if (h.startsWith('#/reset'))    return { name: 'signin' };   // recovery lands here
+  if (h.startsWith('#/code'))     return { name: 'signin' };   // the link in an emailed code lands here
   if (h.startsWith('#/home'))     return { name: 'home' };
   if (h.startsWith('#/projects')) return { name: 'projects' };
   // Must be tested before '#/p' would ever be reached by a prefix match, and
@@ -824,6 +825,20 @@ function estimate(fromForm) {
        and explain nothing. */
     const urlErr = db.takeAuthErrorFromUrl?.();
     if (urlErr) { C.ctx.authErr = urlErr; C.ctx.authMode = 'in'; }
+    /* The emailed code carries a plain link to #/code — no token, nothing to
+       consume — so following it lands straight on the code step instead of the
+       'Forgot your password?' detour. There is no address in the link, so the
+       step shows an email field and the person enters both together. */
+    if ((location.hash || '').startsWith('#/code') && !db.state.session) {
+      C.ctx.authMode = 'code'; C.ctx.authErr = null;
+    } else if (!db.state.session && C.ctx.authMode === 'code') {
+      /* Navigating away from the code link must not leave the sign-in screen
+         stuck on the code step — otherwise #/signin keeps asking for a code
+         nobody sent. The other sub-modes (first-time, forgot, reset) are
+         reached by buttons that never change the hash, so this only ever
+         clears the one mode a URL can strand. */
+      C.ctx.authMode = 'in';
+    }
     render();                       // paint the shell immediately
     const r = currentRoute();
     if (APP_ROUTES.includes(r.name) && db.state.session) {
