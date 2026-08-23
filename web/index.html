@@ -377,6 +377,9 @@ html[dir="rtl"] .head::after { transform: scaleX(-1); }
 .block { display: block; }
 .bad { color: #ff8f8f; }
 .link { color: var(--brand); font-size: 12.5px; }
+/* A held resend reads as held: muted, and the cursor does not promise a
+   click. The countdown in its label says when it comes back. */
+.link:disabled { opacity: .45; cursor: default; }
 .crumb { padding: 0 0 12px; }
 .note {
   font-size: 12px; color: var(--ink3); line-height: 1.65;
