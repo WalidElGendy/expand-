@@ -1550,6 +1550,19 @@ dbmod.state.me = savedMe;
   check(dbmod.VERIFY_TYPES.includes('recovery') && dbmod.VERIFY_TYPES.includes('magiclink'),
     'the recovery/magiclink types a returning user needs must be in the list');
 
+  /* The resend hold. The trap that locked Mahmoud out was a reflex resend: each
+     new code kills the one already in the inbox, so the button stays shut while
+     a code is fresh. The arithmetic is what could be wrong \u2014 an off-by-one at the
+     boundary, or a stale timer showing a negative \u2014 so it is pinned here. */
+  check(D.RESEND_HOLD_MS === 120_000, 'the resend hold matches the server cooldown');
+  check(D.resendLeft(0, 0) === 120, 'a just-sent code holds the resend for the full window');
+  check(D.resendLeft(1000, 1000) === 120, 'the hold is measured from when the code was sent, not page load');
+  check(D.resendLeft(0, 120_000) === 0, 'the hold releases exactly at the window');
+  check(D.resendLeft(0, 500_000) === 0, 'past the window it never counts negative');
+  // The code screen must actually carry a resend control for the hold to sit on.
+  const codeScreen = D.signInView('en', 'code', '', null, 'x@y.com');
+  check(/data-resend/.test(codeScreen), 'the code screen lost its resend button');
+
   // A code that matches nothing is still a clean rejection, not a hang.
   let threw = false;
   try { await dbmod.exchangeCode('a', '1', async () => ({ error: { message: 'nope' } })); }
