@@ -166,31 +166,50 @@ export const requestAccess = async (email) =>
 
 /* The code from the email, exchanged for a session.
 
-   Two types are tried because the same six digits mean different things
-   depending on who the person is: 'email' for somebody who already has an
-   account, 'invite' for somebody being let in for the first time. The screen
-   cannot know which — the person may be finishing on a different device than
-   the one that asked — and making them pick would be asking them to explain
-   our data model back to us.
+   The same six digits mean different things depending on who the person is,
+   and the screen cannot know which — they may be finishing on a different
+   device than the one that asked — so every kind is tried until one fits.
 
-   Order matters. A wrong type is a lookup miss, not a spend: Supabase keys
-   the token by (token, type), so the first attempt failing leaves the code
-   intact for the second. Getting that backwards would burn the code on the
-   attempt that was always going to miss. */
-export async function verifyCode(email, code) {
-  const addr = String(email || '').trim().toLowerCase();
-  const token = String(code || '').replace(/\D/g, '');
+   The list is the whole fix for a real outage. A brand-new joiner's code is
+   an INVITE token; anyone who already has an account gets a code minted by
+   generateLink({ type: 'magiclink' }), which Supabase files under RECOVERY.
+   The old list was ['email', 'invite'] — it had no entry that could match a
+   returning user's code, so every existing member who tried to get back in
+   failed on every code, first-time and reset alike, while fresh invitations
+   worked. That is the shape of the bug exactly: the tool could not tell a
+   first login from a password reset because it never tried the reset type.
+
+   'recovery' and 'magiclink' are the same token on Supabase's side; both are
+   listed so the match does not depend on which name it keys by. Order is only
+   for speed: the returning-user code is the common one, so it goes first.
+
+   Trying several types is safe. A wrong type is a lookup miss, not a spend —
+   Supabase keys the token by (token, type), so a miss leaves the code intact
+   for the next attempt, and the first hit returns. */
+export const VERIFY_TYPES = ['recovery', 'magiclink', 'invite', 'email'];
+
+/* Try each type until one verifies, and return the session data. Kept pure —
+   no session or profile side effects — so the one thing that broke can be
+   tested without a live Supabase: give it a verifier that accepts only one
+   type and prove that type still gets in. It stops at the first hit, so a
+   returning user (recovery, first in the list) costs exactly one round trip. */
+export async function exchangeCode(addr, token, verify) {
   let last = null;
-  for (const type of ['email', 'invite']) {
-    const { data, error } = await sb.auth.verifyOtp({ email: addr, token, type });
-    if (!error) {
-      state.session = data.session;
-      state.me = await loadMe();
-      return state.me;
-    }
+  for (const type of VERIFY_TYPES) {
+    const { data, error } = await verify({ email: addr, token, type });
+    if (!error) return data;
     last = error;
   }
   throw new Error(last?.message || 'that code did not work');
+}
+
+export async function verifyCode(email, code) {
+  const addr = String(email || '').trim().toLowerCase();
+  const token = String(code || '').replace(/\D/g, '');
+  const data = await exchangeCode(addr, token, (args) => sb.auth.verifyOtp(args));
+  state.session = data.session;
+  state.me = await loadMe();
+  return state.me;
 }
 
 export async function updatePassword(password) {
