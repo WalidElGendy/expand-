@@ -110,12 +110,14 @@ const ONCE_AR = 'الرمز يعمل مرة واحدة وصالح ليوم كا�
 const ONCE_TXT = 'The code works once and lasts a day. Asking for another one replaces it, so always use the newest email.';
 
 /* The code, set large and monospaced because it is copied by eye across two
-   apps. No link accompanies it, and that absence is the fix rather than an
-   oversight: a URL in this email is a credential that anything fetching it
-   spends — mail scanners and link previewers do — and it strands the reader
-   in their inbox, where the mail they open is reliably the one their last
-   "send me another" just cancelled. A number cannot be spent by being
-   fetched, and it is typed into the page they are already looking at. */
+   apps. The one link in this email (codeCta) is a plain navigation URL to the
+   sign-in page — it carries NO auth token, so nothing a scanner or previewer
+   fetches can spend it. The credential is the number, and a number cannot be
+   spent by being fetched: that is why the code never travels as a URL, only as
+   digits typed into the page. This was once a one-time auth link, and that is
+   what stranded people — anything fetching it (mail scanners, link previewers)
+   burned it before the human touched it, and asking for another silently
+   voided the one already in the inbox. */
 const codeBlock = (code: string) => `
 <table role="presentation" cellpadding="0" cellspacing="0" style="margin:6px 0 16px;">
 <tr><td style="background:#f4f2fb;border:1px solid #ded6f6;border-radius:10px;padding:14px 22px;">
@@ -131,6 +133,14 @@ const sentStamp = () => new Intl.DateTimeFormat('en-GB', {
   timeZone: 'Asia/Riyadh', day: 'numeric', month: 'short',
   hour: '2-digit', minute: '2-digit', hour12: false,
 }).format(new Date());
+/* A PLAIN link to the code step — not an auth link. It carries no token, so
+   nothing a mail scanner or preview fetches can spend it (that is the whole
+   reason the code itself never travels as a URL). It only opens the sign-in
+   page with the code step ready, where the person types their email and the
+   code. It replaces the old "choose Forgot your password?" instruction, which
+   was the wrong door for someone an admin is letting in. */
+const codeCta = { href: `${APP}/#/code`, label: 'Open Expand and enter your code' };
+
 const stampHtml = (t: string) =>
   `<p style="margin:2px 0 14px;font:600 13px/1.6 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#7a3fe0;">Sent ${esc(t)}, Riyadh time \u2014 any earlier code has stopped working, so use this one.</p>` +
   `<p dir="rtl" style="margin:-8px 0 14px;font:600 13px/1.7 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#7a3fe0;">\u0623\u064f\u0631\u0633\u0650\u0644 ${esc(t)} \u0628\u062a\u0648\u0642\u064a\u062a \u0627\u0644\u0631\u064a\u0627\u0636 \u2014 \u0623\u064a \u0631\u0645\u0632 \u0645\u0646 \u0631\u0633\u0627\u0644\u0629 \u0623\u0633\u0628\u0642 \u0644\u0645 \u064a\u0639\u062f \u0635\u0627\u0644\u062d\u0627\u064b\u060c \u0627\u0633\u062a\u062e\u062f\u0645 \u0647\u0630\u0627 \u0627\u0644\u0631\u0645\u0632.</p>`;
@@ -148,11 +158,11 @@ export const inviteMail = (name: string | null, code: string, dept: string, role
     p(`You have been added to <b>Expand</b> as <b>${esc(role)}</b>${dept ? ` in ${esc(dept)}` : ''}. Type this code on the sign-in page to get in and choose a password.`),
     codeBlock(code),
     stampHtml(t),
-    p(`Go to <a href="${esc(APP)}" style="color:#7a3fe0;">${esc(APP.replace(/^https?:\/\//, ''))}</a>, choose <b>First time here?</b>, enter your email and then this code.`),
+    p(`The button below opens Expand with the code step ready — enter your email and this code, then choose a password. Or go to <a href="${esc(APP)}" style="color:#7a3fe0;">${esc(APP.replace(/^https?:\/\//, ''))}</a> yourself.`),
     p(`${ONCE_EN} Nobody, including us, can see the password you pick.`),
-    ar(`تمت إضافتك إلى Expand. افتح صفحة الدخول واختر «أول مرة هنا؟»، ثم أدخل بريدك وهذا الرمز لاختيار كلمة المرور. ${ONCE_AR}`),
-  ].join('')),
-  text: `${name ? `Hi ${name.split(' ')[0]},` : 'Hi,'}\n\nYou have been added to Expand as ${role}${dept ? ` in ${dept}` : ''}.\n\nYour sign-in code: ${code}\nSent ${t}, Riyadh time — any earlier code no longer works.\n\nGo to ${APP}, choose "First time here?", enter your email and then this code.\n\n${ONCE_TXT}\n\nExpand — ${APP}`,
+    ar(`تمت إضافتك إلى Expand. افتح الرابط بالأسفل، ثم أدخل بريدك وهذا الرمز واختر كلمة المرور. ${ONCE_AR}`),
+  ].join(''), codeCta),
+  text: `${name ? `Hi ${name.split(' ')[0]},` : 'Hi,'}\n\nYou have been added to Expand as ${role}${dept ? ` in ${dept}` : ''}.\n\nYour sign-in code: ${code}\nSent ${t}, Riyadh time — any earlier code no longer works.\n\nOpen ${APP}/#/code and enter your email and this code, then choose a password.\n\n${ONCE_TXT}\n\nExpand — ${APP}`,
   };
 };
 
@@ -160,18 +170,18 @@ export const resetMail = (name: string | null, code: string, byAdmin: boolean) =
   const t = sentStamp();
   return {
   subject: `${code} is your Expand sign-in code`,
-  html: layout('Your sign-in code', [
+  html: layout(byAdmin ? 'Activate your Expand account' : 'Your sign-in code', [
     p(hi(name)),
     byAdmin
-      ? p('An administrator asked us to send you a fresh code for <b>Expand</b>. Type it on the sign-in page to get back in and set a new password.')
-      : p('Somebody asked for a way back into your <b>Expand</b> account. Type this code on the sign-in page.'),
+      ? p('Your access to <b>Expand</b> is ready to activate. Use the code below to sign in and choose your password — no old password needed.')
+      : p('Somebody asked for a way back into your <b>Expand</b> account. Use the code below to sign in.'),
     codeBlock(code),
     stampHtml(t),
-    p(`Go to <a href="${esc(APP)}" style="color:#7a3fe0;">${esc(APP.replace(/^https?:\/\//, ''))}</a>, choose <b>Forgot your password?</b>, enter your email and then this code.`),
-    p(`${ONCE_EN} If this was not expected you can ignore it — your current password keeps working until a new one is set.`),
-    ar(`افتح صفحة الدخول واختر «نسيت كلمة المرور؟»، ثم أدخل بريدك وهذا الرمز. ${ONCE_AR} إن لم تطلب ذلك يمكنك تجاهل الرسالة.`),
-  ].join('')),
-  text: `${name ? `Hi ${name.split(' ')[0]},` : 'Hi,'}\n\nYour Expand sign-in code: ${code}\nSent ${t}, Riyadh time — any earlier code no longer works.\n\nGo to ${APP}, choose "Forgot your password?", enter your email and then this code.\n\n${ONCE_TXT}\n\nExpand — ${APP}`,
+    p(`The button below opens Expand with the code step ready — enter your email and this code${byAdmin ? ', then choose your password' : ''}. Or go to <a href="${esc(APP)}" style="color:#7a3fe0;">${esc(APP.replace(/^https?:\/\//, ''))}</a> yourself.`),
+    p(`${ONCE_EN}${byAdmin ? '' : ' If this was not expected you can ignore it — your current password keeps working until a new one is set.'}`),
+    ar(`افتح الرابط بالأسفل، ثم أدخل بريدك وهذا الرمز${byAdmin ? ' واختر كلمة المرور' : ''}. ${ONCE_AR}${byAdmin ? '' : ' إن لم تطلب ذلك يمكنك تجاهل الرسالة.'}`),
+  ].join(''), codeCta),
+  text: `${name ? `Hi ${name.split(' ')[0]},` : 'Hi,'}\n\nYour Expand sign-in code: ${code}\nSent ${t}, Riyadh time — any earlier code no longer works.\n\nOpen ${APP}/#/code and enter your email and this code to sign in.\n\n${ONCE_TXT}\n\nExpand — ${APP}`,
   };
 };
 
