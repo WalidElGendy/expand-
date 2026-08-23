@@ -1497,6 +1497,66 @@ dbmod.state.me = { id: 'u2', full_name: 'Designer', role: 'member', department_i
 check(!D.canPlan(), 'canPlan() lets a plain designer through');
 dbmod.state.me = savedMe;
 
+/* ------------------- the login code, per who is signing in -------------------
+   The outage this covers: an existing member could never get back in. Their
+   code is minted by generateLink({type:'magiclink'}), which Supabase files
+   under 'recovery' — and the verify loop only ever tried 'email' and 'invite',
+   so no code a returning user was sent could match, first login or reset. A
+   fresh invitation, whose code IS an 'invite' token, worked; that split is why
+   it looked like the tool "could not tell a first-time code from a reset".
+
+   exchangeCode is pure, so each mint path is a verifier that accepts exactly
+   one type. Every path a real code can arrive as must get in. */
+{
+  const only = (accept) => {
+    let calls = 0;
+    const fn = async ({ type }) => {
+      calls++;
+      return type === accept
+        ? { data: { session: { via: type } }, error: null }
+        : { error: { message: 'token has expired or is invalid' } };
+    };
+    fn.count = () => calls;
+    return fn;
+  };
+
+  /* Each mint path must get in. exchangeCode THROWS when nothing matches, so a
+     regression here would otherwise crash the run with a stack trace; this
+     turns "no type matched" into a named failure that says which path broke. */
+  const getsIn = async (accept, why) => {
+    const fn = only(accept);
+    try {
+      const d = await dbmod.exchangeCode('a@b.com', '123456', fn);
+      check(d.session.via === accept, why);
+    } catch {
+      check(false, why + ' (no type in the list matched it)');
+    }
+    return fn;
+  };
+
+  // A returning member resetting or signing in — the case that was broken.
+  const rec = await getsIn('recovery', "a returning user's recovery code must verify");
+  check(rec.count() === 1, 'recovery is tried first, so a returning user pays one round trip, not four');
+  // The same token under its other name, so the fix does not hinge on which
+  // name Supabase keys it by.
+  await getsIn('magiclink', 'a magiclink code must verify');
+  // A brand-new joiner. This path already worked and must keep working.
+  await getsIn('invite', 'a first-time invite code must verify');
+  // The pre-outage email-OTP path, kept as a fallback — no regression.
+  await getsIn('email', 'an email OTP must still verify');
+
+  // The list must carry the two names that were missing. If a refactor drops
+  // them, the outage is back, so assert them by name.
+  check(dbmod.VERIFY_TYPES.includes('recovery') && dbmod.VERIFY_TYPES.includes('magiclink'),
+    'the recovery/magiclink types a returning user needs must be in the list');
+
+  // A code that matches nothing is still a clean rejection, not a hang.
+  let threw = false;
+  try { await dbmod.exchangeCode('a', '1', async () => ({ error: { message: 'nope' } })); }
+  catch { threw = true; }
+  check(threw, 'a code that matches no type is rejected, not swallowed');
+}
+
 /* --------------------------------- report --------------------------------- */
 await browser.close();
 server.close();
