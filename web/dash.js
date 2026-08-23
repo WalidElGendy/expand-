@@ -1211,6 +1211,16 @@ export function estimateFor(sched, { name, size, start, deadline, stages }, dept
 
 /* ================================ SIGN IN ================================= */
 
+/* How many seconds the resend button stays shut, measured from when the code
+   was sent. Matches the server's own cooldown: before it elapses a resend does
+   nothing anyway, so an enabled button would be lying \u2014 and holding it shut is
+   the point, since the trap was a reflex resend that mints a new code and kills
+   the one already in the inbox. Pure and clamped so a stale timer never shows a
+   negative or a jitter past the window. */
+export const RESEND_HOLD_MS = 120_000;
+export const resendLeft = (sentAt, now) =>
+  Math.max(0, Math.ceil((RESEND_HOLD_MS - (now - (sentAt || 0))) / 1000));
+
 export function signInView(lang, mode = 'in', msg = '', authErr = null, addr = '') {
   const t = DSTR[lang];
   const title = mode === 'up' ? t.firstTimeTitle
