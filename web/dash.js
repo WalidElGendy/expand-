@@ -190,6 +190,12 @@ export const DSTR = {
     sendLink: 'Send code', sendingLink: 'Sending…',
     linkSent: 'Emailed {email} a sign-in code.',
     linkFailed: 'Could not email {email}: {reason}',
+    remove: 'Remove', removing: 'Removing…',
+    removeConfirm: 'Remove {name} for good? This deletes their profile and login, and cannot be undone.',
+    removed: 'Removed {name}.',
+    removeBlocked: 'Can’t remove {name} — still on {what}. Revoke their access instead.',
+    removeFailed: 'Could not remove {name}: {reason}',
+    nProjects: '{n} projects', nTasks: '{n} tasks', nLeads: '{n} leads', nFiles: '{n} files',
     resetHint: 'Nobody can set a password for somebody else, so the button emails them a code. They type it on the sign-in page and choose a password themselves.',
     roles: { member: 'Member', lead: 'Lead', manager: 'Manager', admin: 'Admin' },
     sending: 'Sending…', inviteNoReason: 'the mail server gave no reason',
@@ -420,6 +426,12 @@ export const DSTR = {
     sendLink: 'أرسل رمزاً', sendingLink: 'جارٍ الإرسال…',
     linkSent: 'أُرسل إلى {email} رمز دخول.',
     linkFailed: 'تعذّر الإرسال إلى {email}: {reason}',
+    remove: 'حذف', removing: 'جارٍ الحذف…',
+    removeConfirm: 'حذف {name} نهائياً؟ يُحذف ملفه وحسابه ولا يمكن التراجع.',
+    removed: 'تم حذف {name}.',
+    removeBlocked: 'تعذّر حذف {name} — لا يزال مرتبطاً بـ {what}. ألغِ صلاحيته بدلاً من ذلك.',
+    removeFailed: 'تعذّر حذف {name}: {reason}',
+    nProjects: '{n} مشاريع', nTasks: '{n} مهام', nLeads: '{n} عملاء', nFiles: '{n} ملفات',
     resetHint: 'لا أحد يضبط كلمة مرور نيابة عن غيره، لذا يرسل الزر رمزاً، يكتبه صاحبه في صفحة الدخول ويختار كلمة المرور بنفسه.',
     roles: { member: 'عضو', lead: 'قائد', manager: 'مدير', admin: 'مسؤول' },
     sending: 'جارٍ الإرسال…', inviteNoReason: 'لم يذكر خادم البريد سبباً',
@@ -3075,7 +3087,13 @@ export function adminView(lang, ctx) {
        disabled button asks the reader to work out why. */
     const link = p.email
       ? `<button class="btn btn--sm btn--ghost" data-sendlink="${esc(p.id)}">${esc(t.sendLink)}</button>` : '';
-    const action = `<span class="rowacts">${access}${link}</span>`;
+    /* Removing is destructive and irreversible, so it is a quiet danger button
+       rather than anything you could hit by reflex, and never offered on your
+       own row — an admin locking themselves out is the one mistake this screen
+       must not make easy. */
+    const remove = (p.id !== (db.state.me && db.state.me.id))
+      ? `<button class="btn btn--sm btn--danger" data-remove="${esc(p.id)}">${esc(t.remove)}</button>` : '';
+    const action = `<span class="rowacts">${access}${link}${remove}</span>`;
     return { key, pill, action, seen: key === 'online' ? t.now : sinceText(p.last_seen_at, lang, t) };
   };
 
