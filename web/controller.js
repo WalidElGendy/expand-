@@ -691,6 +691,49 @@ export function wireApp(lang) {
     }
   });
 
+  /* --- remove somebody for good ---
+     Destructive and irreversible, so it asks first. The server refuses if the
+     person is still attached to real work and says exactly what, so the worst
+     case here is a clear "revoke instead", never an orphaned project. */
+  $$('[data-remove]').forEach(b => b.onclick = async () => {
+    const d = V.DSTR[lang];
+    const id = b.dataset.remove;
+    const who = (ctx.people || []).find(p => p.id === id);
+    const name = who?.full_name || who?.email || '';
+    if (!confirm(d.removeConfirm.replace('{name}', name))) return;
+    const was = b.textContent;
+    b.disabled = true; b.textContent = d.removing;
+    ctx.resetMsg = null;
+    try {
+      const r = await db.removePerson(id);
+      if (r && r.removed === false) {
+        if (r.reason === 'attached') {
+          const a = r.attached || {};
+          const parts = [];
+          if (a.projects) parts.push(d.nProjects.replace('{n}', a.projects));
+          if (a.tasks)    parts.push(d.nTasks.replace('{n}', a.tasks));
+          if (a.leads)    parts.push(d.nLeads.replace('{n}', a.leads));
+          if (a.files)    parts.push(d.nFiles.replace('{n}', a.files));
+          ctx.resetMsg = { ok: false, text: d.removeBlocked
+            .replace('{name}', name).replace('{what}', parts.join(', ')) };
+        } else {
+          ctx.resetMsg = { ok: false, text: d.removeFailed
+            .replace('{name}', name).replace('{reason}', r.detail || 'blocked') };
+        }
+        rerender();
+        return;
+      }
+      ctx.resetMsg = { ok: true, text: d.removed.replace('{name}', name) };
+      await loadFor('admin'); rerender();
+    } catch (e) {
+      ctx.resetMsg = { ok: false, text: d.removeFailed
+        .replace('{name}', name).replace('{reason}', e.message) };
+      rerender();
+    } finally {
+      if (b.isConnected) { b.disabled = false; b.textContent = was; }
+    }
+  });
+
   /* Group chips on the People screen, composing with the top-bar search the
      same way the project ones do. */
   const whoChips = $$('[data-who]').filter(el => el.tagName === 'BUTTON');
