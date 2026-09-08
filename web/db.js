@@ -303,6 +303,11 @@ export const invite = async ({ email, full_name, department_id, role }) =>
     button does: cause a link to be sent. The person still chooses. */
 export const sendResetLink = async (id) => callFn('admin-reset', { id });
 
+/** Remove somebody for good — profile, login and any pending invitation. The
+    server refuses if they are still attached to real work and says so, so this
+    can only ever delete a clean record. Destructive and not reversible. */
+export const removePerson = async (id) => callFn('admin-remove', { id });
+
 /** Adding someone to the roster without a login — the Asana import shape.
     Useful for a person who is assigned work but has not been invited yet. */
 export const addPerson = async ({ email, full_name, department_id, role }) => ok(await sb
