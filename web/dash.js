@@ -28,6 +28,13 @@ export const canPlan = (me = db.state.me) =>
   !!me && me.is_active !== false &&
   (['admin', 'manager'].includes(me.role) || me.department_id === 'pm');
 
+/* Who may fill the procurement list and production schedule: the production
+   team, plus planners and leads. Mirrors can_edit_production() in the database
+   exactly — the client hides the controls, RLS is what enforces it. */
+export const canEditProduction = (me = db.state.me) =>
+  canPlan(me) || (!!me && me.is_active !== false &&
+    (me.department_id === 'production' || ['lead', 'manager', 'admin'].includes(me.role)));
+
 export const DSTR = {
   en: {
     signIn: 'Sign in', signOut: 'Sign out', email: 'Email', password: 'Password',
@@ -269,6 +276,16 @@ export const DSTR = {
     toProduction: 'Accepted — this opens a production stage for the production team.',
     terminal: 'This project is archived. Nothing follows it.',
     openInAsana: 'Open in Asana', sizeBand: 'Size', uploadedBy: 'by {who}',
+    procHead: 'Procurement — items to buy', procItem: 'Item', procRef: 'Reference',
+    procAdd: '+ Add item', procNone: 'No items added yet.', procView: 'View', procPhoto: 'Add photo',
+    procList: 'Upload a list', procListHint: 'Excel, PDF or a photo of the full items list',
+    procDelConfirm: 'Remove this item from the list?',
+    procSt: { pending: 'Pending', in_process: 'In process', done: 'Done', not_available: 'Not available', expensive: 'Expensive' },
+    prodHead: 'Production', prodSchedule: 'Production schedule',
+    prodScheduleHint: 'Phases, dates, who does what — free text.',
+    prodDelivery: 'Delivery to site', prodFiles: 'Production files',
+    prodFilesHint: 'Drawings, plans, deliverables', prodFilesHead: 'Files', prodNoFiles: 'No production files yet.',
+    prodOnlyTeam: 'Only the production team and planners can edit these.',
   },
   ar: {
     signIn: 'تسجيل الدخول', signOut: 'تسجيل الخروج', email: 'البريد الإلكتروني', password: 'كلمة المرور',
@@ -494,6 +511,16 @@ export const DSTR = {
     toProduction: 'مقبول — سيفتح هذا مرحلة تنفيذ لفريق الإنتاج.',
     terminal: 'هذا المشروع مؤرشف. لا شيء يليه.',
     openInAsana: 'افتح في أسانا', sizeBand: 'الحجم', uploadedBy: 'بواسطة {who}',
+    procHead: 'المشتريات — الأصناف المطلوبة', procItem: 'الصنف', procRef: 'مرجع',
+    procAdd: '+ إضافة صنف', procNone: 'لا توجد أصناف بعد.', procView: 'عرض', procPhoto: 'إضافة صورة',
+    procList: 'رفع قائمة', procListHint: 'إكسل أو PDF أو صورة لقائمة الأصناف كاملة',
+    procDelConfirm: 'حذف هذا الصنف من القائمة؟',
+    procSt: { pending: 'قيد الانتظار', in_process: 'قيد التنفيذ', done: 'تم', not_available: 'غير متوفر', expensive: 'مكلف' },
+    prodHead: 'الإنتاج', prodSchedule: 'جدول الإنتاج',
+    prodScheduleHint: 'المراحل والتواريخ ومن يقوم بماذا — نص حر.',
+    prodDelivery: 'التسليم للموقع', prodFiles: 'ملفات الإنتاج',
+    prodFilesHint: 'رسومات، مخططات، مخرجات', prodFilesHead: 'الملفات', prodNoFiles: 'لا توجد ملفات إنتاج بعد.',
+    prodOnlyTeam: 'يمكن لفريق الإنتاج والمخططين فقط التعديل هنا.',
   },
 };
 
@@ -579,6 +606,18 @@ export function statusPill(status, lang) {
   if (!status) return '';
   const label = DSTR[lang].st[status] || String(status).replace(/_/g, ' ');
   return `<span class="st" style="--c:${ST_COLOUR[status] || 'var(--ink3)'}"><i></i>${esc(label)}</span>`;
+}
+
+/* Procurement item status. A separate map from ST_COLOUR because these are the
+   procurement team's own words — "not available", "expensive" — and share only
+   the neutral/ok slots with the pipeline. */
+const PROC_COLOUR = {
+  pending: 'var(--ink3)', in_process: 'var(--info)', done: 'var(--ok)',
+  not_available: 'var(--critical)', expensive: 'var(--warn)',
+};
+export function procStatusPill(status, lang) {
+  const label = DSTR[lang].procSt[status] || status;
+  return `<span class="st" style="--c:${PROC_COLOUR[status] || 'var(--ink3)'}"><i></i>${esc(label)}</span>`;
 }
 
 /* ------------------------------------------------------------- file picker
@@ -1912,6 +1951,11 @@ export function projectView(lang, ctx) {
   const late = lateBy(p.due_on);
   const next = db.NEXT_STATUS[p.status] || [];
   const mayMove = canPlan() && next.length > 0;
+  // The procurement + production sections open once a project is accepted.
+  const inProd = ['won', 'in_production'].includes(p.status);
+  // Their files live in the same table, so keep them out of the general
+  // Documents list where they would just be noise.
+  const docFiles = files.filter(f => !['procurement', 'production'].includes(f.purpose));
 
   const fact = (label, value, cls = '') =>
     `<div class="fact"><span class="fact__l">${esc(label)}</span><span class="fact__v ${cls}">${value}</span></div>`;
@@ -1974,9 +2018,11 @@ ${mayMove ? `
   </table></div>` : `<p class="note">${esc(t.noStages)}</p>`}
 </section>
 
+${inProd ? productionSections(lang, ctx) : ''}
+
 <section class="card">
-  <div class="card__head"><h2>${esc(t.documents)}</h2><span class="muted small">${files.length}</span></div>
-  ${files.length ? `<ul class="filelist">${files.map(f => `
+  <div class="card__head"><h2>${esc(t.documents)}</h2><span class="muted small">${docFiles.length}</span></div>
+  ${docFiles.length ? `<ul class="filelist">${docFiles.map(f => `
     <li class="filerow">
       <button class="link" data-file="${esc(f.id)}">${esc(f.title || f.filename)}</button>
       <span class="muted small">${esc(f.purpose)}${f.size_bytes ? ` · ${Math.max(1, Math.round(f.size_bytes / 1024))} KB` : ''}
@@ -2015,6 +2061,109 @@ ${tasks.length ? `
         ${e.kind === 'status' && e.body ? `<span class="block muted small">${esc(e.body)}</span>` : ''}</span>
     </li>`).join('')}</ul>` : `<p class="note">${esc(t.noHistory)}</p>`}
 </section>`;
+}
+
+/* ========================================================================
+   The two sections that open on an accepted project: the procurement team's
+   shopping list, and the production team's schedule, delivery date and files.
+   Pure function of (lang, ctx) like every other view; controller.js owns the
+   writes. Rendered only when the project is `won` or `in_production`.
+   ======================================================================== */
+
+export function productionSections(lang, ctx) {
+  const t = DSTR[lang];
+  const p = ctx.project;
+  const items = ctx.procurementItems || [];
+  const prod = ctx.productionInfo || null;
+  const files = ctx.projectFiles || [];
+  const canEdit = canEditProduction();
+
+  const itemFile = (id) => files.find(f => f.procurement_item_id === id) || null;
+  const procListFiles = files.filter(f => f.purpose === 'procurement' && !f.procurement_item_id);
+  const prodFiles = files.filter(f => f.purpose === 'production');
+  const PROC_ST = ['pending', 'in_process', 'done', 'not_available', 'expensive'];
+
+  const fileRow = (f) => `
+    <li class="filerow">
+      <button class="link" data-file="${esc(f.id)}">${esc(f.title || f.filename)}</button>
+      <span class="muted small">${f.size_bytes ? `${Math.max(1, Math.round(f.size_bytes / 1024))} KB` : ''}${f.uploader?.full_name ? ` · ${esc(t.uploadedBy.replace('{who}', f.uploader.full_name))}` : ''}</span>
+    </li>`;
+
+  const refCell = (it) => {
+    const f = itemFile(it.id);
+    const parts = [];
+    if (f) parts.push(`<button class="link" data-file="${esc(f.id)}">${esc(t.procView)}</button>`);
+    if (canEdit) parts.push(`<label class="miniup">${f ? '↺' : esc(t.procPhoto)}<input type="file" data-pi-photo="${esc(it.id)}" accept="image/*,.pdf" /></label>`);
+    if (!parts.length) return '<span class="muted">—</span>';
+    return `<span class="procref">${parts.join('')}</span>`;
+  };
+
+  const statusSelect = (it) => `
+    <select class="procsel" data-pi-status="${esc(it.id)}">
+      ${PROC_ST.map(s => `<option value="${s}"${s === it.status ? ' selected' : ''}>${esc(t.procSt[s])}</option>`).join('')}
+    </select>`;
+
+  const editRow = (it) => `<tr>
+    <td><input class="cellinput" data-pi="${esc(it.id)}" data-field="name" value="${esc(it.name || '')}" placeholder="${esc(t.procItem)}" /></td>
+    <td><input class="cellinput" data-pi="${esc(it.id)}" data-field="description" value="${esc(it.description || '')}" placeholder="${esc(t.description)}" /></td>
+    <td>${refCell(it)}</td>
+    <td>${statusSelect(it)}</td>
+    <td class="proc-actions"><button class="x" data-pi-del="${esc(it.id)}" title="${esc(t.remove)}" aria-label="${esc(t.remove)}">✕</button></td>
+  </tr>`;
+
+  const viewRow = (it) => `<tr>
+    <td>${esc(it.name || '—')}</td>
+    <td class="${it.description ? '' : 'muted'}">${esc(it.description || '—')}</td>
+    <td>${itemFile(it.id) ? `<button class="link" data-file="${esc(itemFile(it.id).id)}">${esc(t.procView)}</button>` : '<span class="muted">—</span>'}</td>
+    <td>${procStatusPill(it.status, lang)}</td>
+  </tr>`;
+
+  const cols = canEdit ? 5 : 4;
+
+  const procurement = `
+<section class="card">
+  <div class="card__head"><h2>${esc(t.procHead)}</h2><span class="muted small">${items.length}</span></div>
+  <div class="tblwrap"><table class="tbl tbl--tight tbl--proc">
+    <thead><tr>
+      <th>${esc(t.procItem)}</th><th>${esc(t.description)}</th>
+      <th>${esc(t.procRef)}</th><th>${esc(t.status)}</th>${canEdit ? '<th></th>' : ''}
+    </tr></thead>
+    <tbody>
+      ${items.length
+        ? items.map(canEdit ? editRow : viewRow).join('')
+        : `<tr><td class="tbl__empty" colspan="${cols}">${esc(t.procNone)}</td></tr>`}
+    </tbody>
+  </table></div>
+  ${canEdit ? `<div class="actions"><button type="button" class="btn btn--sm" data-pi-add>${esc(t.procAdd)}</button></div>` : ''}
+  ${canEdit ? `<form id="procFileForm" class="inlineform" style="border-bottom:0">
+    ${dropField('procFiles', t.procList, t.procListHint, { accept: 'image/*,.pdf,.xls,.xlsx,.csv,.doc,.docx', multiple: true })}
+    <div class="actions"><button type="submit" class="btn btn--sm">${esc(t.save)}</button></div>
+  </form>` : ''}
+  ${procListFiles.length ? `<ul class="filelist">${procListFiles.map(fileRow).join('')}</ul>` : ''}
+  ${canEdit ? '' : `<p class="note">${esc(t.prodOnlyTeam)}</p>`}
+</section>`;
+
+  const production = `
+<section class="card">
+  <div class="card__head"><h2>${esc(t.prodHead)}</h2></div>
+  <form id="prodForm" class="inlineform" style="border-bottom:0">
+    <div class="fields">
+      <label class="f f--wide"><span>${esc(t.prodSchedule)}</span>
+        <textarea id="prodSched" rows="5" placeholder="${esc(t.prodScheduleHint)}"${canEdit ? '' : ' disabled'}>${esc(prod?.schedule || '')}</textarea></label>
+      <label class="f"><span>${esc(t.prodDelivery)}</span>
+        <input id="prodDelivery" type="date" value="${esc(prod?.site_delivery_on || '')}"${canEdit ? '' : ' disabled'} /></label>
+    </div>
+    ${canEdit ? `<h3 class="subhead">${esc(t.prodFiles)}</h3>
+      ${dropField('prodFiles', t.prodFiles, t.prodFilesHint, { accept: 'image/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.dwg,.dxf', multiple: true })}
+      <div class="actions"><button type="submit" class="btn btn--primary btn--sm">${esc(t.save)}</button></div>` : ''}
+  </form>
+  <div style="padding:0 16px 14px">
+    <h3 class="subhead">${esc(t.prodFilesHead)}</h3>
+    ${prodFiles.length ? `<ul class="filelist">${prodFiles.map(fileRow).join('')}</ul>` : `<p class="note">${esc(t.prodNoFiles)}</p>`}
+  </div>
+</section>`;
+
+  return procurement + '\n' + production;
 }
 
 /* ------------------------------ new project ------------------------------- */
