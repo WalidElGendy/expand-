@@ -29,6 +29,9 @@ export const ctx = {
 
   // One project, its attachments, its tasks and its history.
   project: null, projectFiles: [], projectTasks: [], projectEvents: [],
+  // The two production-stage sections: the procurement list and the
+  // production schedule/delivery row.
+  procurementItems: [], productionInfo: null,
 
   // One lead, its activity, the proposals linked to it, and the search
   // results behind the "link a proposal" box.
@@ -81,11 +84,16 @@ export async function loadFor(route, id) {
        pops in its documents a second later reads as broken. */
     if (route === 'project' && id) {
       ctx.project = null; ctx.projectFiles = []; ctx.projectTasks = []; ctx.projectEvents = [];
+      ctx.procurementItems = []; ctx.productionInfo = null;
       jobs.push(db.getProject(id).then(p => { ctx.project = p; }).catch(() => { ctx.project = null; }));
       jobs.push(db.listFiles({ project_id: id }).then(f => { ctx.projectFiles = f; }).catch(() => {}));
       jobs.push(db.listProjectTasks(id).then(x => { ctx.projectTasks = x; }).catch(() => {}));
       jobs.push(db.listProjectEvents(id).then(e => { ctx.projectEvents = e; }).catch(() => {}));
       jobs.push(db.listPeople().then(p => { ctx.people = p; }).catch(() => {}));
+      // The procurement list and production row. They fail quietly on a project
+      // that never reached production — the sections simply do not render.
+      jobs.push(db.listProcurementItems(id).then(x => { ctx.procurementItems = x; }).catch(() => { ctx.procurementItems = []; }));
+      jobs.push(db.getProductionInfo(id).then(x => { ctx.productionInfo = x; }).catch(() => { ctx.productionInfo = null; }));
     }
 
     /* One lead. Same reasoning as the project page: fetched by id so a deep
@@ -422,6 +430,90 @@ export function wireApp(lang) {
     try { window.open(await db.fileUrl(f.bucket, f.path), '_blank', 'noopener'); }
     catch (e) { fail(e); }
   });
+
+  /* --- one project: procurement list ---
+     Text fields save on blur, the status select on change — no re-render, so a
+     row being edited never jumps under the cursor. Adding, removing and photo
+     uploads do reload, because each changes which rows or links exist. */
+  $$('[data-pi]').forEach(inp => inp.onchange = async () => {
+    const field = inp.dataset.field;
+    const value = field === 'name' ? inp.value.trim() : (inp.value.trim() || null);
+    try { await db.updateProcurementItem(inp.dataset.pi, { [field]: value }); }
+    catch (e) { fail(e); }
+  });
+
+  $$('[data-pi-status]').forEach(sel => sel.onchange = async () => {
+    try { await db.updateProcurementItem(sel.dataset.piStatus, { status: sel.value }); }
+    catch (e) { fail(e); }
+  });
+
+  const piAdd = $('[data-pi-add]');
+  if (piAdd) piAdd.onclick = async () => {
+    piAdd.disabled = true;
+    try {
+      await db.addProcurementItem(ctx.project.id, { sort: (ctx.procurementItems || []).length });
+      await loadFor('project', ctx.project.id); rerender();
+    } catch (e) { fail(e); piAdd.disabled = false; }
+  };
+
+  $$('[data-pi-del]').forEach(b => b.onclick = async () => {
+    if (!confirm(V.DSTR[lang].procDelConfirm)) return;
+    b.disabled = true;
+    try { await db.deleteProcurementItem(b.dataset.piDel); await loadFor('project', ctx.project.id); rerender(); }
+    catch (e) { fail(e); b.disabled = false; }
+  });
+
+  // One reference photo/PDF per item, uploaded straight from the row.
+  $$('[data-pi-photo]').forEach(inp => inp.onchange = async () => {
+    const file = inp.files?.[0];
+    if (!file) return;
+    try {
+      await db.uploadFile('refs', file, {
+        purpose: 'procurement', project_id: ctx.project.id,
+        procurement_item_id: inp.dataset.piPhoto,
+      });
+      await loadFor('project', ctx.project.id); rerender();
+    } catch (e) { fail(e); }
+  });
+
+  // Bulk: upload a whole list (an Excel/PDF of items) to the procurement section.
+  const procFileForm = $('#procFileForm');
+  if (procFileForm) procFileForm.onsubmit = async (e) => {
+    e.preventDefault();
+    const files = [...$('#procFiles').files];
+    if (!files.length) return;
+    const btn = procFileForm.querySelector('button[type=submit]');
+    btn.disabled = true; btn.textContent = V.DSTR[lang].uploading;
+    try {
+      for (const f of files) {
+        await db.uploadFile('docs', f, {
+          purpose: 'procurement', project_id: ctx.project.id,
+          department_id: 'production',
+        });
+      }
+      await loadFor('project', ctx.project.id); rerender();
+    } catch (err) { fail(err); btn.disabled = false; }
+  };
+
+  /* --- one project: production schedule + files --- */
+  const prodForm = $('#prodForm');
+  if (prodForm) prodForm.onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = prodForm.querySelector('button[type=submit]');
+    btn.disabled = true; btn.textContent = V.DSTR[lang].saving;
+    try {
+      await db.saveProductionInfo(ctx.project.id, {
+        schedule: $('#prodSched').value.trim() || null,
+        site_delivery_on: $('#prodDelivery').value || null,
+      });
+      for (const f of [...($('#prodFiles')?.files || [])]) {
+        await db.uploadFile('docs', f, {
+          purpose: 'production', project_id: ctx.project.id, department_id: 'production',
+        });
+      }
+      await loadFor('project', ctx.project.id); rerender();
+    } catch (err) { fail(err); btn.disabled = false; btn.textContent = V.DSTR[lang].save; }
+  };
 
   /* --- designer: move a stage along --- */
   $$('[data-stage]').forEach(b => b.onclick = async () => {
