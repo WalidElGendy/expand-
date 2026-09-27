@@ -385,9 +385,9 @@ export const STATUS_FLOW = ['intake', 'in_design', 'pricing', 'submitted',
     the first attempt failed. */
 export const NEXT_STATUS = {
   intake:        ['in_design', 'archived'],
-  in_design:     ['pricing', 'submitted', 'archived'],
-  pricing:       ['submitted', 'in_design', 'archived'],
-  submitted:     ['won', 'lost'],
+  in_design:     ['pricing', 'submitted', 'in_production', 'archived'],
+  pricing:       ['submitted', 'in_design', 'in_production', 'archived'],
+  submitted:     ['won', 'lost', 'in_production'],
   won:           ['in_production', 'delivered', 'archived'],
   in_production: ['delivered', 'archived'],
   lost:          ['archived'],
