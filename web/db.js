@@ -436,6 +436,56 @@ export async function ensureProductionStage(project_id) {
   }).select().single());
 }
 
+/* ------------------------------------------------ procurement + production
+
+   Two sections that open on a project the moment it is accepted: the
+   procurement team's shopping list, and the production team's schedule and
+   files. Both are writable by the production team (see can_edit_production in
+   the migration), which is why production_info is its own table rather than
+   columns on projects — the projects update policy is can_plan() and the
+   production team is not a planner. */
+
+export const listProcurementItems = async (project_id) => ok(await sb
+  .from('procurement_items')
+  .select('id, project_id, name, description, status, sort, created_at')
+  .eq('project_id', project_id)
+  .order('sort', { ascending: true })
+  .order('created_at', { ascending: true }));
+
+export const addProcurementItem = async (project_id, patch = {}) => ok(await sb
+  .from('procurement_items')
+  .insert({ project_id,
+            name: patch.name || '',
+            description: patch.description ?? null,
+            status: patch.status || 'pending',
+            sort: patch.sort ?? 0,
+            created_by: state.me?.id })
+  .select().single());
+
+export const updateProcurementItem = async (id, patch) => ok(await sb
+  .from('procurement_items')
+  .update({ ...patch, updated_at: new Date().toISOString() })
+  .eq('id', id).select().single());
+
+export const deleteProcurementItem = async (id) => ok(await sb
+  .from('procurement_items').delete().eq('id', id).select());
+
+/** One row per project, edited in place. Upsert on project_id so saving the
+    schedule twice does not create a second row nobody knows which to believe. */
+export async function getProductionInfo(project_id) {
+  const { data, error } = await sb.from('production_info')
+    .select('project_id, schedule, site_delivery_on, updated_at')
+    .eq('project_id', project_id).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export const saveProductionInfo = async (project_id, patch) => ok(await sb
+  .from('production_info')
+  .upsert({ project_id, ...patch, updated_by: state.me?.id, updated_at: new Date().toISOString() },
+          { onConflict: 'project_id' })
+  .select().single());
+
 export const setStages = async (project_id, stages) => ok(await sb
   .from('project_stages')
   .upsert(stages.map((s, i) => ({ project_id, sort: i, ...s })),
@@ -593,7 +643,7 @@ export const setSupervisor = async (personId, supervisorId) => ok(await sb.from(
 
 export const listFiles = async (filter = {}) => {
   let q = sb.from('files')
-    .select('id, purpose, title, description, bucket, path, filename, mime, size_bytes, created_at, project_id, lead_id, project:project_id ( id, name ), uploader:uploaded_by ( id, full_name )')
+    .select('id, purpose, title, description, bucket, path, filename, mime, size_bytes, created_at, project_id, lead_id, procurement_item_id, project:project_id ( id, name ), uploader:uploaded_by ( id, full_name )')
     .order('created_at', { ascending: false });
   if (filter.project_id) q = q.eq('project_id', filter.project_id);
   if (filter.purpose)    q = q.eq('purpose', filter.purpose);
