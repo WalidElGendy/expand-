@@ -72,6 +72,14 @@ async function loadMe() {
   // run. Surfacing null lets the UI say so instead of rendering an empty
   // dashboard that looks like "you have no work".
   if (error) throw new Error(error.message);
+  if (data) {
+    // Does anyone report to this person? Decides whether the sidebar offers
+    // them their team's HR scorecards. A count, not the rows.
+    const { count } = await sb.from('profiles')
+      .select('id', { count: 'exact', head: true })
+      .eq('supervisor_id', data.id);
+    data.has_reports = (count || 0) > 0;
+  }
   return data;
 }
 
@@ -637,6 +645,127 @@ export const listReviews = async (period) => ok(await sb.from('reviews')
 export const saveReview = async (row) => ok(await sb.from('reviews')
   .upsert({ ...row, author_id: state.me?.id }, { onConflict: 'subject_id,period' })
   .select().single());
+
+/* ------------------------------------------------------------------ HR --
+   Employment files, hiring requests, one-on-ones and leave. None of it lives
+   on `profiles`, because every active user can read profiles. The sensitive
+   half — national ID, the ID copy, HR's notes — sits in its own table and its
+   own private bucket, and only HR (admins + the HR department) can reach it.
+   A supervisor's session gets their own reports' files, 1:1s and leave through
+   RLS; the queries below are the same for both, the database does the hiding. */
+
+export const HR_BUCKET = 'hr';
+
+export const listHrEmployees = async () => ok(await sb.from('hr_employees')
+  .select('profile_id, phone, joining_date, position, job_description, employment_status, annual_leave_override, updated_at'));
+
+export async function getHrEmployee(profile_id) {
+  const { data, error } = await sb.from('hr_employees').select('*').eq('profile_id', profile_id).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export const saveHrEmployee = async (profile_id, patch) => ok(await sb.from('hr_employees')
+  .upsert({ profile_id, ...patch, updated_by: state.me?.id, updated_at: new Date().toISOString() },
+          { onConflict: 'profile_id' })
+  .select().single());
+
+/* Returns null for anyone who is not HR: RLS hides the row, so a supervisor
+   simply gets nothing back rather than an error. */
+export async function getHrPrivate(profile_id) {
+  const { data, error } = await sb.from('hr_employee_private').select('*').eq('profile_id', profile_id).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export const saveHrPrivate = async (profile_id, patch) => ok(await sb.from('hr_employee_private')
+  .upsert({ profile_id, ...patch, updated_by: state.me?.id, updated_at: new Date().toISOString() },
+          { onConflict: 'profile_id' })
+  .select().single());
+
+export const listHiring = async () => ok(await sb.from('hr_hiring_requests')
+  .select('id, full_name, email, position, department_id, joining_date, needs_laptop, equipment, needed_tools, status, requested_by, hired_profile_id, created_at')
+  .order('created_at', { ascending: false }).limit(500));
+
+export async function getHiring(id) {
+  const { data, error } = await sb.from('hr_hiring_requests').select('*').eq('id', id).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export const createHiring = async (row) => ok(await sb.from('hr_hiring_requests')
+  .insert({ ...row, requested_by: state.me?.id }).select().single());
+
+export const updateHiring = async (id, patch) => ok(await sb.from('hr_hiring_requests')
+  .update({ ...patch, updated_at: new Date().toISOString() }).eq('id', id).select().single());
+
+/** Approve / reject. Records who decided and when. */
+export const decideHiring = (id, status) =>
+  updateHiring(id, { status, decided_by: state.me?.id, decided_at: new Date().toISOString() });
+
+/** Marking a request hired creates the roster entry and employment file in one
+    database transaction (see hr_hire in the migration) and returns the new
+    person's profile id. */
+export async function hireFromRequest(id) {
+  const { data, error } = await sb.rpc('hr_hire', { p_request: id });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export const listLeaves = async ({ employee_id = null, since = null } = {}) => {
+  let q = sb.from('hr_leaves').select('id, employee_id, kind, start_date, end_date, days, note, created_at')
+    .order('start_date', { ascending: false }).limit(2000);
+  if (employee_id) q = q.eq('employee_id', employee_id);
+  if (since) q = q.gte('end_date', since);
+  return ok(await q);
+};
+
+export const addLeave = async (row) => ok(await sb.from('hr_leaves')
+  .insert({ ...row, created_by: state.me?.id }).select().single());
+
+export const deleteLeave = async (id) => ok(await sb.from('hr_leaves').delete().eq('id', id).select());
+
+export const listOneOnOnes = async ({ employee_id = null } = {}) => {
+  let q = sb.from('hr_one_on_ones')
+    .select('id, employee_id, held_on, notes, action_items, conducted_by, created_at, by:conducted_by ( id, full_name )')
+    .order('held_on', { ascending: false }).limit(2000);
+  if (employee_id) q = q.eq('employee_id', employee_id);
+  return ok(await q);
+};
+
+export const addOneOnOne = async (row) => ok(await sb.from('hr_one_on_ones')
+  .insert({ ...row, conducted_by: state.me?.id }).select().single());
+
+export const deleteOneOnOne = async (id) => ok(await sb.from('hr_one_on_ones').delete().eq('id', id).select());
+
+/** Every review readable to this session, all quarters. HR sees everyone's;
+    a supervisor sees their reports'. */
+export const listAllReviews = async ({ subject_id = null } = {}) => {
+  let q = sb.from('reviews')
+    .select('id, subject_id, author_id, period, ratings, strengths, improvements, submitted_at, updated_at')
+    .order('period', { ascending: false }).limit(2000);
+  if (subject_id) q = q.eq('subject_id', subject_id);
+  return ok(await q);
+};
+
+/** Upload an ID copy to the private HR bucket. Returns where it went; the
+    caller stores path + name on the request or the private file. */
+export async function uploadHrDoc(file, prefix) {
+  const stamp = Date.now().toString(36);
+  const path = `${prefix}/${stamp}-${slug(file.name)}`;
+  const up = await sb.storage.from(HR_BUCKET).upload(path, file, {
+    cacheControl: '60', upsert: false, contentType: file.type || undefined,
+  });
+  if (up.error) throw new Error(up.error.message);
+  return { path, name: file.name };
+}
+
+/** Short-lived link: an ID copy should not stay openable from a pasted URL. */
+export async function hrDocUrl(path, seconds = 120) {
+  const { data, error } = await sb.storage.from(HR_BUCKET).createSignedUrl(path, seconds);
+  if (error) throw new Error(error.message);
+  return data.signedUrl;
+}
 
 export const setSupervisor = async (personId, supervisorId) => ok(await sb.from('profiles')
   .update({ supervisor_id: supervisorId || null }).eq('id', personId).select().single());
