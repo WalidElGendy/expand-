@@ -911,7 +911,12 @@ for (const lang of ['en', 'ar']) {
    accepted or rejected, and an accepted one is handed to production. */
 {
   const N = dbmod.NEXT_STATUS;
-  check(N.submitted.join() === 'won,lost', 'Etemad has an outcome other than accepted or rejected');
+  /* Etemad answers accepted or rejected; "In production" is also offered
+     directly, because the team asked to jump there without a separate
+     accept step (the move-to dropdown). */
+  check(N.submitted.join() === 'won,lost,in_production', 'Etemad outcomes changed from accepted / rejected / straight to production');
+  check(['in_design', 'pricing'].every(s => N[s].includes('in_production')),
+    'In production is not directly selectable from design or pricing');
   check(N.won.includes('in_production'), 'an accepted tender cannot reach production');
   check(!N.intake.includes('delivered'),
     'a project can be marked delivered straight from intake, which makes the pipeline fiction');
