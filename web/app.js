@@ -14,7 +14,7 @@ import { WorkCalendar, iso, parse } from '../engine/calendar.js';
 import * as db from './db.js';
 import * as C from './controller.js';
 import {
-  DSTR, signInView, canPlan, sizeOptionsHtml,
+  DSTR, signInView, canPlan, isHR, sizeOptionsHtml,
   buildScheduler, monthlyLoad, workloadCalendar,
 } from './dash.js';
 
@@ -185,6 +185,11 @@ function currentRoute() {
   if (h.startsWith('#/leads'))    return { name: 'leads' };
   if (h.startsWith('#/docs'))     return { name: 'docs' };
   if (h.startsWith('#/admin'))    return { name: 'admin' };
+  /* HR: most specific first, so '#/hr' does not swallow its sub-pages. */
+  if (h.startsWith('#/hr/new'))   return { name: 'hrnew' };
+  if (h.startsWith('#/hr/r/'))    return { name: 'hrreq', id: h.slice(7) };
+  if (h.startsWith('#/hr/e/'))    return { name: 'hremp', id: h.slice(7) };
+  if (h.startsWith('#/hr'))       return { name: 'hr' };
   return { name: 'home' };
 }
 
@@ -195,7 +200,7 @@ function currentRoute() {
    to arrive from a page that had loaded them. A deep link or a refresh
    showed an empty table and called it zero projects. */
 const APP_ROUTES = ['home', 'projects', 'project', 'new', 'leads', 'lead', 'docs', 'admin',
-  'estimate', 'highlights', 'pipeline', 'performance'];
+  'estimate', 'highlights', 'pipeline', 'performance', 'hr', 'hrnew', 'hrreq', 'hremp'];
 
 function render() {
   document.documentElement.lang = S.lang;
@@ -290,6 +295,7 @@ const ICON = {
   spark:  'M12 3v3M12 18v3M4.2 7.2l2.1 2.1M17.7 17.7l2.1 2.1M3 12h3M18 12h3M4.2 16.8l2.1-2.1M17.7 6.3l2.1-2.1',
   board:  'M4 4h6v7H4zM14 4h6v11h-6zM4 15h6v5H4zM14 19h6v1h-6z',
   search: 'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM21 21l-4.3-4.3',
+  brief:  'M3 8h18v12H3zM8.5 8V5.5A1.5 1.5 0 0 1 10 4h4a1.5 1.5 0 0 1 1.5 1.5V8M3 13h18',
 };
 const icon = (n) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
   stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${ICON[n]}"/></svg>`;
@@ -330,6 +336,11 @@ function appNav() {
   items.push({ group: 'insight', route: '#/estimate', icon: 'spark', label: () => d.openEstimator });
   items.push({ group: 'workspace', route: '#/performance', icon: 'chart', label: () => d.perf });
   if (me.role === 'admin') items.push({ group: 'workspace', route: '#/admin', icon: 'team', label: () => d.people });
+  /* HR is the workforce dashboard for admins and the HR department. Anyone
+     else who has people reporting to them gets the same screen scoped to
+     their own team — RLS decides what it contains, the label just says so. */
+  if (isHR(me)) items.push({ group: 'workspace', route: '#/hr', icon: 'brief', label: () => d.hrNav });
+  else if (me.has_reports) items.push({ group: 'workspace', route: '#/hr', icon: 'brief', label: () => d.hrTeamNav });
   return items;
 }
 
