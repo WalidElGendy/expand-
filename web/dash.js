@@ -28,6 +28,11 @@ export const canPlan = (me = db.state.me) =>
   !!me && me.is_active !== false &&
   (['admin', 'manager'].includes(me.role) || me.department_id === 'pm');
 
+/* HR: admins and the HR department. Mirrors is_hr() in the database — the
+   sidebar and the edit controls follow this, RLS is what enforces it. */
+export const isHR = (me = db.state.me) =>
+  !!me && me.is_active !== false && (me.role === 'admin' || me.department_id === 'hr');
+
 /* Who may fill the procurement list and production schedule: the production
    team, plus planners and leads. Mirrors can_edit_production() in the database
    exactly — the client hides the controls, RLS is what enforces it. */
@@ -286,6 +291,61 @@ export const DSTR = {
     prodDelivery: 'Delivery to site', prodFiles: 'Production files',
     prodFilesHint: 'Drawings, plans, deliverables', prodFilesHead: 'Files', prodNoFiles: 'No production files yet.',
     prodOnlyTeam: 'Only the production team and planners can edit these.',
+    /* --- HR --- */
+    hrNav: 'HR', hrTeamNav: 'My team', hrHead: 'Workforce', hrTeamHead: 'My team',
+    hrNewHire: '+ New hiring request',
+    hrKHead: 'Headcount', hrKHeadSub: '{p} on probation',
+    hrKLeave: 'On leave today', hrKOpen: 'Open hiring requests', hrKOpenSub: '{a} approved, waiting to join',
+    hrKJoin: 'Joining in 30 days', hrKNoFile: 'No HR file yet', hrKNoFileSub: 'Joining date missing — no leave balance',
+    hrReqHead: 'Hiring requests', hrReqNone: 'No hiring requests yet.',
+    hrEmpHead: 'Employees', hrEmpNone: 'Nobody here yet.',
+    hrName: 'Full name', hrPosition: 'Position', hrDept: 'Department', hrJoined: 'Joined', hrJoining: 'Joining date',
+    hrService: 'Service', hrBalance: 'Annual balance', hrSick: 'Sick days', hrLastOO: 'Last 1:1', hrScore: 'Latest score',
+    hrRequestedBy: 'Requested by', hrRequestedOn: 'Requested', hrKit: 'Equipment',
+    hrYears: '{n} y', hrMonths: '{n} mo', hrDays: '{n} days', hrDaysShort: '{n} d',
+    hrSt: { requested: 'Requested', approved: 'Approved', rejected: 'Rejected', hired: 'Hired' },
+    hrEmpSt: { probation: 'Probation', active: 'Active', on_leave: 'On leave', terminated: 'Left' },
+    hrLeaveKind: { annual: 'Annual', sick: 'Sick', unpaid: 'Unpaid', other: 'Other' },
+    hrShowLeft: 'Show people who left',
+    /* the hiring form */
+    hrHireTitle: 'New hiring request', hrBack: 'HR',
+    hrHireLead: 'Once approved and marked as hired, this creates the employee record. The app login is a separate invitation from People.',
+    hrEmail: 'Work email (optional)', hrEmailHint: 'If they already have a profile, the record attaches to it.',
+    hrPhone: 'Mobile number', hrNatId: 'National ID / Iqama number',
+    hrIdCopy: 'Copy of the ID', hrIdCopyHint: 'Photo or PDF — stored privately, HR only',
+    hrJobDesc: 'Job description', hrTools: 'Tools and software needed', hrToolsHint: 'Software licences, accounts, access…',
+    hrLaptop: 'Needs a laptop', hrEquip: 'Other equipment', hrEquipHint: 'Monitor, phone, desk, uniform…',
+    hrFeedback: 'Feedback on the new hire', hrFeedbackHint: 'Interview notes, impressions, references…',
+    hrSubmit: 'Submit request', hrPickDept: 'Choose…',
+    /* one request */
+    hrReqNotFound: 'That request is not here.',
+    hrApprove: 'Approve', hrReject: 'Reject', hrMarkHired: 'Mark as hired — create employee',
+    hrHireNote: 'Creates the employee record (on probation) and moves the ID into their HR file.',
+    hrRejectConfirm: 'Reject this hiring request?', hrHireConfirm: 'Create the employee record for {n}?',
+    hrReopen: 'Reopen', hrOpenEmp: 'Open employee record →',
+    hrViewId: 'View ID copy', hrNoId: 'No ID copy uploaded.', hrDecided: '{s} by {who} on {d}',
+    hrSaveFb: 'Save feedback', hrNoValue: '—',
+    /* one employee */
+    hrEmpNotFound: 'That person is not here.',
+    hrScorecard: 'Scorecard', hrReviews: 'Quarterly reviews', hrNoReviews: 'No reviews yet.',
+    hrPeriod: 'Quarter', hrBy: 'By', hrStrengths: 'Strengths', hrImprove: 'To improve',
+    hrOO: 'One-on-one meetings', hrNoOO: 'No one-on-ones recorded.',
+    hrOODate: 'Date', hrOONotes: 'Notes', hrOOActions: 'Action items', hrOOAdd: 'Record meeting',
+    hrLeaves: 'Leave', hrNoLeaves: 'No leave recorded.',
+    hrLeaveType: 'Type', hrFrom: 'From', hrTo: 'To', hrDaysCol: 'Days', hrNote: 'Note', hrLeaveAdd: 'Record leave',
+    hrDelConfirm: 'Delete this entry?',
+    hrBalanceNote: '{year}: {ent} days a year, {acc} accrued to date, {taken} taken. Calendar year, accrued daily, no carry-over.',
+    hrLegal: '21 days a year, 30 after five years of service (Saudi Labor Law, art. 109).',
+    hrNoJoinDate: 'Add a joining date to calculate the leave balance.',
+    hrKBalance: 'Annual leave left', hrKTaken: 'Annual taken {y}', hrKSick: 'Sick days {y}', hrKLast: 'Latest review',
+    hrKOO: 'One-on-ones', hrKOOSub: 'last {d}',
+    hrFile: 'Employment file', hrStatusL: 'Employment status', hrOverride: 'Annual entitlement override',
+    hrOverrideHint: 'Days a year. Leave empty to follow the law.', hrSupervisor: 'Supervisor',
+    hrReadOnly: 'Only HR can change this file.',
+    hrIdentity: 'Identity — HR only', hrHrNotes: 'Private HR notes', hrReplaceId: 'Upload ID copy',
+    hrTimeline: 'History', hrTlJoined: 'Joined as {p}', hrTlLeave: '{k} leave ({n} d)', hrScoreCol: 'Score', hrTlOO: '1:1 with {who}',
+    hrTlReview: 'Review {q}: {s}%', hrTlHired: 'Hiring request approved',
+    hrNoAccess: 'This screen is for HR, and for supervisors about their own team.',
   },
   ar: {
     signIn: 'تسجيل الدخول', signOut: 'تسجيل الخروج', email: 'البريد الإلكتروني', password: 'كلمة المرور',
@@ -521,6 +581,58 @@ export const DSTR = {
     prodDelivery: 'التسليم للموقع', prodFiles: 'ملفات الإنتاج',
     prodFilesHint: 'رسومات، مخططات، مخرجات', prodFilesHead: 'الملفات', prodNoFiles: 'لا توجد ملفات إنتاج بعد.',
     prodOnlyTeam: 'يمكن لفريق الإنتاج والمخططين فقط التعديل هنا.',
+    /* --- الموارد البشرية --- */
+    hrNav: 'الموارد البشرية', hrTeamNav: 'فريقي', hrHead: 'القوى العاملة', hrTeamHead: 'فريقي',
+    hrNewHire: '+ طلب توظيف جديد',
+    hrKHead: 'عدد الموظفين', hrKHeadSub: '{p} تحت التجربة',
+    hrKLeave: 'في إجازة اليوم', hrKOpen: 'طلبات توظيف مفتوحة', hrKOpenSub: '{a} معتمدة بانتظار المباشرة',
+    hrKJoin: 'مباشرة خلال 30 يوماً', hrKNoFile: 'بلا ملف موارد بشرية', hrKNoFileSub: 'تاريخ المباشرة غير مسجل — لا رصيد إجازات',
+    hrReqHead: 'طلبات التوظيف', hrReqNone: 'لا توجد طلبات توظيف بعد.',
+    hrEmpHead: 'الموظفون', hrEmpNone: 'لا يوجد أحد بعد.',
+    hrName: 'الاسم الكامل', hrPosition: 'المسمى الوظيفي', hrDept: 'القسم', hrJoined: 'تاريخ المباشرة', hrJoining: 'تاريخ المباشرة',
+    hrService: 'مدة الخدمة', hrBalance: 'رصيد الإجازة السنوية', hrSick: 'أيام مرضية', hrLastOO: 'آخر اجتماع فردي', hrScore: 'آخر تقييم',
+    hrRequestedBy: 'مقدم الطلب', hrRequestedOn: 'تاريخ الطلب', hrKit: 'التجهيزات',
+    hrYears: '{n} سنة', hrMonths: '{n} شهر', hrDays: '{n} يوم', hrDaysShort: '{n} ي',
+    hrSt: { requested: 'مطلوب', approved: 'معتمد', rejected: 'مرفوض', hired: 'تم التعيين' },
+    hrEmpSt: { probation: 'تحت التجربة', active: 'على رأس العمل', on_leave: 'في إجازة', terminated: 'غادر' },
+    hrLeaveKind: { annual: 'سنوية', sick: 'مرضية', unpaid: 'بدون راتب', other: 'أخرى' },
+    hrShowLeft: 'إظهار من غادروا',
+    hrHireTitle: 'طلب توظيف جديد', hrBack: 'الموارد البشرية',
+    hrHireLead: 'بعد الاعتماد وتحديده كـ«تم التعيين» يُنشأ سجل الموظف. دعوة الدخول إلى التطبيق منفصلة من صفحة الأشخاص.',
+    hrEmail: 'بريد العمل (اختياري)', hrEmailHint: 'إن كان له ملف مسبقاً يُربط السجل به.',
+    hrPhone: 'رقم الجوال', hrNatId: 'رقم الهوية / الإقامة',
+    hrIdCopy: 'صورة الهوية', hrIdCopyHint: 'صورة أو PDF — تُحفظ بسرية، للموارد البشرية فقط',
+    hrJobDesc: 'الوصف الوظيفي', hrTools: 'الأدوات والبرامج المطلوبة', hrToolsHint: 'تراخيص برامج، حسابات، صلاحيات…',
+    hrLaptop: 'يحتاج جهاز لابتوب', hrEquip: 'تجهيزات أخرى', hrEquipHint: 'شاشة، جوال، مكتب، زي…',
+    hrFeedback: 'ملاحظات حول المرشح', hrFeedbackHint: 'ملاحظات المقابلة، الانطباعات، المعرّفون…',
+    hrSubmit: 'إرسال الطلب', hrPickDept: 'اختر…',
+    hrReqNotFound: 'هذا الطلب غير موجود.',
+    hrApprove: 'اعتماد', hrReject: 'رفض', hrMarkHired: 'تم التعيين — إنشاء سجل الموظف',
+    hrHireNote: 'يُنشئ سجل الموظف (تحت التجربة) وينقل الهوية إلى ملفه.',
+    hrRejectConfirm: 'رفض طلب التوظيف هذا؟', hrHireConfirm: 'إنشاء سجل الموظف لـ {n}؟',
+    hrReopen: 'إعادة فتح', hrOpenEmp: 'فتح سجل الموظف ←',
+    hrViewId: 'عرض صورة الهوية', hrNoId: 'لم تُرفع صورة الهوية.', hrDecided: '{s} بواسطة {who} في {d}',
+    hrSaveFb: 'حفظ الملاحظات', hrNoValue: '—',
+    hrEmpNotFound: 'هذا الشخص غير موجود.',
+    hrScorecard: 'بطاقة الأداء', hrReviews: 'التقييمات الربعية', hrNoReviews: 'لا توجد تقييمات بعد.',
+    hrPeriod: 'الربع', hrBy: 'بواسطة', hrStrengths: 'نقاط القوة', hrImprove: 'مجالات التحسين',
+    hrOO: 'الاجتماعات الفردية', hrNoOO: 'لا توجد اجتماعات فردية مسجلة.',
+    hrOODate: 'التاريخ', hrOONotes: 'الملاحظات', hrOOActions: 'المهام المتفق عليها', hrOOAdd: 'تسجيل الاجتماع',
+    hrLeaves: 'الإجازات', hrNoLeaves: 'لا توجد إجازات مسجلة.',
+    hrLeaveType: 'النوع', hrFrom: 'من', hrTo: 'إلى', hrDaysCol: 'الأيام', hrNote: 'ملاحظة', hrLeaveAdd: 'تسجيل إجازة',
+    hrDelConfirm: 'حذف هذا السجل؟',
+    hrBalanceNote: '{year}: {ent} يوماً في السنة، {acc} مستحقة حتى اليوم، {taken} مأخوذة. سنة ميلادية، استحقاق يومي، بدون ترحيل.',
+    hrLegal: '21 يوماً في السنة، و30 يوماً بعد خمس سنوات خدمة (نظام العمل السعودي، المادة 109).',
+    hrNoJoinDate: 'أضف تاريخ المباشرة لحساب رصيد الإجازات.',
+    hrKBalance: 'المتبقي من الإجازة السنوية', hrKTaken: 'السنوية المأخوذة {y}', hrKSick: 'الأيام المرضية {y}', hrKLast: 'آخر تقييم',
+    hrKOO: 'الاجتماعات الفردية', hrKOOSub: 'آخرها {d}',
+    hrFile: 'ملف التوظيف', hrStatusL: 'الحالة الوظيفية', hrOverride: 'تعديل الاستحقاق السنوي',
+    hrOverrideHint: 'أيام في السنة. اتركه فارغاً لاتباع النظام.', hrSupervisor: 'المشرف',
+    hrReadOnly: 'الموارد البشرية فقط يمكنها تعديل هذا الملف.',
+    hrIdentity: 'الهوية — للموارد البشرية فقط', hrHrNotes: 'ملاحظات خاصة بالموارد البشرية', hrReplaceId: 'رفع صورة الهوية',
+    hrTimeline: 'السجل', hrTlJoined: 'باشر بمسمى {p}', hrTlLeave: 'إجازة {k} ({n} ي)', hrScoreCol: 'الدرجة', hrTlOO: 'اجتماع فردي مع {who}',
+    hrTlReview: 'تقييم {q}: {s}%', hrTlHired: 'اعتماد طلب التوظيف',
+    hrNoAccess: 'هذه الشاشة للموارد البشرية، وللمشرفين على فرقهم فقط.',
   },
 };
 
@@ -3343,4 +3455,540 @@ export function adminView(lang, ctx) {
   </div>
   <p class="note">${esc(t.resetHint)}</p>
 </section>`;
+}
+
+/* ==========================================================================
+   HR — the workforce dashboard.
+
+   Admins and the HR department see everyone; a supervisor who is not HR sees
+   the same screens scoped to their own reports. That scoping is RLS's job —
+   these views only decide which controls to draw. ID numbers and ID copies
+   live in hr_employee_private and the private 'hr' bucket, which nobody but
+   HR can read, so a supervisor's screen cannot show them even by accident.
+   ========================================================================== */
+
+const DAY_MS = 86400000;
+const pad2 = (n) => String(n).padStart(2, '0');
+/** Today as a calendar date where the person is, not in UTC — at 1am in
+    Riyadh, UTC is still "yesterday" and a leave starting today would not
+    count as today's. */
+export const localToday = (d = new Date()) =>
+  `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const asDate = (x) => (x instanceof Date ? x : parse(x));
+const addYears = (d, n) => new Date(Date.UTC(d.getUTCFullYear() + n, d.getUTCMonth(), d.getUTCDate()));
+const round1 = (n) => Math.round(n * 10) / 10;
+
+/** Full years of service on `asOf`. */
+export function yearsOfService(joining, asOf = localToday()) {
+  if (!joining) return null;
+  const j = asDate(joining), a = asDate(asOf);
+  if (a < j) return 0;
+  let y = a.getUTCFullYear() - j.getUTCFullYear();
+  if (addYears(j, y) > a) y--;
+  return Math.max(0, y);
+}
+
+/** Days of annual leave a year. Saudi Labor Law art. 109: 21 days, rising to
+    30 once the employee has completed five years. HR can override per person
+    (a contract that grants more, for example). */
+export function annualEntitlement(joining, override = null, asOf = localToday()) {
+  if (override !== null && override !== undefined && override !== '') return Number(override);
+  const y = yearsOfService(joining, asOf);
+  return y !== null && y >= 5 ? 30 : 21;
+}
+
+/** Inclusive calendar days from start to end; 0 if either is missing or the
+    range runs backwards. */
+export function leaveDays(start, end) {
+  if (!start || !end) return 0;
+  const n = Math.round((asDate(end) - asDate(start)) / DAY_MS) + 1;
+  return n > 0 ? n : 0;
+}
+
+/**
+ * This calendar year's leave position for one employee.
+ * Accrues daily from 1 January (or the joining date, if later) to `asOf`, at
+ * 21/365 a day — switching to 30/365 on the fifth anniversary if it falls this
+ * year. `taken` counts annual leave that starts this year. No carry-over is
+ * modelled: an unused balance from last year is HR's to record as needed.
+ */
+export function leaveSummary(emp, leaves = [], asOf = localToday()) {
+  const a = asDate(asOf);
+  const year = a.getUTCFullYear();
+  const inYear = (l) => l.start_date && l.start_date.slice(0, 4) === String(year);
+  const sum = (kind) => round1((leaves || []).filter(l => l.kind === kind && inYear(l))
+    .reduce((s, l) => s + Number(l.days || 0), 0));
+  const out = {
+    year, taken: sum('annual'), sick: sum('sick'), unpaid: sum('unpaid'), other: sum('other'),
+    entitlement: null, accrued: null, balance: null, years: null,
+  };
+  const joining = emp?.joining_date;
+  if (!joining) return out;
+  const j = asDate(joining);
+  const override = emp.annual_leave_override;
+  out.years = yearsOfService(joining, a);
+  out.entitlement = annualEntitlement(joining, override, a);
+
+  const jan1 = new Date(Date.UTC(year, 0, 1));
+  const from = j > jan1 ? j : jan1;
+  const yearDays = leaveDays(jan1, new Date(Date.UTC(year, 11, 31)));
+  let accrued = 0;
+  if (from <= a) {
+    const hasOverride = override !== null && override !== undefined && override !== '';
+    if (hasOverride) {
+      accrued = Number(override) * leaveDays(from, a) / yearDays;
+    } else {
+      const fifth = addYears(j, 5);
+      const before = fifth <= from ? 0 : leaveDays(from, fifth > a ? a : new Date(fifth - DAY_MS));
+      const after = leaveDays(from, a) - before;
+      accrued = (21 * before + 30 * after) / yearDays;
+    }
+  }
+  out.accrued = round1(accrued);
+  out.balance = round1(accrued - out.taken);
+  return out;
+}
+
+/** Is the person on leave on `day`? */
+export const onLeave = (leaves, employeeId, day = localToday()) =>
+  (leaves || []).some(l => l.employee_id === employeeId && l.start_date <= day && l.end_date >= day);
+
+function serviceText(joining, lang, asOf = localToday()) {
+  if (!joining) return '—';
+  const t = DSTR[lang];
+  const j = asDate(joining), a = asDate(asOf);
+  if (j > a) return fmt(joining, lang);
+  const y = yearsOfService(joining, a);
+  const anniv = addYears(j, y);
+  let m = (a.getUTCFullYear() - anniv.getUTCFullYear()) * 12 + a.getUTCMonth() - anniv.getUTCMonth();
+  if (a.getUTCDate() < anniv.getUTCDate()) m--;
+  m = Math.max(0, m);
+  if (y > 0) return `${t.hrYears.replace('{n}', y)}${m ? ' ' + t.hrMonths.replace('{n}', m) : ''}`;
+  if (m > 0) return t.hrMonths.replace('{n}', m);
+  return t.hrDays.replace('{n}', leaveDays(j, a) - 1);
+}
+
+const HR_REQ_COLOUR = { requested: 'var(--warn)', approved: 'var(--info)', rejected: 'var(--critical)', hired: 'var(--ok)' };
+const HR_EMP_COLOUR = { probation: 'var(--warn)', active: 'var(--ok)', on_leave: 'var(--info)', terminated: 'var(--ink4)' };
+function hrPill(map, colours, key, lang) {
+  if (!key) return '';
+  const label = DSTR[lang][map]?.[key] || key;
+  return `<span class="st" style="--c:${colours[key] || 'var(--ink3)'}"><i></i>${esc(label)}</span>`;
+}
+export const hrReqPill = (s, lang) => hrPill('hrSt', HR_REQ_COLOUR, s, lang);
+export const hrEmpPill = (s, lang) => hrPill('hrEmpSt', HR_EMP_COLOUR, s, lang);
+
+/** Latest review per subject, by period ('2026-Q3' sorts as text). */
+function latestReviews(reviews = []) {
+  const m = new Map();
+  for (const r of reviews) {
+    const cur = m.get(r.subject_id);
+    if (!cur || String(r.period) > String(cur.period)) m.set(r.subject_id, r);
+  }
+  return m;
+}
+
+const hrCrumb = (lang) => `<nav class="crumb"><button class="link" data-act="go" data-route="#/hr">← ${esc(DSTR[lang].hrBack)}</button></nav>`;
+const hrDenied = (lang) => `<section class="card"><p class="note">${esc(DSTR[lang].hrNoAccess)}</p></section>`;
+const hrFact = (label, value, cls = '') =>
+  `<div class="fact"><span class="fact__l">${esc(label)}</span><span class="fact__v ${cls}">${value}</span></div>`;
+const personName = (people, id) => {
+  const p = (people || []).find(x => x.id === id);
+  return p ? (p.full_name || p.email || '—') : '—';
+};
+
+/* ------------------------------------------------------------ the dashboard */
+
+export function hrView(lang, ctx) {
+  const t = DSTR[lang];
+  const me = db.state.me;
+  if (!me) return '';
+  const hr = isHR(me);
+  const people = ctx.people || [];
+  const emps = new Map((ctx.hrEmployees || []).map(e => [e.profile_id, e]));
+  if (!hr && !people.some(p => p.supervisor_id === me.id)) return hrDenied(lang);
+
+  const day = localToday();
+  const leaves = ctx.hrLeaves || [];
+  const oos = ctx.hrOneOnOnes || [];
+  const latest = latestReviews(ctx.hrReviews || []);
+  const hiring = hr ? (ctx.hiring || []) : [];
+
+  /* The roster: everyone signed in, plus anyone with an HR file who has not
+     been given a login yet (a new hire before their invitation). A supervisor
+     sees only their own reports. */
+  let roster = people.filter(p => p.is_active || emps.has(p.id));
+  if (!hr) roster = roster.filter(p => p.supervisor_id === me.id);
+  const status = (p) => emps.get(p.id)?.employment_status || (p.is_active ? 'active' : 'probation');
+  const current = roster.filter(p => status(p) !== 'terminated');
+  const shown = (ctx.hrShowLeft ? roster : current)
+    .slice().sort((a, b) => String(a.full_name || a.email).localeCompare(String(b.full_name || b.email)));
+
+  const in30 = iso(new Date(parse(day).getTime() + 30 * DAY_MS));
+  const joiningSoon = current.filter(p => { const d = emps.get(p.id)?.joining_date; return d && d >= day && d <= in30; }).length
+    + hiring.filter(h => h.status === 'approved' && h.joining_date && h.joining_date >= day && h.joining_date <= in30).length;
+  const openReq = hiring.filter(h => ['requested', 'approved'].includes(h.status));
+  const noFile = current.filter(p => !emps.get(p.id)?.joining_date).length;
+  const leaveToday = current.filter(p => onLeave(leaves, p.id, day)).length;
+  const probation = current.filter(p => status(p) === 'probation').length;
+
+  const lastOO = new Map();
+  for (const o of oos) if (!lastOO.has(o.employee_id)) lastOO.set(o.employee_id, o.held_on);
+
+  const kpis = hr ? `
+<div class="kpis kpis--5">
+  ${kpi(current.length, t.hrKHead, { colour: 'var(--brand)', sub: t.hrKHeadSub.replace('{p}', probation) })}
+  ${kpi(leaveToday, t.hrKLeave, { colour: 'var(--info)' })}
+  ${kpi(openReq.length, t.hrKOpen, { colour: 'var(--warn)',
+      sub: t.hrKOpenSub.replace('{a}', openReq.filter(h => h.status === 'approved').length) })}
+  ${kpi(joiningSoon, t.hrKJoin, { colour: 'var(--ok)' })}
+  ${kpi(noFile, t.hrKNoFile, { colour: 'var(--critical)', bad: noFile > 0, sub: t.hrKNoFileSub })}
+</div>` : '';
+
+  const reqOrder = { requested: 0, approved: 1, hired: 2, rejected: 3 };
+  const reqRows = hiring.slice().sort((a, b) =>
+    (reqOrder[a.status] ?? 9) - (reqOrder[b.status] ?? 9) || String(b.created_at).localeCompare(String(a.created_at)));
+  const kit = (h) => [h.needs_laptop ? '💻' : '', h.equipment || ''].filter(Boolean).join(' ') || '—';
+
+  const requests = hr ? `
+<section class="card">
+  <div class="card__head">
+    <h2>${esc(t.hrReqHead)}</h2><span class="muted small">${openReq.length} / ${hiring.length}</span>
+    <button class="btn btn--primary btn--sm" style="margin-inline-start:auto" data-act="go" data-route="#/hr/new">${esc(t.hrNewHire)}</button>
+  </div>
+  ${reqRows.length ? `<div class="tblwrap"><table class="tbl tbl--tight">
+    <thead><tr><th>${esc(t.hrName)}</th><th>${esc(t.hrPosition)}</th><th>${esc(t.hrDept)}</th>
+      <th class="num">${esc(t.hrJoining)}</th><th>${esc(t.hrKit)}</th><th>${esc(t.status)}</th>
+      <th class="num">${esc(t.hrRequestedOn)}</th></tr></thead>
+    <tbody>${reqRows.map(h => `<tr>
+      <td><button class="link" data-act="go" data-route="#/hr/r/${esc(h.id)}">${esc(h.full_name)}</button></td>
+      <td class="small">${esc(h.position || '—')}</td>
+      <td class="small muted">${h.department_id ? esc(deptName(h.department_id, lang)) : '—'}</td>
+      <td class="num muted">${esc(fmt(h.joining_date, lang))}</td>
+      <td class="small">${esc(kit(h))}</td>
+      <td>${hrReqPill(h.status, lang)}</td>
+      <td class="num muted">${esc(fmt((h.created_at || '').slice(0, 10), lang))}</td></tr>`).join('')}</tbody>
+  </table></div>` : `<p class="note">${esc(t.hrReqNone)}</p>`}
+</section>` : '';
+
+  const employees = `
+<section class="card">
+  <div class="card__head">
+    <h2>${esc(hr ? t.hrEmpHead : t.hrTeamHead)}</h2><span class="muted small">${shown.length}</span>
+    <label class="chk chk--inline" style="margin-inline-start:auto"><input type="checkbox" data-hr-left${ctx.hrShowLeft ? ' checked' : ''} /> ${esc(t.hrShowLeft)}</label>
+  </div>
+  ${shown.length ? `<div class="tblwrap"><table class="tbl tbl--tight">
+    <thead><tr><th>${esc(t.hrName)}</th><th>${esc(t.hrDept)}</th><th>${esc(t.hrPosition)}</th><th>${esc(t.status)}</th>
+      <th class="num">${esc(t.hrJoined)}</th><th class="num">${esc(t.hrService)}</th><th class="num">${esc(t.hrBalance)}</th>
+      <th class="num">${esc(t.hrSick)}</th><th class="num">${esc(t.hrLastOO)}</th><th class="num">${esc(t.hrScore)}</th></tr></thead>
+    <tbody>${shown.map(p => {
+      const e = emps.get(p.id) || null;
+      const mine = leaves.filter(l => l.employee_id === p.id);
+      const ls = leaveSummary(e, mine, day);
+      const rv = latest.get(p.id);
+      const sc = rv ? formScore(rv.ratings).pct : null;
+      const away = onLeave(leaves, p.id, day);
+      return `<tr>
+      <td><button class="link" data-act="go" data-route="#/hr/e/${esc(p.id)}">${esc(p.full_name || p.email || '—')}</button>
+        ${away ? `<span class="chip">${esc(t.hrEmpSt.on_leave)}</span>` : ''}</td>
+      <td class="small muted">${p.department_id ? esc(deptName(p.department_id, lang)) : '—'}</td>
+      <td class="small">${esc(e?.position || '—')}</td>
+      <td>${hrEmpPill(status(p), lang)}</td>
+      <td class="num muted">${esc(fmt(e?.joining_date, lang))}</td>
+      <td class="num muted">${esc(serviceText(e?.joining_date, lang, day))}</td>
+      <td class="num${ls.balance !== null && ls.balance < 0 ? ' bad' : ''}">${ls.balance === null ? '—' : esc(t.hrDaysShort.replace('{n}', ls.balance))}</td>
+      <td class="num">${ls.sick ? esc(t.hrDaysShort.replace('{n}', ls.sick)) : '<span class="muted">0</span>'}</td>
+      <td class="num muted">${esc(fmt(lastOO.get(p.id), lang))}</td>
+      <td class="num">${sc === null ? '<span class="muted">—</span>' : `${sc}% <span class="muted small">${esc(rv.period)}</span>`}</td>
+    </tr>`;
+    }).join('')}</tbody>
+  </table></div>` : `<p class="note">${esc(t.hrEmpNone)}</p>`}
+  <p class="note">${esc(t.hrLegal)}</p>
+</section>`;
+
+  return `
+<div class="card__head" style="border:0;padding:0 0 12px"><h2 style="font-size:17px">${esc(hr ? t.hrHead : t.hrTeamHead)}</h2></div>
+${kpis}
+${requests}
+${employees}`;
+}
+
+/* ------------------------------------------------------- new hiring request */
+
+export function hrHireView(lang, ctx) {
+  const t = DSTR[lang];
+  if (!isHR()) return hrDenied(lang);
+  const depts = db.state.departments || [];
+  return `
+${hrCrumb(lang)}
+<section class="card">
+  <div class="card__head"><h2>${esc(t.hrHireTitle)}</h2></div>
+  <p class="note note--lead">${esc(t.hrHireLead)}</p>
+  <form id="hireForm" class="projform">
+    <div class="fields">
+      <label class="f"><span>${esc(t.hrName)} *</span><input id="hName" required maxlength="200" autocomplete="off" /></label>
+      <label class="f"><span>${esc(t.hrPhone)}</span><input id="hPhone" type="tel" maxlength="40" autocomplete="off" /></label>
+      <label class="f"><span>${esc(t.hrNatId)}</span><input id="hNatId" maxlength="40" autocomplete="off" /></label>
+      <label class="f"><span>${esc(t.hrEmail)}</span><input id="hEmail" type="email" maxlength="200" autocomplete="off" title="${esc(t.hrEmailHint)}" /></label>
+      <label class="f"><span>${esc(t.hrJoining)}</span><input id="hJoin" type="date" /></label>
+      <label class="f"><span>${esc(t.hrPosition)}</span><input id="hPos" maxlength="200" /></label>
+      <label class="f"><span>${esc(t.hrDept)}</span>
+        <select id="hDept"><option value="">${esc(t.hrPickDept)}</option>
+          ${depts.map(d => `<option value="${esc(d.id)}">${esc(lang === 'ar' ? d.name_ar : d.name_en)}</option>`).join('')}
+        </select></label>
+      <label class="f f--wide"><span>${esc(t.hrJobDesc)}</span><textarea id="hJob" rows="4"></textarea></label>
+      <label class="f f--wide"><span>${esc(t.hrTools)}</span><textarea id="hTools" rows="2" placeholder="${esc(t.hrToolsHint)}"></textarea></label>
+      <label class="chk"><input type="checkbox" id="hLaptop" /> ${esc(t.hrLaptop)}</label>
+      <label class="f f--wide"><span>${esc(t.hrEquip)}</span><input id="hEquip" maxlength="500" placeholder="${esc(t.hrEquipHint)}" /></label>
+      <label class="f f--wide"><span>${esc(t.hrFeedback)}</span><textarea id="hFb" rows="4" placeholder="${esc(t.hrFeedbackHint)}"></textarea></label>
+    </div>
+    ${dropField('hIdDoc', t.hrIdCopy, t.hrIdCopyHint, { accept: 'image/*,.pdf' })}
+    <div class="actions actions--end"><button type="submit" class="btn btn--primary">${esc(t.hrSubmit)}</button></div>
+  </form>
+</section>`;
+}
+
+/* -------------------------------------------------------- one hiring request */
+
+export function hrRequestView(lang, ctx) {
+  const t = DSTR[lang];
+  if (!isHR()) return hrDenied(lang);
+  const r = ctx.hireReq;
+  if (!r) return `${hrCrumb(lang)}<section class="card"><div class="card__head"><h2>${esc(t.hrReqNotFound)}</h2></div></section>`;
+  const people = ctx.people || [];
+  const v = (x) => x ? esc(x) : `<span class="muted">—</span>`;
+
+  const actions = {
+    requested: `<button class="btn btn--primary btn--sm" data-hr-decide="approved">${esc(t.hrApprove)}</button>
+                <button class="btn btn--danger btn--sm" data-hr-decide="rejected">${esc(t.hrReject)}</button>`,
+    approved: `<button class="btn btn--primary btn--sm" data-hr-hire="${esc(r.id)}">${esc(t.hrMarkHired)}</button>
+               <button class="btn btn--danger btn--sm" data-hr-decide="rejected">${esc(t.hrReject)}</button>`,
+    rejected: `<button class="btn btn--sm" data-hr-decide="requested">${esc(t.hrReopen)}</button>`,
+    hired: r.hired_profile_id ? `<button class="btn btn--primary btn--sm" data-act="go" data-route="#/hr/e/${esc(r.hired_profile_id)}">${esc(t.hrOpenEmp)}</button>` : '',
+  }[r.status] || '';
+
+  return `
+${hrCrumb(lang)}
+<section class="card">
+  <div class="card__head"><h2>${esc(r.full_name)}</h2>${hrReqPill(r.status, lang)}</div>
+  <div class="factgrid">
+    ${hrFact(t.hrPosition, v(r.position))}
+    ${hrFact(t.hrDept, r.department_id ? esc(deptName(r.department_id, lang)) : '—')}
+    ${hrFact(t.hrJoining, esc(fmt(r.joining_date, lang)))}
+    ${hrFact(t.hrPhone, v(r.phone))}
+    ${hrFact(t.hrEmail, v(r.email))}
+    ${hrFact(t.hrNatId, v(r.national_id))}
+    ${hrFact(t.hrLaptop, r.needs_laptop ? '✓' : '—')}
+    ${hrFact(t.hrEquip, v(r.equipment))}
+    ${hrFact(t.hrRequestedBy, esc(personName(people, r.requested_by)))}
+    ${hrFact(t.hrRequestedOn, esc(fmt((r.created_at || '').slice(0, 10), lang)))}
+  </div>
+  <h3 class="subhead">${esc(t.hrJobDesc)}</h3>
+  <p class="prose${r.job_description ? '' : ' muted'}">${esc(r.job_description || '—')}</p>
+  <h3 class="subhead">${esc(t.hrTools)}</h3>
+  <p class="prose${r.needed_tools ? '' : ' muted'}">${esc(r.needed_tools || '—')}</p>
+  <h3 class="subhead">${esc(t.hrIdCopy)}</h3>
+  <p class="prose">${r.id_doc_path
+    ? `<button class="link" data-hr-doc="${esc(r.id_doc_path)}">${esc(t.hrViewId)}</button> <span class="muted small">${esc(r.id_doc_name || '')}</span>`
+    : `<span class="muted">${esc(t.hrNoId)}</span>`}</p>
+  ${r.decided_at ? `<p class="note">${esc(t.hrDecided.replace('{s}', t.hrSt[r.status] || r.status)
+      .replace('{who}', personName(people, r.decided_by)).replace('{d}', fmt(r.decided_at.slice(0, 10), lang)))}</p>` : ''}
+  ${actions ? `<div class="actions">${actions}</div>` : ''}
+  ${r.status === 'approved' ? `<p class="note">${esc(t.hrHireNote)}</p>` : ''}
+</section>
+
+<section class="card">
+  <div class="card__head"><h2>${esc(t.hrFeedback)}</h2></div>
+  <form id="hrFbForm" class="inlineform" style="border-bottom:0">
+    <div class="fields">
+      <label class="f f--wide"><span>${esc(t.hrFeedback)}</span>
+        <textarea id="hrFbBody" rows="5" placeholder="${esc(t.hrFeedbackHint)}">${esc(r.feedback || '')}</textarea></label>
+    </div>
+    <div class="actions"><button type="submit" class="btn btn--sm">${esc(t.hrSaveFb)}</button></div>
+  </form>
+</section>`;
+}
+
+/* ------------------------------------------------------------- one employee */
+
+export function hrEmployeeView(lang, ctx) {
+  const t = DSTR[lang];
+  const me = db.state.me;
+  const hr = isHR(me);
+  const people = ctx.people || [];
+  const p = people.find(x => x.id === ctx.hrId);
+  if (!p) return `${hrCrumb(lang)}<section class="card"><div class="card__head"><h2>${esc(t.hrEmpNotFound)}</h2></div></section>`;
+  const sup = !hr && p.supervisor_id === me?.id;
+  if (!hr && !sup) return hrDenied(lang);
+
+  const e = ctx.hrEmp || null;
+  const priv = hr ? (ctx.hrPriv || null) : null;
+  const leaves = ctx.hrLeaves || [];
+  const oos = ctx.hrOneOnOnes || [];
+  const reviews = (ctx.hrReviews || []).slice().sort((a, b) => String(b.period).localeCompare(String(a.period)));
+  const day = localToday();
+  const ls = leaveSummary(e, leaves, day);
+  const status = e?.employment_status || (p.is_active ? 'active' : 'probation');
+  const lastRv = reviews[0] || null;
+  const lastSc = lastRv ? formScore(lastRv.ratings) : null;
+  const dis = hr ? '' : ' disabled';
+  const canOO = hr || sup;
+  const v = (x) => x ? esc(x) : `<span class="muted">—</span>`;
+
+  const header = `
+<section class="card">
+  <div class="card__head"><h2>${esc(p.full_name || p.email || '—')}</h2>${hrEmpPill(status, lang)}
+    ${onLeave(leaves, p.id, day) ? `<span class="chip">${esc(t.hrEmpSt.on_leave)}</span>` : ''}</div>
+  <div class="factgrid">
+    ${hrFact(t.hrDept, p.department_id ? esc(deptName(p.department_id, lang)) : '—')}
+    ${hrFact(t.hrPosition, v(e?.position))}
+    ${hrFact(t.hrSupervisor, esc(p.supervisor_id ? personName(people, p.supervisor_id) : '—'))}
+    ${hrFact(t.hrJoined, esc(fmt(e?.joining_date, lang)))}
+    ${hrFact(t.hrService, esc(serviceText(e?.joining_date, lang, day)))}
+    ${hrFact(t.email, v(p.email))}
+    ${hrFact(t.hrPhone, v(e?.phone))}
+  </div>
+</section>`;
+
+  const scorecard = `
+<section class="card">
+  <div class="card__head"><h2>${esc(t.hrScorecard)}</h2><span class="muted small">${ls.year}</span></div>
+  <div class="kpis kpis--in kpis--5">
+    ${kpi(ls.balance === null ? '—' : ls.balance, t.hrKBalance, { colour: 'var(--ok)', bad: ls.balance !== null && ls.balance < 0,
+        sub: ls.entitlement === null ? t.hrNoJoinDate : `${ls.accrued} / ${ls.entitlement}` })}
+    ${kpi(ls.taken, t.hrKTaken.replace('{y}', ls.year), { colour: 'var(--info)' })}
+    ${kpi(ls.sick, t.hrKSick.replace('{y}', ls.year), { colour: 'var(--warn)' })}
+    ${kpi(lastSc && lastSc.pct !== null ? `${lastSc.pct}%` : '—', t.hrKLast, { colour: 'var(--brand)', sub: lastRv ? lastRv.period : '' })}
+    ${kpi(oos.length, t.hrKOO, { colour: 'var(--ink3)', sub: oos[0] ? t.hrKOOSub.replace('{d}', fmt(oos[0].held_on, lang)) : '' })}
+  </div>
+  ${ls.entitlement !== null ? `<p class="note">${esc(t.hrBalanceNote.replace('{year}', ls.year).replace('{ent}', ls.entitlement)
+      .replace('{acc}', ls.accrued).replace('{taken}', ls.taken))}</p>` : `<p class="note note--warn">${esc(t.hrNoJoinDate)}</p>`}
+</section>`;
+
+  const reviewsCard = `
+<section class="card">
+  <div class="card__head"><h2>${esc(t.hrReviews)}</h2><span class="muted small">${reviews.length}</span></div>
+  ${reviews.length ? `<div class="tblwrap"><table class="tbl tbl--tight">
+    <thead><tr><th>${esc(t.hrPeriod)}</th><th>${esc(t.hrBy)}</th><th class="num">${esc(t.hrScoreCol)}</th>
+      <th>${esc(t.hrStrengths)}</th><th>${esc(t.hrImprove)}</th></tr></thead>
+    <tbody>${reviews.map(r => { const s = formScore(r.ratings); return `<tr>
+      <td>${esc(r.period)}</td>
+      <td class="small muted">${esc(personName(people, r.author_id))}</td>
+      <td class="num">${s.pct === null ? '—' : `${s.pct}%`} <span class="muted small">${s.answered}/${s.of}</span></td>
+      <td class="small">${esc(r.strengths || '—')}</td>
+      <td class="small">${esc(r.improvements || '—')}</td></tr>`; }).join('')}</tbody>
+  </table></div>` : `<p class="note">${esc(t.hrNoReviews)}</p>`}
+</section>`;
+
+  const ooCard = `
+<section class="card">
+  <div class="card__head"><h2>${esc(t.hrOO)}</h2><span class="muted small">${oos.length}</span></div>
+  ${canOO ? `<details class="pdet"><summary style="margin-inline:16px">${esc(t.hrOOAdd)}</summary><form id="hrOoForm" class="inlineform">
+    <div class="fields">
+      <label class="f"><span>${esc(t.hrOODate)}</span><input id="ooDate" type="date" value="${esc(day)}" required /></label>
+      <label class="f f--wide"><span>${esc(t.hrOONotes)}</span><textarea id="ooNotes" rows="3" required></textarea></label>
+      <label class="f f--wide"><span>${esc(t.hrOOActions)}</span><textarea id="ooActions" rows="2"></textarea></label>
+    </div>
+    <div class="actions"><button type="submit" class="btn btn--sm">${esc(t.hrOOAdd)}</button></div>
+  </form></details>` : ''}
+  ${oos.length ? `<ul class="timeline">${oos.map(o => `
+    <li class="timeline__i">
+      <span class="timeline__d">${esc(fmt(o.held_on, lang))}</span>
+      <span class="timeline__b"><b>${esc(o.by?.full_name || personName(people, o.conducted_by))}</b> — ${esc(o.notes || '')}
+        ${o.action_items ? `<span class="block muted small">${esc(t.hrOOActions)}: ${esc(o.action_items)}</span>` : ''}
+        ${hr || o.conducted_by === me?.id ? `<button class="x" data-hr-oo-del="${esc(o.id)}" title="${esc(t.remove)}" aria-label="${esc(t.remove)}">✕</button>` : ''}</span>
+    </li>`).join('')}</ul>` : `<p class="note">${esc(t.hrNoOO)}</p>`}
+</section>`;
+
+  const leaveCard = `
+<section class="card">
+  <div class="card__head"><h2>${esc(t.hrLeaves)}</h2><span class="muted small">${leaves.length}</span></div>
+  ${hr ? `<details class="pdet"><summary style="margin-inline:16px">${esc(t.hrLeaveAdd)}</summary><form id="hrLeaveForm" class="inlineform">
+    <div class="fields">
+      <label class="f"><span>${esc(t.hrLeaveType)}</span><select id="lvKind">
+        ${['annual', 'sick', 'unpaid', 'other'].map(k => `<option value="${k}">${esc(t.hrLeaveKind[k])}</option>`).join('')}
+      </select></label>
+      <label class="f"><span>${esc(t.hrFrom)}</span><input id="lvFrom" type="date" required /></label>
+      <label class="f"><span>${esc(t.hrTo)}</span><input id="lvTo" type="date" required /></label>
+      <label class="f"><span>${esc(t.hrDaysCol)}</span><input id="lvDays" type="number" min="0.5" max="366" step="0.5" required /></label>
+      <label class="f f--wide"><span>${esc(t.hrNote)}</span><input id="lvNote" maxlength="500" /></label>
+    </div>
+    <div class="actions"><button type="submit" class="btn btn--sm">${esc(t.hrLeaveAdd)}</button></div>
+  </form></details>` : ''}
+  ${leaves.length ? `<div class="tblwrap"><table class="tbl tbl--tight">
+    <thead><tr><th>${esc(t.hrLeaveType)}</th><th class="num">${esc(t.hrFrom)}</th><th class="num">${esc(t.hrTo)}</th>
+      <th class="num">${esc(t.hrDaysCol)}</th><th>${esc(t.hrNote)}</th>${hr ? '<th></th>' : ''}</tr></thead>
+    <tbody>${leaves.map(l => `<tr>
+      <td>${esc(t.hrLeaveKind[l.kind] || l.kind)}</td>
+      <td class="num muted">${esc(fmt(l.start_date, lang))}</td>
+      <td class="num muted">${esc(fmt(l.end_date, lang))}</td>
+      <td class="num">${esc(Number(l.days))}</td>
+      <td class="small">${esc(l.note || '')}</td>
+      ${hr ? `<td class="proc-actions"><button class="x" data-hr-leave-del="${esc(l.id)}" title="${esc(t.remove)}" aria-label="${esc(t.remove)}">✕</button></td>` : ''}
+    </tr>`).join('')}</tbody>
+  </table></div>` : `<p class="note">${esc(t.hrNoLeaves)}</p>`}
+  <p class="note">${esc(t.hrLegal)}</p>
+</section>`;
+
+  const EMP_ST = ['probation', 'active', 'on_leave', 'terminated'];
+  const fileCard = `
+<section class="card">
+  <div class="card__head"><h2>${esc(t.hrFile)}</h2></div>
+  <form id="hrFileForm" class="inlineform" style="border-bottom:0">
+    <div class="fields">
+      <label class="f"><span>${esc(t.hrPosition)}</span><input id="efPos" maxlength="200" value="${esc(e?.position || '')}"${dis} /></label>
+      <label class="f"><span>${esc(t.hrJoining)}</span><input id="efJoin" type="date" value="${esc(e?.joining_date || '')}"${dis} /></label>
+      <label class="f"><span>${esc(t.hrStatusL)}</span><select id="efStatus"${dis}>
+        ${EMP_ST.map(s => `<option value="${s}"${s === status ? ' selected' : ''}>${esc(t.hrEmpSt[s])}</option>`).join('')}
+      </select></label>
+      <label class="f"><span>${esc(t.hrPhone)}</span><input id="efPhone" type="tel" maxlength="40" value="${esc(e?.phone || '')}"${dis} /></label>
+      <label class="f"><span>${esc(t.hrOverride)}</span><input id="efOverride" type="number" min="0" max="365" step="0.5"
+        value="${esc(e?.annual_leave_override ?? '')}" placeholder="${esc(String(annualEntitlement(e?.joining_date, null, day)))}"
+        title="${esc(t.hrOverrideHint)}"${dis} /></label>
+      <label class="f f--wide"><span>${esc(t.hrJobDesc)}</span><textarea id="efJob" rows="3"${dis}>${esc(e?.job_description || '')}</textarea></label>
+    </div>
+    ${hr ? `<div class="actions"><button type="submit" class="btn btn--primary btn--sm">${esc(t.save)}</button></div>`
+         : `<p class="note">${esc(t.hrReadOnly)}</p>`}
+  </form>
+</section>`;
+
+  const idCard = hr ? `
+<section class="card">
+  <div class="card__head"><h2>${esc(t.hrIdentity)}</h2></div>
+  <form id="hrPrivForm" class="inlineform" style="border-bottom:0">
+    <div class="fields">
+      <label class="f"><span>${esc(t.hrNatId)}</span><input id="pvNat" maxlength="40" autocomplete="off" value="${esc(priv?.national_id || '')}" /></label>
+      <label class="f f--wide"><span>${esc(t.hrHrNotes)}</span><textarea id="pvNotes" rows="3">${esc(priv?.hr_notes || '')}</textarea></label>
+    </div>
+    <p class="prose">${priv?.id_doc_path
+      ? `<button type="button" class="link" data-hr-doc="${esc(priv.id_doc_path)}">${esc(t.hrViewId)}</button> <span class="muted small">${esc(priv.id_doc_name || '')}</span>`
+      : `<span class="muted">${esc(t.hrNoId)}</span>`}</p>
+    ${dropField('pvDoc', t.hrReplaceId, t.hrIdCopyHint, { accept: 'image/*,.pdf' })}
+    <div class="actions"><button type="submit" class="btn btn--sm">${esc(t.save)}</button></div>
+  </form>
+</section>` : '';
+
+  /* Everything above, on one line of time. */
+  const events = [];
+  if (e?.joining_date) events.push({ d: e.joining_date, b: t.hrTlJoined.replace('{p}', e.position || '—') });
+  for (const l of leaves) events.push({ d: l.start_date, b: t.hrTlLeave.replace('{k}', t.hrLeaveKind[l.kind] || l.kind).replace('{n}', Number(l.days)) });
+  for (const o of oos) events.push({ d: o.held_on, b: t.hrTlOO.replace('{who}', o.by?.full_name || personName(people, o.conducted_by)) });
+  for (const r of reviews) {
+    const s = formScore(r.ratings);
+    if (s.pct !== null) events.push({ d: (r.updated_at || r.submitted_at || '').slice(0, 10), b: t.hrTlReview.replace('{q}', r.period).replace('{s}', s.pct) });
+  }
+  if (ctx.hrReqFor?.decided_at) events.push({ d: ctx.hrReqFor.decided_at.slice(0, 10), b: t.hrTlHired, route: `#/hr/r/${ctx.hrReqFor.id}` });
+  events.sort((a, b) => String(b.d).localeCompare(String(a.d)));
+
+  const timeline = `
+<section class="card">
+  <div class="card__head"><h2>${esc(t.hrTimeline)}</h2></div>
+  ${events.length ? `<ul class="timeline">${events.map(x => `
+    <li class="timeline__i">
+      <span class="timeline__d">${esc(fmt(x.d, lang))}</span>
+      <span class="timeline__b">${x.route ? `<button class="link" data-act="go" data-route="${esc(x.route)}">${esc(x.b)}</button>` : esc(x.b)}</span>
+    </li>`).join('')}</ul>` : `<p class="note">${esc(t.noHistory)}</p>`}
+</section>`;
+
+  return `${hrCrumb(lang)}${header}${scorecard}${leaveCard}${ooCard}${reviewsCard}${fileCard}${idCard}${timeline}`;
 }
