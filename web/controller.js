@@ -904,7 +904,62 @@ function readProjectForm() {
   };
 }
 
+/* ------------------------------------------------------------------ drafts
+   A half-filled form is kept in sessionStorage as it is typed, so it survives
+   anything that rebuilds the screen — including Chrome unloading a background
+   tab to save memory and reloading it when the person comes back. Per tab,
+   gone when the tab closes, cleared on a successful save. Files cannot be
+   kept: a browser never lets a page re-select a file by itself. */
+const DRAFT_PREFIX = 'expand.draft.';
+const draftKey = (el) => el.id || `${el.className}|${el.dataset.dept || el.value}`;
+const draftFields = (form) => [...form.querySelectorAll('input, select, textarea')]
+  .filter(el => el.type !== 'file' && el.type !== 'submit' && el.type !== 'button');
+
+function readDraft(name) {
+  try { return JSON.parse(sessionStorage.getItem(DRAFT_PREFIX + name) || 'null'); } catch { return null; }
+}
+export function clearDraft(name) {
+  try { sessionStorage.removeItem(DRAFT_PREFIX + name); } catch { /* storage off: nothing to clear */ }
+}
+/** Restore any saved draft into `form`, then keep saving it. Returns true if
+    something was restored. */
+function keepDraft(name, form) {
+  const saved = readDraft(name);
+  let restored = false;
+  if (saved && typeof saved === 'object') {
+    for (const el of draftFields(form)) {
+      const k = draftKey(el);
+      if (!(k in saved)) continue;
+      if (el.type === 'checkbox' || el.type === 'radio') el.checked = !!saved[k];
+      else el.value = saved[k];
+      restored = true;
+    }
+  }
+  const save = () => {
+    const out = {};
+    for (const el of draftFields(form)) {
+      out[draftKey(el)] = (el.type === 'checkbox' || el.type === 'radio') ? el.checked : el.value;
+    }
+    try { sessionStorage.setItem(DRAFT_PREFIX + name, JSON.stringify(out)); } catch { /* storage off: in-memory only */ }
+  };
+  form.addEventListener('input', save);
+  form.addEventListener('change', save);
+  return restored;
+}
+
 function wireNewProject(lang, form) {
+  /* Bring back what was typed before the screen was rebuilt, and say so —
+     a form that silently refills itself reads as a bug, so it offers a way
+     to start over. */
+  if (keepDraft('newProject', form)) {
+    const t = V.DSTR[lang];
+    const note = document.createElement('p');
+    note.className = 'note note--lead';
+    note.innerHTML = `${t.draftRestored} <button type="button" class="link" data-draft-clear>${t.draftClear}</button>`;
+    form.prepend(note);
+    note.querySelector('[data-draft-clear]').onclick = () => { clearDraft('newProject'); rerender(); };
+  }
+
   const refresh = () => {
     const f = readProjectForm();
     if (!f.stages.length) { $('#estBox').innerHTML = ''; ctx.est = null; return; }
@@ -958,6 +1013,7 @@ function wireNewProject(lang, form) {
         await db.uploadFile('refs', ref, { purpose: 'reference', project_id: project.id });
       }
 
+      clearDraft('newProject');
       location.hash = '#/home';
     } catch (err) {
       fail(err); btn.disabled = false; btn.textContent = V.DSTR[lang].createAndAssign;
