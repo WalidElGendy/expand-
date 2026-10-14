@@ -291,6 +291,7 @@ export const DSTR = {
     prodDelivery: 'Delivery to site', prodFiles: 'Production files',
     prodFilesHint: 'Drawings, plans, deliverables', prodFilesHead: 'Files', prodNoFiles: 'No production files yet.',
     prodOnlyTeam: 'Only the production team and planners can edit these.',
+    draftRestored: 'Your unsaved project details were restored. Attached files need to be added again.', draftClear: 'Start over',
     /* --- HR --- */
     hrNav: 'HR', hrTeamNav: 'My team', hrHead: 'Workforce', hrTeamHead: 'My team',
     hrNewHire: '+ New hiring request',
@@ -581,6 +582,7 @@ export const DSTR = {
     prodDelivery: 'التسليم للموقع', prodFiles: 'ملفات الإنتاج',
     prodFilesHint: 'رسومات، مخططات، مخرجات', prodFilesHead: 'الملفات', prodNoFiles: 'لا توجد ملفات إنتاج بعد.',
     prodOnlyTeam: 'يمكن لفريق الإنتاج والمخططين فقط التعديل هنا.',
+    draftRestored: 'تمت استعادة بيانات المشروع غير المحفوظة. يجب إرفاق الملفات مرة أخرى.', draftClear: 'ابدأ من جديد',
     /* --- الموارد البشرية --- */
     hrNav: 'الموارد البشرية', hrTeamNav: 'فريقي', hrHead: 'القوى العاملة', hrTeamHead: 'فريقي',
     hrNewHire: '+ طلب توظيف جديد',
