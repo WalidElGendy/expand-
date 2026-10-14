@@ -864,13 +864,27 @@ function estimate(fromForm) {
     /* Read any auth failure out of the fragment BEFORE the router sees it —
        an `#error=...` fragment is not a route, and left in place it renders
        the landing page while the user waits for an explanation. */
-    db.onAuthChange((event) => {
+    db.onAuthChange((event, session) => {
       // A recovery link signs the user in with the sole purpose of letting
       // them set a new password. Send them to that screen rather than a
       // dashboard they cannot get back into next time.
       if (event === 'PASSWORD_RECOVERY') {
         C.ctx.authMode = 'reset';
         location.hash = '#/reset';
+        render();
+        return;
+      }
+      /* Supabase re-announces SIGNED_IN every time the tab becomes visible
+         again, and TOKEN_REFRESHED about once an hour. Neither changes who is
+         signed in, and repainting on them wiped every half-filled form the
+         moment someone switched browser tabs and came back. Keep the fresh
+         token, leave the screen alone. */
+      const before = db.state.session?.user?.id || null;
+      const after = session?.user?.id || null;
+      if (event === 'TOKEN_REFRESHED' ||
+          (['SIGNED_IN', 'INITIAL_SESSION', 'USER_UPDATED'].includes(event) && before && before === after)) {
+        if (session) db.state.session = session;
+        return;
       }
       render();
     });
