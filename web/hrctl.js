@@ -80,6 +80,7 @@ export async function loadHR(route, id, ctx) {
       settle('hrGoals', D.listGoals());
     }
     if (id === 'letters') settle('hrLetters', D.listLetters());
+    if (id === 'settings' && hr) settle('hrSyncRuns', D.listSyncRuns(10));
     if (id === 'hiring') settle('hiring', db.listHiring());
   }
 
@@ -397,7 +398,7 @@ export function wireHR2(lang, { ctx, rerender, fail, reload }) {
     const early = outM !== null ? Math.max(0, endM - outM) : 0;
     await run(attFix.querySelector('button[type=submit]'), () => D.saveAttendance({
       employee_id: ctx.hrId, day, clock_in: localTs(day, tin, S.timezone), clock_out: localTs(day, tout, S.timezone),
-      late_minutes: late, early_minutes: early, note: orNull('#afNote'), in_remote: false, out_remote: false }))();
+      late_minutes: late, early_minutes: early, note: orNull('#afNote'), in_remote: false, out_remote: false, source: 'manual' }))();
   };
 
   const salForm = $('#salForm');
@@ -581,6 +582,31 @@ export function wireHR2(lang, { ctx, rerender, fail, reload }) {
       await D.saveSettings(patch);
     })();
   };
+  /* --- fingerprint system --- */
+  const fpForm = $('#fpForm');
+  if (fpForm) fpForm.onsubmit = run(fpForm.querySelector('button[type=submit]'), async () => {
+    await D.saveSettings({ attendance_source: val('#fpSource') || 'fingerprint', fp_url: orNull('#fpUrl') });
+    const key = val('#fpKey');
+    if (key) { await D.setFingerprintKey(key); $('#fpKey').value = ''; }
+  });
+  const fpClear = $('[data-fp-clear]');
+  if (fpClear) fpClear.onclick = async () => { if (confirm(t.confirmDel)) await run(fpClear, () => D.setFingerprintKey(null))(); };
+  $$('[data-fp-sync]').forEach(b => b.onclick = async () => {
+    const label = b.textContent;
+    busy(b, true); b.textContent = t.fp.running;
+    try {
+      const r = await D.syncFingerprint({ from: val('#fpFrom') || null, to: val('#fpTo') || null });
+      ctx.fpMsg = t.fp.done.replace('{n}', r.saved ?? 0).replace('{m}', r.matched ?? 0)
+        + (r.error_count ? ` · ${r.error_count} ${t.fp.failed}` : '');
+      await done();
+    } catch (err) {
+      ctx.fpMsg = err.message;
+      b.textContent = label; busy(b, false);
+      await done().catch(() => {});
+      fail(err);
+    }
+  });
+
   const holForm = $('#holForm');
   if (holForm) holForm.onsubmit = run(holForm.querySelector('button[type=submit]'), () => D.addHoliday(val('#hoDay'), val('#hoName')));
   $$('[data-hol-del]').forEach(b => b.onclick = run(b, () => D.deleteHoliday(b.dataset.holDel)));
