@@ -658,6 +658,10 @@ const deptName = (id, lang) => {
 
 const STAGE_LABEL = { pending: 'pending', in_progress: 'started', done: 'done', blocked: 'blocked' };
 
+/* Shared with the HR screens (hr.js), so the two never format a date, a
+   department or a KPI tile differently. */
+export { esc, fmt, kpi, deptName };
+
 /* -------------------------------------------------------------- status pills
    Status is a STATE, not a series, so it uses the reserved status colours and
    always carries its own word. `in_design` shipped to production as raw enum
@@ -3555,21 +3559,6 @@ export function leaveSummary(emp, leaves = [], asOf = localToday()) {
 export const onLeave = (leaves, employeeId, day = localToday()) =>
   (leaves || []).some(l => l.employee_id === employeeId && l.start_date <= day && l.end_date >= day);
 
-function serviceText(joining, lang, asOf = localToday()) {
-  if (!joining) return '—';
-  const t = DSTR[lang];
-  const j = asDate(joining), a = asDate(asOf);
-  if (j > a) return fmt(joining, lang);
-  const y = yearsOfService(joining, a);
-  const anniv = addYears(j, y);
-  let m = (a.getUTCFullYear() - anniv.getUTCFullYear()) * 12 + a.getUTCMonth() - anniv.getUTCMonth();
-  if (a.getUTCDate() < anniv.getUTCDate()) m--;
-  m = Math.max(0, m);
-  if (y > 0) return `${t.hrYears.replace('{n}', y)}${m ? ' ' + t.hrMonths.replace('{n}', m) : ''}`;
-  if (m > 0) return t.hrMonths.replace('{n}', m);
-  return t.hrDays.replace('{n}', leaveDays(j, a) - 1);
-}
-
 const HR_REQ_COLOUR = { requested: 'var(--warn)', approved: 'var(--info)', rejected: 'var(--critical)', hired: 'var(--ok)' };
 const HR_EMP_COLOUR = { probation: 'var(--warn)', active: 'var(--ok)', on_leave: 'var(--info)', terminated: 'var(--ink4)' };
 function hrPill(map, colours, key, lang) {
@@ -3580,16 +3569,6 @@ function hrPill(map, colours, key, lang) {
 export const hrReqPill = (s, lang) => hrPill('hrSt', HR_REQ_COLOUR, s, lang);
 export const hrEmpPill = (s, lang) => hrPill('hrEmpSt', HR_EMP_COLOUR, s, lang);
 
-/** Latest review per subject, by period ('2026-Q3' sorts as text). */
-function latestReviews(reviews = []) {
-  const m = new Map();
-  for (const r of reviews) {
-    const cur = m.get(r.subject_id);
-    if (!cur || String(r.period) > String(cur.period)) m.set(r.subject_id, r);
-  }
-  return m;
-}
-
 const hrCrumb = (lang) => `<nav class="crumb"><button class="link" data-act="go" data-route="#/hr">← ${esc(DSTR[lang].hrBack)}</button></nav>`;
 const hrDenied = (lang) => `<section class="card"><p class="note">${esc(DSTR[lang].hrNoAccess)}</p></section>`;
 const hrFact = (label, value, cls = '') =>
@@ -3598,122 +3577,6 @@ const personName = (people, id) => {
   const p = (people || []).find(x => x.id === id);
   return p ? (p.full_name || p.email || '—') : '—';
 };
-
-/* ------------------------------------------------------------ the dashboard */
-
-export function hrView(lang, ctx) {
-  const t = DSTR[lang];
-  const me = db.state.me;
-  if (!me) return '';
-  const hr = isHR(me);
-  const people = ctx.people || [];
-  const emps = new Map((ctx.hrEmployees || []).map(e => [e.profile_id, e]));
-  if (!hr && !people.some(p => p.supervisor_id === me.id)) return hrDenied(lang);
-
-  const day = localToday();
-  const leaves = ctx.hrLeaves || [];
-  const oos = ctx.hrOneOnOnes || [];
-  const latest = latestReviews(ctx.hrReviews || []);
-  const hiring = hr ? (ctx.hiring || []) : [];
-
-  /* The roster: everyone signed in, plus anyone with an HR file who has not
-     been given a login yet (a new hire before their invitation). A supervisor
-     sees only their own reports. */
-  let roster = people.filter(p => p.is_active || emps.has(p.id));
-  if (!hr) roster = roster.filter(p => p.supervisor_id === me.id);
-  const status = (p) => emps.get(p.id)?.employment_status || (p.is_active ? 'active' : 'probation');
-  const current = roster.filter(p => status(p) !== 'terminated');
-  const shown = (ctx.hrShowLeft ? roster : current)
-    .slice().sort((a, b) => String(a.full_name || a.email).localeCompare(String(b.full_name || b.email)));
-
-  const in30 = iso(new Date(parse(day).getTime() + 30 * DAY_MS));
-  const joiningSoon = current.filter(p => { const d = emps.get(p.id)?.joining_date; return d && d >= day && d <= in30; }).length
-    + hiring.filter(h => h.status === 'approved' && h.joining_date && h.joining_date >= day && h.joining_date <= in30).length;
-  const openReq = hiring.filter(h => ['requested', 'approved'].includes(h.status));
-  const noFile = current.filter(p => !emps.get(p.id)?.joining_date).length;
-  const leaveToday = current.filter(p => onLeave(leaves, p.id, day)).length;
-  const probation = current.filter(p => status(p) === 'probation').length;
-
-  const lastOO = new Map();
-  for (const o of oos) if (!lastOO.has(o.employee_id)) lastOO.set(o.employee_id, o.held_on);
-
-  const kpis = hr ? `
-<div class="kpis kpis--5">
-  ${kpi(current.length, t.hrKHead, { colour: 'var(--brand)', sub: t.hrKHeadSub.replace('{p}', probation) })}
-  ${kpi(leaveToday, t.hrKLeave, { colour: 'var(--info)' })}
-  ${kpi(openReq.length, t.hrKOpen, { colour: 'var(--warn)',
-      sub: t.hrKOpenSub.replace('{a}', openReq.filter(h => h.status === 'approved').length) })}
-  ${kpi(joiningSoon, t.hrKJoin, { colour: 'var(--ok)' })}
-  ${kpi(noFile, t.hrKNoFile, { colour: 'var(--critical)', bad: noFile > 0, sub: t.hrKNoFileSub })}
-</div>` : '';
-
-  const reqOrder = { requested: 0, approved: 1, hired: 2, rejected: 3 };
-  const reqRows = hiring.slice().sort((a, b) =>
-    (reqOrder[a.status] ?? 9) - (reqOrder[b.status] ?? 9) || String(b.created_at).localeCompare(String(a.created_at)));
-  const kit = (h) => [h.needs_laptop ? '💻' : '', h.equipment || ''].filter(Boolean).join(' ') || '—';
-
-  const requests = hr ? `
-<section class="card">
-  <div class="card__head">
-    <h2>${esc(t.hrReqHead)}</h2><span class="muted small">${openReq.length} / ${hiring.length}</span>
-    <button class="btn btn--primary btn--sm" style="margin-inline-start:auto" data-act="go" data-route="#/hr/new">${esc(t.hrNewHire)}</button>
-  </div>
-  ${reqRows.length ? `<div class="tblwrap"><table class="tbl tbl--tight">
-    <thead><tr><th>${esc(t.hrName)}</th><th>${esc(t.hrPosition)}</th><th>${esc(t.hrDept)}</th>
-      <th class="num">${esc(t.hrJoining)}</th><th>${esc(t.hrKit)}</th><th>${esc(t.status)}</th>
-      <th class="num">${esc(t.hrRequestedOn)}</th></tr></thead>
-    <tbody>${reqRows.map(h => `<tr>
-      <td><button class="link" data-act="go" data-route="#/hr/r/${esc(h.id)}">${esc(h.full_name)}</button></td>
-      <td class="small">${esc(h.position || '—')}</td>
-      <td class="small muted">${h.department_id ? esc(deptName(h.department_id, lang)) : '—'}</td>
-      <td class="num muted">${esc(fmt(h.joining_date, lang))}</td>
-      <td class="small">${esc(kit(h))}</td>
-      <td>${hrReqPill(h.status, lang)}</td>
-      <td class="num muted">${esc(fmt((h.created_at || '').slice(0, 10), lang))}</td></tr>`).join('')}</tbody>
-  </table></div>` : `<p class="note">${esc(t.hrReqNone)}</p>`}
-</section>` : '';
-
-  const employees = `
-<section class="card">
-  <div class="card__head">
-    <h2>${esc(hr ? t.hrEmpHead : t.hrTeamHead)}</h2><span class="muted small">${shown.length}</span>
-    <label class="chk chk--inline" style="margin-inline-start:auto"><input type="checkbox" data-hr-left${ctx.hrShowLeft ? ' checked' : ''} /> ${esc(t.hrShowLeft)}</label>
-  </div>
-  ${shown.length ? `<div class="tblwrap"><table class="tbl tbl--tight">
-    <thead><tr><th>${esc(t.hrName)}</th><th>${esc(t.hrDept)}</th><th>${esc(t.hrPosition)}</th><th>${esc(t.status)}</th>
-      <th class="num">${esc(t.hrJoined)}</th><th class="num">${esc(t.hrService)}</th><th class="num">${esc(t.hrBalance)}</th>
-      <th class="num">${esc(t.hrSick)}</th><th class="num">${esc(t.hrLastOO)}</th><th class="num">${esc(t.hrScore)}</th></tr></thead>
-    <tbody>${shown.map(p => {
-      const e = emps.get(p.id) || null;
-      const mine = leaves.filter(l => l.employee_id === p.id);
-      const ls = leaveSummary(e, mine, day);
-      const rv = latest.get(p.id);
-      const sc = rv ? formScore(rv.ratings).pct : null;
-      const away = onLeave(leaves, p.id, day);
-      return `<tr>
-      <td><button class="link" data-act="go" data-route="#/hr/e/${esc(p.id)}">${esc(p.full_name || p.email || '—')}</button>
-        ${away ? `<span class="chip">${esc(t.hrEmpSt.on_leave)}</span>` : ''}</td>
-      <td class="small muted">${p.department_id ? esc(deptName(p.department_id, lang)) : '—'}</td>
-      <td class="small">${esc(e?.position || '—')}</td>
-      <td>${hrEmpPill(status(p), lang)}</td>
-      <td class="num muted">${esc(fmt(e?.joining_date, lang))}</td>
-      <td class="num muted">${esc(serviceText(e?.joining_date, lang, day))}</td>
-      <td class="num${ls.balance !== null && ls.balance < 0 ? ' bad' : ''}">${ls.balance === null ? '—' : esc(t.hrDaysShort.replace('{n}', ls.balance))}</td>
-      <td class="num">${ls.sick ? esc(t.hrDaysShort.replace('{n}', ls.sick)) : '<span class="muted">0</span>'}</td>
-      <td class="num muted">${esc(fmt(lastOO.get(p.id), lang))}</td>
-      <td class="num">${sc === null ? '<span class="muted">—</span>' : `${sc}% <span class="muted small">${esc(rv.period)}</span>`}</td>
-    </tr>`;
-    }).join('')}</tbody>
-  </table></div>` : `<p class="note">${esc(t.hrEmpNone)}</p>`}
-  <p class="note">${esc(t.hrLegal)}</p>
-</section>`;
-
-  return `
-<div class="card__head" style="border:0;padding:0 0 12px"><h2 style="font-size:17px">${esc(hr ? t.hrHead : t.hrTeamHead)}</h2></div>
-${kpis}
-${requests}
-${employees}`;
-}
 
 /* ------------------------------------------------------- new hiring request */
 
@@ -3809,188 +3672,4 @@ ${hrCrumb(lang)}
     <div class="actions"><button type="submit" class="btn btn--sm">${esc(t.hrSaveFb)}</button></div>
   </form>
 </section>`;
-}
-
-/* ------------------------------------------------------------- one employee */
-
-export function hrEmployeeView(lang, ctx) {
-  const t = DSTR[lang];
-  const me = db.state.me;
-  const hr = isHR(me);
-  const people = ctx.people || [];
-  const p = people.find(x => x.id === ctx.hrId);
-  if (!p) return `${hrCrumb(lang)}<section class="card"><div class="card__head"><h2>${esc(t.hrEmpNotFound)}</h2></div></section>`;
-  const sup = !hr && p.supervisor_id === me?.id;
-  if (!hr && !sup) return hrDenied(lang);
-
-  const e = ctx.hrEmp || null;
-  const priv = hr ? (ctx.hrPriv || null) : null;
-  const leaves = ctx.hrLeaves || [];
-  const oos = ctx.hrOneOnOnes || [];
-  const reviews = (ctx.hrReviews || []).slice().sort((a, b) => String(b.period).localeCompare(String(a.period)));
-  const day = localToday();
-  const ls = leaveSummary(e, leaves, day);
-  const status = e?.employment_status || (p.is_active ? 'active' : 'probation');
-  const lastRv = reviews[0] || null;
-  const lastSc = lastRv ? formScore(lastRv.ratings) : null;
-  const dis = hr ? '' : ' disabled';
-  const canOO = hr || sup;
-  const v = (x) => x ? esc(x) : `<span class="muted">—</span>`;
-
-  const header = `
-<section class="card">
-  <div class="card__head"><h2>${esc(p.full_name || p.email || '—')}</h2>${hrEmpPill(status, lang)}
-    ${onLeave(leaves, p.id, day) ? `<span class="chip">${esc(t.hrEmpSt.on_leave)}</span>` : ''}</div>
-  <div class="factgrid">
-    ${hrFact(t.hrDept, p.department_id ? esc(deptName(p.department_id, lang)) : '—')}
-    ${hrFact(t.hrPosition, v(e?.position))}
-    ${hrFact(t.hrSupervisor, esc(p.supervisor_id ? personName(people, p.supervisor_id) : '—'))}
-    ${hrFact(t.hrJoined, esc(fmt(e?.joining_date, lang)))}
-    ${hrFact(t.hrService, esc(serviceText(e?.joining_date, lang, day)))}
-    ${hrFact(t.email, v(p.email))}
-    ${hrFact(t.hrPhone, v(e?.phone))}
-  </div>
-</section>`;
-
-  const scorecard = `
-<section class="card">
-  <div class="card__head"><h2>${esc(t.hrScorecard)}</h2><span class="muted small">${ls.year}</span></div>
-  <div class="kpis kpis--in kpis--5">
-    ${kpi(ls.balance === null ? '—' : ls.balance, t.hrKBalance, { colour: 'var(--ok)', bad: ls.balance !== null && ls.balance < 0,
-        sub: ls.entitlement === null ? t.hrNoJoinDate : `${ls.accrued} / ${ls.entitlement}` })}
-    ${kpi(ls.taken, t.hrKTaken.replace('{y}', ls.year), { colour: 'var(--info)' })}
-    ${kpi(ls.sick, t.hrKSick.replace('{y}', ls.year), { colour: 'var(--warn)' })}
-    ${kpi(lastSc && lastSc.pct !== null ? `${lastSc.pct}%` : '—', t.hrKLast, { colour: 'var(--brand)', sub: lastRv ? lastRv.period : '' })}
-    ${kpi(oos.length, t.hrKOO, { colour: 'var(--ink3)', sub: oos[0] ? t.hrKOOSub.replace('{d}', fmt(oos[0].held_on, lang)) : '' })}
-  </div>
-  ${ls.entitlement !== null ? `<p class="note">${esc(t.hrBalanceNote.replace('{year}', ls.year).replace('{ent}', ls.entitlement)
-      .replace('{acc}', ls.accrued).replace('{taken}', ls.taken))}</p>` : `<p class="note note--warn">${esc(t.hrNoJoinDate)}</p>`}
-</section>`;
-
-  const reviewsCard = `
-<section class="card">
-  <div class="card__head"><h2>${esc(t.hrReviews)}</h2><span class="muted small">${reviews.length}</span></div>
-  ${reviews.length ? `<div class="tblwrap"><table class="tbl tbl--tight">
-    <thead><tr><th>${esc(t.hrPeriod)}</th><th>${esc(t.hrBy)}</th><th class="num">${esc(t.hrScoreCol)}</th>
-      <th>${esc(t.hrStrengths)}</th><th>${esc(t.hrImprove)}</th></tr></thead>
-    <tbody>${reviews.map(r => { const s = formScore(r.ratings); return `<tr>
-      <td>${esc(r.period)}</td>
-      <td class="small muted">${esc(personName(people, r.author_id))}</td>
-      <td class="num">${s.pct === null ? '—' : `${s.pct}%`} <span class="muted small">${s.answered}/${s.of}</span></td>
-      <td class="small">${esc(r.strengths || '—')}</td>
-      <td class="small">${esc(r.improvements || '—')}</td></tr>`; }).join('')}</tbody>
-  </table></div>` : `<p class="note">${esc(t.hrNoReviews)}</p>`}
-</section>`;
-
-  const ooCard = `
-<section class="card">
-  <div class="card__head"><h2>${esc(t.hrOO)}</h2><span class="muted small">${oos.length}</span></div>
-  ${canOO ? `<details class="pdet"><summary style="margin-inline:16px">${esc(t.hrOOAdd)}</summary><form id="hrOoForm" class="inlineform">
-    <div class="fields">
-      <label class="f"><span>${esc(t.hrOODate)}</span><input id="ooDate" type="date" value="${esc(day)}" required /></label>
-      <label class="f f--wide"><span>${esc(t.hrOONotes)}</span><textarea id="ooNotes" rows="3" required></textarea></label>
-      <label class="f f--wide"><span>${esc(t.hrOOActions)}</span><textarea id="ooActions" rows="2"></textarea></label>
-    </div>
-    <div class="actions"><button type="submit" class="btn btn--sm">${esc(t.hrOOAdd)}</button></div>
-  </form></details>` : ''}
-  ${oos.length ? `<ul class="timeline">${oos.map(o => `
-    <li class="timeline__i">
-      <span class="timeline__d">${esc(fmt(o.held_on, lang))}</span>
-      <span class="timeline__b"><b>${esc(o.by?.full_name || personName(people, o.conducted_by))}</b> — ${esc(o.notes || '')}
-        ${o.action_items ? `<span class="block muted small">${esc(t.hrOOActions)}: ${esc(o.action_items)}</span>` : ''}
-        ${hr || o.conducted_by === me?.id ? `<button class="x" data-hr-oo-del="${esc(o.id)}" title="${esc(t.remove)}" aria-label="${esc(t.remove)}">✕</button>` : ''}</span>
-    </li>`).join('')}</ul>` : `<p class="note">${esc(t.hrNoOO)}</p>`}
-</section>`;
-
-  const leaveCard = `
-<section class="card">
-  <div class="card__head"><h2>${esc(t.hrLeaves)}</h2><span class="muted small">${leaves.length}</span></div>
-  ${hr ? `<details class="pdet"><summary style="margin-inline:16px">${esc(t.hrLeaveAdd)}</summary><form id="hrLeaveForm" class="inlineform">
-    <div class="fields">
-      <label class="f"><span>${esc(t.hrLeaveType)}</span><select id="lvKind">
-        ${['annual', 'sick', 'unpaid', 'other'].map(k => `<option value="${k}">${esc(t.hrLeaveKind[k])}</option>`).join('')}
-      </select></label>
-      <label class="f"><span>${esc(t.hrFrom)}</span><input id="lvFrom" type="date" required /></label>
-      <label class="f"><span>${esc(t.hrTo)}</span><input id="lvTo" type="date" required /></label>
-      <label class="f"><span>${esc(t.hrDaysCol)}</span><input id="lvDays" type="number" min="0.5" max="366" step="0.5" required /></label>
-      <label class="f f--wide"><span>${esc(t.hrNote)}</span><input id="lvNote" maxlength="500" /></label>
-    </div>
-    <div class="actions"><button type="submit" class="btn btn--sm">${esc(t.hrLeaveAdd)}</button></div>
-  </form></details>` : ''}
-  ${leaves.length ? `<div class="tblwrap"><table class="tbl tbl--tight">
-    <thead><tr><th>${esc(t.hrLeaveType)}</th><th class="num">${esc(t.hrFrom)}</th><th class="num">${esc(t.hrTo)}</th>
-      <th class="num">${esc(t.hrDaysCol)}</th><th>${esc(t.hrNote)}</th>${hr ? '<th></th>' : ''}</tr></thead>
-    <tbody>${leaves.map(l => `<tr>
-      <td>${esc(t.hrLeaveKind[l.kind] || l.kind)}</td>
-      <td class="num muted">${esc(fmt(l.start_date, lang))}</td>
-      <td class="num muted">${esc(fmt(l.end_date, lang))}</td>
-      <td class="num">${esc(Number(l.days))}</td>
-      <td class="small">${esc(l.note || '')}</td>
-      ${hr ? `<td class="proc-actions"><button class="x" data-hr-leave-del="${esc(l.id)}" title="${esc(t.remove)}" aria-label="${esc(t.remove)}">✕</button></td>` : ''}
-    </tr>`).join('')}</tbody>
-  </table></div>` : `<p class="note">${esc(t.hrNoLeaves)}</p>`}
-  <p class="note">${esc(t.hrLegal)}</p>
-</section>`;
-
-  const EMP_ST = ['probation', 'active', 'on_leave', 'terminated'];
-  const fileCard = `
-<section class="card">
-  <div class="card__head"><h2>${esc(t.hrFile)}</h2></div>
-  <form id="hrFileForm" class="inlineform" style="border-bottom:0">
-    <div class="fields">
-      <label class="f"><span>${esc(t.hrPosition)}</span><input id="efPos" maxlength="200" value="${esc(e?.position || '')}"${dis} /></label>
-      <label class="f"><span>${esc(t.hrJoining)}</span><input id="efJoin" type="date" value="${esc(e?.joining_date || '')}"${dis} /></label>
-      <label class="f"><span>${esc(t.hrStatusL)}</span><select id="efStatus"${dis}>
-        ${EMP_ST.map(s => `<option value="${s}"${s === status ? ' selected' : ''}>${esc(t.hrEmpSt[s])}</option>`).join('')}
-      </select></label>
-      <label class="f"><span>${esc(t.hrPhone)}</span><input id="efPhone" type="tel" maxlength="40" value="${esc(e?.phone || '')}"${dis} /></label>
-      <label class="f"><span>${esc(t.hrOverride)}</span><input id="efOverride" type="number" min="0" max="365" step="0.5"
-        value="${esc(e?.annual_leave_override ?? '')}" placeholder="${esc(String(annualEntitlement(e?.joining_date, null, day)))}"
-        title="${esc(t.hrOverrideHint)}"${dis} /></label>
-      <label class="f f--wide"><span>${esc(t.hrJobDesc)}</span><textarea id="efJob" rows="3"${dis}>${esc(e?.job_description || '')}</textarea></label>
-    </div>
-    ${hr ? `<div class="actions"><button type="submit" class="btn btn--primary btn--sm">${esc(t.save)}</button></div>`
-         : `<p class="note">${esc(t.hrReadOnly)}</p>`}
-  </form>
-</section>`;
-
-  const idCard = hr ? `
-<section class="card">
-  <div class="card__head"><h2>${esc(t.hrIdentity)}</h2></div>
-  <form id="hrPrivForm" class="inlineform" style="border-bottom:0">
-    <div class="fields">
-      <label class="f"><span>${esc(t.hrNatId)}</span><input id="pvNat" maxlength="40" autocomplete="off" value="${esc(priv?.national_id || '')}" /></label>
-      <label class="f f--wide"><span>${esc(t.hrHrNotes)}</span><textarea id="pvNotes" rows="3">${esc(priv?.hr_notes || '')}</textarea></label>
-    </div>
-    <p class="prose">${priv?.id_doc_path
-      ? `<button type="button" class="link" data-hr-doc="${esc(priv.id_doc_path)}">${esc(t.hrViewId)}</button> <span class="muted small">${esc(priv.id_doc_name || '')}</span>`
-      : `<span class="muted">${esc(t.hrNoId)}</span>`}</p>
-    ${dropField('pvDoc', t.hrReplaceId, t.hrIdCopyHint, { accept: 'image/*,.pdf' })}
-    <div class="actions"><button type="submit" class="btn btn--sm">${esc(t.save)}</button></div>
-  </form>
-</section>` : '';
-
-  /* Everything above, on one line of time. */
-  const events = [];
-  if (e?.joining_date) events.push({ d: e.joining_date, b: t.hrTlJoined.replace('{p}', e.position || '—') });
-  for (const l of leaves) events.push({ d: l.start_date, b: t.hrTlLeave.replace('{k}', t.hrLeaveKind[l.kind] || l.kind).replace('{n}', Number(l.days)) });
-  for (const o of oos) events.push({ d: o.held_on, b: t.hrTlOO.replace('{who}', o.by?.full_name || personName(people, o.conducted_by)) });
-  for (const r of reviews) {
-    const s = formScore(r.ratings);
-    if (s.pct !== null) events.push({ d: (r.updated_at || r.submitted_at || '').slice(0, 10), b: t.hrTlReview.replace('{q}', r.period).replace('{s}', s.pct) });
-  }
-  if (ctx.hrReqFor?.decided_at) events.push({ d: ctx.hrReqFor.decided_at.slice(0, 10), b: t.hrTlHired, route: `#/hr/r/${ctx.hrReqFor.id}` });
-  events.sort((a, b) => String(b.d).localeCompare(String(a.d)));
-
-  const timeline = `
-<section class="card">
-  <div class="card__head"><h2>${esc(t.hrTimeline)}</h2></div>
-  ${events.length ? `<ul class="timeline">${events.map(x => `
-    <li class="timeline__i">
-      <span class="timeline__d">${esc(fmt(x.d, lang))}</span>
-      <span class="timeline__b">${x.route ? `<button class="link" data-act="go" data-route="${esc(x.route)}">${esc(x.b)}</button>` : esc(x.b)}</span>
-    </li>`).join('')}</ul>` : `<p class="note">${esc(t.noHistory)}</p>`}
-</section>`;
-
-  return `${hrCrumb(lang)}${header}${scorecard}${leaveCard}${ooCard}${reviewsCard}${fileCard}${idCard}${timeline}`;
 }
