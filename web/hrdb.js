@@ -64,6 +64,22 @@ export const listAttendance = async ({ from, to, employee_id = null } = {}) => {
 export const saveAttendance = async (row) => ok(await sb.from('hr_attendance')
   .upsert({ ...row, edited_by: me() }, { onConflict: 'employee_id,day' }).select().single());
 
+/* Fingerprint device (Malachite). The key goes straight into the vault; the
+   browser never reads it back, only its last four characters. */
+export const setFingerprintKey = (key) => rpc('hr_set_fp_key', { p_key: key });
+export const listSyncRuns = async (limit = 10) => ok(await sb.from('hr_sync_runs')
+  .select('*').order('started_at', { ascending: false }).limit(limit));
+export async function syncFingerprint({ from = null, to = null } = {}) {
+  const { data, error } = await sb.functions.invoke('hr-attendance-sync', { body: { from, to } });
+  if (error) {
+    let msg = error.message;
+    try { const b = await error.context?.json?.(); if (b?.error) msg = b.error; } catch { /* keep msg */ }
+    throw new Error(msg);
+  }
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
 /* ----------------------------------------------------------------- leave */
 export const listLeavesSince = async (since, employee_id = null) => {
   let q = sb.from('hr_leaves').select('*').gte('end_date', since).order('start_date', { ascending: false }).limit(5000);
