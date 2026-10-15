@@ -58,6 +58,7 @@ export const DEFAULT_SETTINGS = {
           saudi_new: { employee: 10.75, employer: 12.75 }, non_saudi: { employee: 0, employer: 2 } },
   approval_alert_hours: 48, contract_alert_days: 60, doc_alert_days: 30,
   attendance_start: null,          // absences only count from the day clocking began
+  attendance_source: 'fingerprint', // 'fingerprint' | 'both' | 'app'
 };
 export const settingsOf = (s) => ({ ...DEFAULT_SETTINGS, ...(s || {}),
   gosi: { ...DEFAULT_SETTINGS.gosi, ...((s && s.gosi) || {}) } });
