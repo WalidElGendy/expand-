@@ -37,7 +37,7 @@ export const HSTR = {
       employment_status: 'Employment status', contract_type: 'Contract type', contract_start: 'Contract start',
       contract_end: 'Contract end', probation_end: 'Probation ends', work_location: 'Work location',
       gosi_scheme: 'GOSI scheme', annual_leave_override: 'Annual leave days (override)', job_description: 'Job description',
-      end_date: 'Last working day', end_reason: 'Reason for leaving', national_id: 'ID / Iqama no.', id_expiry: 'ID / Iqama expiry',
+      end_date: 'Last working day', end_reason: 'Reason for leaving', device_no: 'Fingerprint no.', national_id: 'ID / Iqama no.', id_expiry: 'ID / Iqama expiry',
       passport_no: 'Passport no.', passport_expiry: 'Passport expiry', iban: 'IBAN', bank_name: 'Bank', hr_notes: 'HR notes' },
     ct: { unlimited: 'Unlimited', fixed: 'Fixed term', part_time: 'Part time', temporary: 'Temporary' },
     gs: { saudi_legacy: 'Saudi (before Jul 2024)', saudi_new: 'Saudi (new system)', non_saudi: 'Non-Saudi', exempt: 'Exempt', auto: 'From nationality' },
@@ -53,7 +53,8 @@ export const HSTR = {
       workDays: 'Work days', present: 'Present', absent: 'Absent', lateN: 'Late', earlyN: 'Early leave', remoteN: 'Away punches',
       leaveDays: 'Leave', fix: 'Correct a day', fixHint: 'Times in the office time zone.', min: 'min', none: 'No attendance yet.',
       report: 'Monthly attendance report', todayHead: 'Today', distance: '{m} m from office', noLoc: 'no location',
-      forgot: 'No clock-out', date: 'Date' },
+      forgot: 'No clock-out', date: 'Date',
+      src: { fingerprint: 'Fingerprint', app: 'App', manual: 'Edited by HR' }, source: 'Source' },
     sal: { current: 'Current salary', basic: 'Basic', housing: 'Housing', transport: 'Transport', other: 'Other allowances',
       gross: 'Gross', gosiEmp: 'GOSI (employee)', gosiEr: 'GOSI (employer)', netEst: 'Estimated net', history: 'Salary history & raises',
       effective: 'Effective from', reason: 'Reason', add: 'Add salary / raise', none: 'No salary recorded.',
@@ -107,10 +108,22 @@ export const HSTR = {
       footer: 'Letter footer', signatory: 'Signatory name', signTitle: 'Signatory title', signature: 'Signature image', stamp: 'Stamp image',
       imgHint: 'PNG with a transparent background works best', holidays: 'Public holidays', addHol: 'Add holiday', holName: 'Name',
       dow: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], uploaded: 'uploaded' },
+    fp: { title: 'Fingerprint system', source: 'Attendance comes from',
+      src: { fingerprint: 'Fingerprint device only', both: 'Fingerprint and the app button', app: 'App button only' },
+      url: 'System address', key: 'API key', keySaved: 'Key saved — ends in …{k}', keyNone: 'No key saved yet',
+      keyPh: 'Paste the API key', keyHint: 'Stored encrypted. It is never shown again — paste a new one to replace it.',
+      save: 'Save', removeKey: 'Remove key', sync: 'Sync now', from: 'From', to: 'To',
+      auto: 'Runs automatically every 15 minutes (last 3 days). Sync now with no dates fetches the last 7 days.',
+      last: 'Last sync', never: 'Never', ok: 'OK', failed: 'Failed', running: 'Syncing…', runs: 'Recent syncs',
+      when: 'When', trig: { manual: 'Manual', schedule: 'Automatic' }, range: 'Dates', result: 'Result',
+      matched: '{m} of {r} linked', saved: '{n} days saved', skipped: '{n} kept (edited by HR)',
+      unmatched: 'In the fingerprint system but not linked', unmatchedHint: 'Enter the fingerprint number in the employee profile (Job & contract → Fingerprint no.) and sync again.',
+      notLinked: 'People here with no fingerprint link', done: 'Synced {n} days for {m} people.' },
     me: { clockIn: 'Clock in', clockOut: 'Clock out', clockAgain: 'Update clock-out', inAt: 'In at {t}', outAt: 'Out at {t}',
       notIn: 'You have not clocked in today.', locating: 'Getting your location…', noLoc: 'Location not shared — recorded as away from the office.',
       awayWarn: 'You were {m} m from the office — recorded as away.', hours: 'Work hours {a}–{b}', thisMonth: 'This month',
-      myDocs: 'My documents', myGoals: 'My goals', approvals: 'Approvals waiting for you', notSetUp: 'Your HR file is not set up yet — ask HR to add your joining date.' },
+      myDocs: 'My documents', myGoals: 'My goals', approvals: 'Approvals waiting for you', notSetUp: 'Your HR file is not set up yet — ask HR to add your joining date.',
+      fpOnly: 'Your attendance comes from the fingerprint device.', fpWait: 'No punch received yet today — it updates every 15 minutes.' },
     hiring: 'Hiring requests',
     dataUpdate: 'What should change?',
     confirmDel: 'Delete this?', confirmReject: 'Reject this request?', confirmPaid: 'Mark this payroll as paid? Advance balances will be reduced.',
@@ -141,7 +154,7 @@ export const HSTR = {
       employment_status: 'الحالة الوظيفية', contract_type: 'نوع العقد', contract_start: 'بداية العقد',
       contract_end: 'نهاية العقد', probation_end: 'نهاية التجربة', work_location: 'مقر العمل',
       gosi_scheme: 'نظام التأمينات', annual_leave_override: 'أيام الإجازة السنوية (تعديل)', job_description: 'الوصف الوظيفي',
-      end_date: 'آخر يوم عمل', end_reason: 'سبب ترك العمل', national_id: 'رقم الهوية / الإقامة', id_expiry: 'انتهاء الهوية / الإقامة',
+      end_date: 'آخر يوم عمل', end_reason: 'سبب ترك العمل', device_no: 'رقم البصمة', national_id: 'رقم الهوية / الإقامة', id_expiry: 'انتهاء الهوية / الإقامة',
       passport_no: 'رقم الجواز', passport_expiry: 'انتهاء الجواز', iban: 'الآيبان', bank_name: 'البنك', hr_notes: 'ملاحظات الموارد البشرية' },
     ct: { unlimited: 'غير محدد المدة', fixed: 'محدد المدة', part_time: 'دوام جزئي', temporary: 'مؤقت' },
     gs: { saudi_legacy: 'سعودي (قبل يوليو 2024)', saudi_new: 'سعودي (النظام الجديد)', non_saudi: 'غير سعودي', exempt: 'معفى', auto: 'حسب الجنسية' },
@@ -157,7 +170,8 @@ export const HSTR = {
       workDays: 'أيام العمل', present: 'حضور', absent: 'غياب', lateN: 'تأخير', earlyN: 'انصراف مبكر', remoteN: 'تسجيل خارج المكتب',
       leaveDays: 'إجازات', fix: 'تصحيح يوم', fixHint: 'الأوقات بتوقيت المكتب.', min: 'د', none: 'لا يوجد حضور بعد.',
       report: 'تقرير الحضور الشهري', todayHead: 'اليوم', distance: 'يبعد {m} م عن المكتب', noLoc: 'بدون موقع',
-      forgot: 'لم يسجل الخروج', date: 'التاريخ' },
+      forgot: 'لم يسجل الخروج', date: 'التاريخ',
+      src: { fingerprint: 'البصمة', app: 'التطبيق', manual: 'معدّل من الموارد البشرية' }, source: 'المصدر' },
     sal: { current: 'الراتب الحالي', basic: 'الأساسي', housing: 'السكن', transport: 'النقل', other: 'بدلات أخرى',
       gross: 'الإجمالي', gosiEmp: 'التأمينات (الموظف)', gosiEr: 'التأمينات (صاحب العمل)', netEst: 'الصافي التقديري', history: 'سجل الرواتب والزيادات',
       effective: 'يسري من', reason: 'السبب', add: 'إضافة راتب / زيادة', none: 'لا يوجد راتب مسجل.',
@@ -211,10 +225,22 @@ export const HSTR = {
       footer: 'تذييل الخطاب', signatory: 'اسم المعتمد', signTitle: 'منصب المعتمد', signature: 'صورة التوقيع', stamp: 'صورة الختم',
       imgHint: 'يفضل PNG بخلفية شفافة', holidays: 'الإجازات الرسمية', addHol: 'إضافة إجازة', holName: 'الاسم',
       dow: ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'], uploaded: 'مرفوع' },
+    fp: { title: 'نظام البصمة', source: 'مصدر الحضور',
+      src: { fingerprint: 'جهاز البصمة فقط', both: 'البصمة وزر التطبيق', app: 'زر التطبيق فقط' },
+      url: 'عنوان النظام', key: 'مفتاح الربط (API)', keySaved: 'المفتاح محفوظ — ينتهي بـ …{k}', keyNone: 'لم يُحفظ مفتاح بعد',
+      keyPh: 'الصق مفتاح الربط', keyHint: 'يُحفظ مشفّراً ولا يُعرض مرة أخرى — الصق مفتاحاً جديداً لاستبداله.',
+      save: 'حفظ', removeKey: 'حذف المفتاح', sync: 'مزامنة الآن', from: 'من', to: 'إلى',
+      auto: 'تتم المزامنة تلقائياً كل 15 دقيقة (آخر 3 أيام). المزامنة اليدوية بدون تواريخ تجلب آخر 7 أيام.',
+      last: 'آخر مزامنة', never: 'لم تتم', ok: 'ناجحة', failed: 'فشلت', running: 'جارٍ المزامنة…', runs: 'آخر عمليات المزامنة',
+      when: 'الوقت', trig: { manual: 'يدوية', schedule: 'تلقائية' }, range: 'الفترة', result: 'النتيجة',
+      matched: 'تم ربط {m} من {r}', saved: 'حُفظ {n} يوم', skipped: '{n} لم تُغيّر (معدّلة من الموارد البشرية)',
+      unmatched: 'موجودون في نظام البصمة وغير مربوطين', unmatchedHint: 'أدخل رقم البصمة في ملف الموظف (الوظيفة والعقد ← رقم البصمة) ثم أعد المزامنة.',
+      notLinked: 'موظفون هنا بدون ربط بالبصمة', done: 'تمت مزامنة {n} يوم لـ {m} موظف.' },
     me: { clockIn: 'تسجيل الحضور', clockOut: 'تسجيل الانصراف', clockAgain: 'تحديث الانصراف', inAt: 'الحضور {t}', outAt: 'الانصراف {t}',
       notIn: 'لم تسجل حضورك اليوم.', locating: 'جارٍ تحديد موقعك…', noLoc: 'لم تتم مشاركة الموقع — سُجّل كخارج المكتب.',
       awayWarn: 'كنت على بعد {m} م من المكتب — سُجّل كخارج المكتب.', hours: 'الدوام {a}–{b}', thisMonth: 'هذا الشهر',
-      myDocs: 'وثائقي', myGoals: 'أهدافي', approvals: 'بانتظار اعتمادك', notSetUp: 'ملفك لم يكتمل بعد — اطلب من الموارد البشرية إضافة تاريخ مباشرتك.' },
+      myDocs: 'وثائقي', myGoals: 'أهدافي', approvals: 'بانتظار اعتمادك', notSetUp: 'ملفك لم يكتمل بعد — اطلب من الموارد البشرية إضافة تاريخ مباشرتك.',
+      fpOnly: 'يُسجَّل حضورك من جهاز البصمة.', fpWait: 'لم تصل بصمة اليوم بعد — يتم التحديث كل 15 دقيقة.' },
     hiring: 'طلبات التوظيف',
     dataUpdate: 'ما الذي يجب تعديله؟',
     confirmDel: 'حذف؟', confirmReject: 'رفض هذا الطلب؟', confirmPaid: 'تأكيد صرف المسير؟ سيتم خصم أقساط السلف.',
@@ -409,7 +435,7 @@ function todayCard(lang, ctx, T0, S) {
   const order = { absent: 0, expected: 1, in: 2, out: 3, sick: 4, leave: 5, off: 6 };
   const rows = [...T0.rows].sort((a, b) => order[a.state] - order[b.state]);
   return card(`${t.att.todayHead} · ${fmt(H.todayIn(S.timezone), lang)}`, tbl(
-    `<th>${t.name}</th><th>${t.dept}</th><th>${t.status}</th><th class="num">${t.att.in}</th><th class="num">${t.att.out}</th><th class="num">${t.att.late}</th><th>${t.att.remote}</th>`,
+    `<th>${t.name}</th><th>${t.dept}</th><th>${t.status}</th><th class="num">${t.att.in}</th><th class="num">${t.att.out}</th><th class="num">${t.att.late}</th><th>${S.attendance_source === 'app' ? t.att.remote : t.att.source}</th>`,
     rows.map(r => `<tr>
       <td>${go(`#/hr/e/${r.person.id}`, r.person.full_name || r.person.email)}</td>
       <td class="small muted">${esc(r.person.department_id ? deptName(r.person.department_id, lang) : '—')}</td>
@@ -417,8 +443,26 @@ function todayCard(lang, ctx, T0, S) {
       <td class="num">${hhmm(r.att?.clock_in, S.timezone)}</td>
       <td class="num">${hhmm(r.att?.clock_out, S.timezone)}</td>
       <td class="num${r.late ? ' bad' : ' muted'}">${r.late ? `${r.late} ${t.att.min}` : '—'}</td>
-      <td class="small">${r.remote ? `<span class="chip chip--warn">${esc(r.att?.in_distance_m != null ? t.att.distance.replace('{m}', r.att.in_distance_m) : t.att.remote)}</span>` : ''}</td>
+      <td class="small">${r.remote ? `<span class="chip chip--warn">${esc(r.att?.in_distance_m != null ? t.att.distance.replace('{m}', r.att.in_distance_m) : t.att.remote)}</span>` : ''}${srcChip(r.att, lang)}</td>
     </tr>`).join('')), `<span class="muted small">${T0.present}/${T0.rows.length}</span>`);
+}
+
+/** Where a day's punches came from, when it is not the app button. */
+const srcChip = (a, lang) => a?.source && a.source !== 'app' ? ` <span class="chip">${esc(T(lang).att.src[a.source] || a.source)}</span>` : '';
+
+const ago = (ts, lang) => ts ? new Date(ts).toLocaleString(lang === 'ar' ? 'ar-SA-u-ca-gregory-nu-latn' : 'en-GB',
+  { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Riyadh' }) : '';
+
+/** The fingerprint line above today's table: last sync and, for HR, a Sync button. */
+function fpStrip(lang, ctx, S) {
+  if (S.attendance_source === 'app') return '';
+  const t = T(lang).fp;
+  const raw = ctx.hrSettings || {};
+  const state = raw.fp_last_sync ? `${ago(raw.fp_last_sync, lang)} · ${raw.fp_last_ok ? t.ok : t.failed}` : t.never;
+  return `<section class="card"><div class="card__head"><h2>${esc(t.title)}</h2>
+    <span class="muted small">${esc(t.last)}: <b class="${raw.fp_last_ok === false ? 'bad' : ''}">${esc(state)}</b></span>
+    ${isHR() ? `<span style="margin-inline-start:auto"><button class="btn btn--sm" data-fp-sync>${esc(t.sync)}</button></span>` : ''}</div>
+    ${ctx.fpMsg ? `<p class="note">${esc(ctx.fpMsg)}</p>` : ''}</section>`;
 }
 
 /* ============================================================= requests table */
@@ -623,7 +667,7 @@ function empProfile(lang, ctx, p, e, hr) {
       ${text('position')}${text('grade')}${date('joining_date')}
       ${sel('employment_status', ['probation', 'active', 'on_leave', 'terminated'].map(s => [s, DSTR[lang].hrEmpSt[s]]))}
       ${sel('contract_type', Object.entries(t.ct))}${date('contract_start')}${date('contract_end')}${date('probation_end')}
-      ${text('work_location')}
+      ${text('work_location')}${text('device_no')}
       ${fld(f.gosi_scheme, `<select data-ef="gosi_scheme"${dis}>${opt('', t.gs.auto, v('gosi_scheme'))}${['saudi_legacy', 'saudi_new', 'non_saudi', 'exempt'].map(s => opt(s, t.gs[s], v('gosi_scheme'))).join('')}</select>`)}
       ${fld(f.annual_leave_override, `<input type="number" min="0" max="365" step="0.5" data-ef="annual_leave_override" value="${esc(v('annual_leave_override'))}"${dis} />`)}
       ${date('end_date')}${text('end_reason')}
@@ -867,6 +911,7 @@ ${hrTabs(lang, 'attendance')}
   ${kpi(T0.onLeave + T0.sick, t.k.onLeave, { colour: 'var(--info)' })}
   ${kpi(T0.remote, t.att.remote, { colour: 'var(--warn)' })}
 </div>
+${fpStrip(lang, ctx, S)}
 ${todayCard(lang, ctx, T0, S)}
 <section class="card">
   <div class="card__head"><h2>${esc(t.att.report)}</h2>
@@ -1122,6 +1167,7 @@ export function hrSettingsView(lang, ctx) {
   const n = (id, v, attrs = '') => `<input id="${id}" type="number" value="${esc(v ?? '')}" ${attrs} />`;
   return `
 ${hrTabs(lang, 'settings')}
+${fpSettings(lang, ctx, s, raw)}
 <form id="setForm">
 ${card(t.set.office, `<div class="inlineform" style="border-bottom:0"><div class="fields">
   ${fld(t.set.lat, n('stLat', s.office_lat, 'step="0.000001" min="-90" max="90"'))}${fld(t.set.lng, n('stLng', s.office_lng, 'step="0.000001" min="-180" max="180"'))}
@@ -1166,6 +1212,49 @@ ${card(t.set.holidays, `<form id="holForm" class="inlineform"><div class="fields
     ctx.hrHolidays.map(h => `<tr><td>${esc(fmt(h.day, lang))}</td><td>${esc(h.name)}</td><td class="num"><button class="x" data-hol-del="${esc(h.day)}">✕</button></td></tr>`).join('')) : ''}`)}`;
 }
 
+/** Settings card for the fingerprint system: where attendance comes from,
+    the API key (write-only), manual sync and what the last syncs found. */
+function fpSettings(lang, ctx, s, raw) {
+  const t = T(lang).fp;
+  const runs = ctx.hrSyncRuns || [];
+  const last = runs.find(r => r.finished_at && r.summary?.matched !== undefined) || null;
+  const sm = last?.summary || {};
+  const unmatched = sm.unmatched_remote || [];
+  const notLinked = sm.unmatched_local || [];
+  const runRow = (r) => {
+    const x = r.summary || {};
+    const res = !r.finished_at ? t.running
+      : r.ok ? [x.matched !== undefined ? t.matched.replace('{m}', x.matched).replace('{r}', x.remote_employees ?? 0) : '',
+                 x.saved !== undefined ? t.saved.replace('{n}', x.saved) : '',
+                 x.skipped_manual ? t.skipped.replace('{n}', x.skipped_manual) : ''].filter(Boolean).join(' · ')
+      : (r.error || t.failed);
+    return `<tr><td class="small">${esc(ago(r.started_at, lang))}</td><td class="small">${esc(t.trig[r.trigger] || r.trigger)}</td>
+      <td class="small num">${esc(r.date_from ? `${r.date_from} → ${r.date_to}` : '')}</td>
+      <td>${pill(r.finished_at ? (r.ok ? t.ok : t.failed) : t.running, !r.finished_at ? 'var(--ink3)' : r.ok ? 'var(--ok)' : 'var(--critical)')}</td>
+      <td class="small${r.ok === false ? ' bad' : ''}">${esc(res)}</td></tr>`;
+  };
+  return card(t.title, `<form id="fpForm" class="inlineform" style="border-bottom:0"><div class="fields">
+    ${fld(t.source, `<select id="fpSource">${['fingerprint', 'both', 'app'].map(k => opt(k, t.src[k], s.attendance_source)).join('')}</select>`)}
+    ${fld(t.url, inp('fpUrl', raw.fp_url || 'https://expandexpo.malhr.com', 'type="url" maxlength="200"'))}
+    ${fld(`${t.key} · ${raw.fp_key_hint ? t.keySaved.replace('{k}', raw.fp_key_hint) : t.keyNone}`,
+      `<input id="fpKey" type="password" autocomplete="new-password" spellcheck="false" placeholder="${esc(t.keyPh)}" />`, true)}
+    </div><p class="note">${esc(t.keyHint)}</p>
+    <div class="actions"><button type="submit" class="btn btn--primary btn--sm">${esc(t.save)}</button>
+      ${raw.fp_key_hint ? `<button type="button" class="btn btn--sm" data-fp-clear>${esc(t.removeKey)}</button>` : ''}</div></form>
+  <div class="inlineform" style="border-bottom:0"><div class="fields">
+    ${fld(t.from, '<input id="fpFrom" type="date" />')}${fld(t.to, '<input id="fpTo" type="date" />')}
+    <div class="f" style="align-self:end"><button type="button" class="btn btn--sm" data-fp-sync${raw.fp_key_hint ? '' : ' disabled'}>${esc(t.sync)}</button></div></div>
+    <p class="note">${esc(t.auto)}</p>
+    ${ctx.fpMsg ? `<p class="note">${esc(ctx.fpMsg)}</p>` : ''}</div>
+  ${runs.length ? `<h3 class="subhead" style="padding:0 16px">${esc(t.runs)}</h3>${tbl(`<th>${t.when}</th><th></th><th>${t.range}</th><th>${T(lang).status}</th><th>${t.result}</th>`, runs.map(runRow).join(''))}` : ''}
+  ${unmatched.length ? `<h3 class="subhead" style="padding:0 16px">${esc(t.unmatched)} (${unmatched.length})</h3><p class="note">${esc(t.unmatchedHint)}</p>
+    ${tbl(`<th>${T(lang).f.device_no}</th><th>${T(lang).name}</th><th>Email</th>`,
+      unmatched.map(u => `<tr><td class="num">${esc(u.no)}</td><td>${esc(lang === 'ar' ? (u.name_ar || u.name_en) : (u.name_en || u.name_ar))}</td><td class="small muted">${esc(u.email || '')}</td></tr>`).join(''))}` : ''}
+  ${notLinked.length ? `<h3 class="subhead" style="padding:0 16px">${esc(t.notLinked)} (${notLinked.length})</h3>
+    <p class="note">${notLinked.map(p => go(`#/hr/e/${p.id}`, p.name)).join(' · ')}</p>` : ''}`,
+  `<span class="muted small">${esc(t.last)}: ${esc(raw.fp_last_sync ? `${ago(raw.fp_last_sync, lang)} · ${raw.fp_last_ok ? t.ok : t.failed}` : t.never)}</span>`);
+}
+
 /* ============================================================ self-service */
 
 export function meView(lang, ctx) {
@@ -1183,7 +1272,8 @@ export function meView(lang, ctx) {
   const rt = ctx.reqNewType || 'annual_leave';
   const isLeave = ['annual_leave', 'sick_leave', 'unpaid_leave', 'other_leave'].includes(rt);
   const waiting = (ctx.hrRequests || []).filter(r => r.status === 'pending_manager' && r.manager_id === me.id);
-  const clockBtn = !att ? t.me.clockIn : !att.clock_out ? t.me.clockOut : t.me.clockAgain;
+  const clockBtn = !att?.clock_in ? t.me.clockIn : !att.clock_out ? t.me.clockOut : t.me.clockAgain;
+  const fpOnly = S.attendance_source === 'fingerprint';
   const slips = ctx.meSlips || [];
   return `
 <section class="card clockcard">
@@ -1193,10 +1283,11 @@ export function meView(lang, ctx) {
       ${att ? `<b>${esc(t.me.inAt.replace('{t}', hhmm(att.clock_in, S.timezone)))}</b>${att.clock_out ? ` · <b>${esc(t.me.outAt.replace('{t}', hhmm(att.clock_out, S.timezone)))}</b>` : ''}
         ${att.late_minutes ? `<span class="chip chip--warn">${esc(t.att.late)} ${att.late_minutes} ${esc(t.att.min)}</span>` : ''}
         ${att.in_remote || att.out_remote ? `<span class="chip chip--warn">${esc((att.out_distance_m ?? att.in_distance_m) != null ? t.me.awayWarn.replace('{m}', att.out_distance_m ?? att.in_distance_m) : t.me.noLoc)}</span>` : ''}`
-        : `<span class="muted">${esc(t.me.notIn)}</span>`}
-      <span class="block muted small" data-clock-msg>${esc(ctx.clockMsg || '')}</span>
+        : `<span class="muted">${esc(fpOnly ? t.me.fpWait : t.me.notIn)}</span>`}
+      ${att?.source === 'fingerprint' ? `<span class="chip">${esc(t.att.src.fingerprint)}</span>` : ''}
+      <span class="block muted small" data-clock-msg>${esc(fpOnly ? t.me.fpOnly : (ctx.clockMsg || ''))}</span>
     </div>
-    <button class="btn btn--primary clock__btn" data-clock>${esc(clockBtn)}</button>
+    ${fpOnly ? '' : `<button class="btn btn--primary clock__btn" data-clock>${esc(clockBtn)}</button>`}
   </div>
 </section>
 ${!e?.joining_date ? `<p class="note note--warn">${esc(t.me.notSetUp)}</p>` : ''}
