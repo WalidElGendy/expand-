@@ -13,6 +13,7 @@ import { Scheduler, calibrate, backtest, DEFAULT_STAGES, SIZES } from '../engine
 import { WorkCalendar, iso, parse } from '../engine/calendar.js';
 import * as db from './db.js';
 import * as C from './controller.js';
+import { HSTR } from './hr.js';
 import {
   DSTR, signInView, canPlan, isHR, sizeOptionsHtml,
   buildScheduler, monthlyLoad, workloadCalendar,
@@ -189,7 +190,11 @@ function currentRoute() {
   if (h.startsWith('#/hr/new'))   return { name: 'hrnew' };
   if (h.startsWith('#/hr/r/'))    return { name: 'hrreq', id: h.slice(7) };
   if (h.startsWith('#/hr/e/'))    return { name: 'hremp', id: h.slice(7) };
+  if (h.startsWith('#/hr/l/'))    return { name: 'hrletter', id: h.slice(7) };
+  if (h.startsWith('#/hr/payroll/')) return { name: 'hrrun', id: h.slice(13) };
+  if (h.startsWith('#/hr/'))      return { name: 'hrsec', id: h.slice(5).split('/')[0] };
   if (h.startsWith('#/hr'))       return { name: 'hr' };
+  if (h.startsWith('#/me'))       return { name: 'me' };
   return { name: 'home' };
 }
 
@@ -200,7 +205,8 @@ function currentRoute() {
    to arrive from a page that had loaded them. A deep link or a refresh
    showed an empty table and called it zero projects. */
 const APP_ROUTES = ['home', 'projects', 'project', 'new', 'leads', 'lead', 'docs', 'admin',
-  'estimate', 'highlights', 'pipeline', 'performance', 'hr', 'hrnew', 'hrreq', 'hremp'];
+  'estimate', 'highlights', 'pipeline', 'performance', 'hr', 'hrnew', 'hrreq', 'hremp',
+  'hrsec', 'hrrun', 'hrletter', 'me'];
 
 function render() {
   document.documentElement.lang = S.lang;
@@ -296,6 +302,7 @@ const ICON = {
   board:  'M4 4h6v7H4zM14 4h6v11h-6zM4 15h6v5H4zM14 19h6v1h-6z',
   search: 'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM21 21l-4.3-4.3',
   brief:  'M3 8h18v12H3zM8.5 8V5.5A1.5 1.5 0 0 1 10 4h4a1.5 1.5 0 0 1 1.5 1.5V8M3 13h18',
+  me:     'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4.5 20a7.5 7.5 0 0 1 15 0',
 };
 const icon = (n) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
   stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${ICON[n]}"/></svg>`;
@@ -334,6 +341,7 @@ function appNav() {
   }
   items.push({ group: 'insight', route: '#/pipeline', icon: 'board', label: () => d.pipeline });
   items.push({ group: 'insight', route: '#/estimate', icon: 'spark', label: () => d.openEstimator });
+  items.push({ group: 'workspace', route: '#/me', icon: 'me', label: () => HSTR[S.lang].myHr });
   items.push({ group: 'workspace', route: '#/performance', icon: 'chart', label: () => d.perf });
   if (me.role === 'admin') items.push({ group: 'workspace', route: '#/admin', icon: 'team', label: () => d.people });
   /* HR is the workforce dashboard for admins and the HR department. Anyone
