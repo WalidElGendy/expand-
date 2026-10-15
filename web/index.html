@@ -6,6 +6,18 @@
 <title>expand — know the delivery date before you promise it</title>
 <meta name="description" content="Capacity-aware delivery scheduling for Expand's proposal pipeline. Reads what each designer is already committed to and answers when." />
 <meta name="theme-color" content="#000000" />
+<script>
+/* Theme before first paint, so a light-mode user never sees a black flash:
+   the saved choice, else whatever the system prefers. */
+(function () {
+  var t = null;
+  try { t = localStorage.getItem('expand.theme'); } catch (e) { /* storage blocked */ }
+  if (t !== 'light' && t !== 'dark') t = window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+  var m = document.querySelector('meta[name="theme-color"]');
+  if (m) m.setAttribute('content', t === 'light' ? '#f5f4f9' : '#000000');
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- Brand Arabic face, per guideline 5.6–5.8. Latin falls back to Arial,
@@ -64,6 +76,36 @@
   --mono: ui-monospace, "SF Mono", Menlo, monospace;
 
   --r: 10px;
+
+  /* Text versions of good/bad. The status colours above are for marks;
+     these are for words, and need to flip with the surface. */
+  --good-ink: var(--good-ink);
+  --bad-ink:  var(--bad-ink);
+}
+
+/* --------------------------------------------------------------- light
+   Same brand, light surfaces. The status colours step darker so text and
+   thin marks keep 3:1 on white; series colours are already mid-tone and
+   stay as they are. The theme is set on <html data-theme> before first
+   paint (see the head script), from the saved choice or the system. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg:   #f5f4f9;
+  --s-1:  #ffffff;
+  --s-2:  #f4f2f9;
+  --s-3:  #ebe8f3;
+  --ink1: #15131c;
+  --ink2: #48445a;
+  --ink3: #6d697f;
+  --ink4: #a3a0b2;
+  --line:  #e6e3ee;
+  --line2: #d4d0e0;
+  --info:     #2f6fdf;
+  --ok:       #0b8f0b;
+  --warn:     #b77900;
+  --critical: #c73232;
+  --good-ink: #157f1f;
+  --bad-ink:  #c0282b;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -194,6 +236,9 @@ html[dir="rtl"] .head::after { transform: scaleX(-1); }
 .btn--danger { background: none; color: var(--critical); border-color: color-mix(in srgb, var(--critical) 40%, transparent); }
 .btn--danger:hover { background: color-mix(in srgb, var(--critical) 12%, transparent); border-color: var(--critical); color: var(--critical); }
 .btn--lang { font-family: var(--ar); }
+.btn--icon { width: 34px; padding: 0; display: inline-grid; place-items: center; color: var(--ink2); }
+.btn--icon:hover { color: var(--ink1); }
+.btn--icon svg { width: 17px; height: 17px; }
 
 /* -------------------------------- layout --------------------------------- */
 .grid { display: grid; grid-template-columns: 280px minmax(0,1fr) 300px; gap: 14px; align-items: start; }
@@ -284,8 +329,8 @@ html[dir="rtl"] .head::after { transform: scaleX(-1); }
 .compare__arrow span { font-size: 10.5px; color: var(--ink3); max-width: 12ch; display: block; }
 
 .deadline { margin-top: 12px; padding: 9px 12px; border-radius: 8px; font-size: 12.5px; font-weight: 500; }
-.deadline.ok  { background: rgba(12,163,12,.12); color: #6ee36e; }
-.deadline.bad { background: rgba(208,59,59,.12); color: #ff8f8f; }
+.deadline.ok  { background: rgba(12,163,12,.12); color: var(--good-ink); }
+.deadline.bad { background: rgba(208,59,59,.12); color: var(--bad-ink); }
 
 .split { margin-top: 16px; }
 .split__bar { display: flex; height: 9px; border-radius: 20px; overflow: hidden; background: var(--s-3); }
@@ -302,7 +347,7 @@ html[dir="rtl"] .head::after { transform: scaleX(-1); }
 .fact__v { font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 7px; }
 .fact__n { font-size: 11px; color: var(--ink3); line-height: 1.4; }
 .conf { text-transform: capitalize; }
-.conf--high { color: #6ee36e; } .conf--medium { color: var(--warn); } .conf--low { color: #ff8f8f; }
+.conf--high { color: var(--good-ink); } .conf--medium { color: var(--warn); } .conf--low { color: var(--bad-ink); }
 
 .sec { font-size: 11px; color: var(--ink3); text-transform: uppercase; letter-spacing: .06em; margin: 18px 0 8px; }
 .tbl { width: 100%; border-collapse: collapse; font-size: 12.5px; font-variant-numeric: tabular-nums; }
@@ -310,7 +355,7 @@ html[dir="rtl"] .head::after { transform: scaleX(-1); }
 .tbl td { padding: 8px; border-top: 1px solid var(--line); }
 .tbl .n { text-align: end; }
 .tbl tr.drive td { background: rgba(145,91,245,.08); }
-.tbl tr.err td { color: #ff8f8f; }
+.tbl tr.err td { color: var(--bad-ink); }
 .who { color: var(--ink3); font-size: 11.5px; }
 
 /* ------------------------------ utilisation ------------------------------ */
@@ -325,7 +370,7 @@ html[dir="rtl"] .head::after { transform: scaleX(-1); }
 .lever { padding: 10px 11px; background: var(--s-2); border-radius: 8px; border: 1px solid var(--line); }
 .lever__t { font-size: 12.5px; margin-bottom: 3px; }
 .lever__v { font-size: 13px; font-weight: 600; display: flex; gap: 8px; align-items: baseline; }
-.lever__s { font-size: 11px; color: #6ee36e; font-weight: 500; }
+.lever__s { font-size: 11px; color: var(--good-ink); font-weight: 500; }
 
 /* --------------------------------- gantt --------------------------------- */
 .gantt { display: grid; gap: 5px; overflow-x: auto; }
@@ -377,7 +422,7 @@ html[dir="rtl"] .head::after { transform: scaleX(-1); }
 .muted { color: var(--ink3); }
 .small { font-size: 11.5px; }
 .block { display: block; }
-.bad { color: #ff8f8f; }
+.bad { color: var(--bad-ink); }
 .link { color: var(--brand); font-size: 12.5px; }
 /* A held resend reads as held: muted, and the cursor does not promise a
    click. The countdown in its label says when it comes back. */
@@ -654,7 +699,7 @@ html[lang="ar"] .hero__title { letter-spacing: 0; line-height: 1.25; }
 .stat { background: var(--s-1); padding: 13px 16px; display: grid; gap: 3px; }
 .stat__n { font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
 .stat__l { font-size: 11px; color: var(--ink3); line-height: 1.35; }
-.stat--bad .stat__n { color: #ff8f8f; }
+.stat--bad .stat__n { color: var(--bad-ink); }
 .stat--wide { grid-column: span 2; }
 .stat--wide .stat__n { font-size: 15px; }
 
@@ -743,7 +788,7 @@ select.btn--sm { height: 28px; padding: 0 6px; background: var(--s-2); border: 1
 .kpi__n { font-size: 27px; font-weight: 700; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
 .kpi__n small { font-size: 14px; font-weight: 600; color: var(--ink3); letter-spacing: 0; }
 .kpi__s { font-size: 11.5px; color: var(--ink4); }
-.kpi--bad .kpi__n { color: #ff8f8f; }
+.kpi--bad .kpi__n { color: var(--bad-ink); }
 .kpi--date .kpi__n { font-size: 18px; }
 
 /* Tiles INSIDE a card, on Business highlights. The card already draws a
@@ -780,7 +825,7 @@ select.btn--sm { height: 28px; padding: 0 6px; background: var(--s-2); border: 1
 .conc__f--bad { background: var(--critical); }
 .conc__n { font-family: var(--mono); font-size: 11px; color: var(--ink3); }
 .tbl .tag { margin-inline-start: 0; }
-.tag--bad { background: rgba(208, 59, 59, .18); color: #ff9a9a; }
+.tag--bad { background: rgba(208, 59, 59, .18); color: var(--bad-ink); }
 
 /* ------------------------------- the chart -------------------------------- */
 .chartcard { margin-bottom: 14px; }
@@ -940,7 +985,7 @@ select.btn--sm { height: 28px; padding: 0 6px; background: var(--s-2); border: 1
   background: rgba(208,59,59,.09); border: 1px solid rgba(208,59,59,.35);
   display: grid; gap: 8px; justify-items: start;
 }
-.autherr__h { font-size: 13px; font-weight: 600; color: #ff9f9f; }
+.autherr__h { font-size: 13px; font-weight: 600; color: var(--bad-ink); }
 .autherr__b { color: var(--ink2); line-height: 1.6; }
 .f textarea {
   padding: 9px 10px; border-radius: 8px; background: var(--bg);
@@ -1073,7 +1118,7 @@ select.btn--sm { height: 28px; padding: 0 6px; background: var(--s-2); border: 1
   color: var(--ink3); font-size: 17px; line-height: 1;
   transition: background .12s, color .12s;
 }
-.pend__x:hover { background: rgba(220,60,60,.16); color: #ff9a9a; }
+.pend__x:hover { background: rgba(220,60,60,.16); color: var(--bad-ink); }
 .pend__x:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
 
 .actions--end { justify-content: flex-end; margin-top: 0; }
@@ -1085,8 +1130,8 @@ select.btn--sm { height: 28px; padding: 0 6px; background: var(--s-2); border: 1
   font-size: 12.5px; line-height: 1.6; border-radius: 8px; padding: 10px 12px;
   border: 1px solid; margin: 2px 0;
 }
-.msg--ok  { color: #8ee89b; background: rgba(12,163,12,.10); border-color: rgba(12,163,12,.35); }
-.msg--bad { color: #ffb0b0; background: rgba(208,59,59,.10); border-color: rgba(208,59,59,.38); }
+.msg--ok  { color: var(--good-ink); background: rgba(12,163,12,.10); border-color: rgba(12,163,12,.35); }
+.msg--bad { color: var(--bad-ink); background: rgba(208,59,59,.10); border-color: rgba(208,59,59,.38); }
 
 /* ------------------------------ who is here ------------------------------
    The pulse is deliberately slow and small. A fast blink reads as an alarm,
@@ -1177,7 +1222,7 @@ select.btn--sm { height: 28px; padding: 0 6px; background: var(--s-2); border: 1
 .alert--warn .alert__dot { background: var(--warn); }
 .alert--critical .alert__dot { background: var(--critical); }
 .alert__t { color: var(--ink3); }
-.alert--critical .alert__t { color: #ff9a9a; }
+.alert--critical .alert__t { color: var(--bad-ink); }
 .reqdet > td { background: var(--s-2); padding: 10px 14px !important; }
 .reqpanel .factgrid { padding: 0 0 8px; }
 .tbl tr.is-open > td { background: var(--s-2); }
