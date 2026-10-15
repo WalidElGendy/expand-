@@ -303,7 +303,28 @@ const ICON = {
   search: 'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM21 21l-4.3-4.3',
   brief:  'M3 8h18v12H3zM8.5 8V5.5A1.5 1.5 0 0 1 10 4h4a1.5 1.5 0 0 1 1.5 1.5V8M3 13h18',
   me:     'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4.5 20a7.5 7.5 0 0 1 15 0',
+  sun:    'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4',
+  moon:   'M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z',
 };
+
+/* ---------------------------------------------------------------- theme
+   The head script has already put data-theme on <html> before first paint;
+   these keep it, the saved choice and the browser chrome colour in step. */
+const THEME_KEY = 'expand.theme';
+const theme = () => document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+function setTheme(t, save = true) {
+  document.documentElement.setAttribute('data-theme', t);
+  const m = document.querySelector('meta[name="theme-color"]');
+  if (m) m.setAttribute('content', t === 'light' ? '#f5f4f9' : '#000000');
+  if (save) { try { localStorage.setItem(THEME_KEY, t); } catch { /* storage blocked: still switches for this visit */ } }
+}
+/* Until somebody picks, follow the system as it changes (e.g. at sunset). */
+try {
+  window.matchMedia?.('(prefers-color-scheme: light)').addEventListener('change', (e) => {
+    let saved = null; try { saved = localStorage.getItem(THEME_KEY); } catch { /* ignore */ }
+    if (saved !== 'light' && saved !== 'dark') { setTheme(e.matches ? 'light' : 'dark', false); syncThemeButton(); }
+  });
+} catch { /* old browser: no live follow */ }
 const icon = (n) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
   stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${ICON[n]}"/></svg>`;
 
@@ -427,9 +448,21 @@ function topbar(r) {
       ${db.state.session
         ? `<button class="btn btn--ghost" data-act="signout">${esc(d.signOut)}</button>`
         : `<button class="btn btn--primary btn--sm" data-act="go" data-route="#/signin">${esc(d.signIn)}</button>`}
+      <button class="btn btn--icon" data-act="theme" title="${esc(themeLabel())}" aria-label="${esc(themeLabel())}">${icon(theme() === 'light' ? 'moon' : 'sun')}</button>
       <button class="btn btn--lang" data-act="lang">${S.lang === 'en' ? 'العربية' : 'English'}</button>
     </div>
   </header>`;
+}
+
+function syncThemeButton() {
+  const b = document.querySelector('[data-act="theme"]');
+  if (!b) return;
+  b.innerHTML = icon(theme() === 'light' ? 'moon' : 'sun');
+  b.title = themeLabel(); b.setAttribute('aria-label', themeLabel());
+}
+function themeLabel() {
+  const toLight = theme() === 'dark';
+  return S.lang === 'ar' ? (toLight ? 'الوضع الفاتح' : 'الوضع الداكن') : (toLight ? 'Switch to light mode' : 'Switch to dark mode');
 }
 
 const shell = (r, body) => sidebar() + `<div class="main">${topbar(r)}<div class="page">${body}</div></div>`;
@@ -722,6 +755,8 @@ function wire() {
 
   const act = (name, fn) => { const el = document.querySelector(`[data-act="${name}"]`); if (el) el.onclick = fn; };
   act('lang', () => { S.lang = S.lang === 'en' ? 'ar' : 'en'; render(); });
+  /* No re-render: switching colours must not throw away a half-filled form. */
+  act('theme', () => { setTheme(theme() === 'light' ? 'dark' : 'light'); syncThemeButton(); });
   act('signout', async () => { db.leavePresence(); await db.signOut(); location.hash = '#/'; render(); });
   act('reset', () => { S.pipeline = []; S.result = null; S.whatIf = null; S.seq = 0; render(); });
   const sizeSel = $('#pSize');
