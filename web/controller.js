@@ -9,6 +9,7 @@
 
 import * as db from './db.js';
 import * as V from './dash.js';
+import * as HC from './hrctl.js';
 
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -75,6 +76,7 @@ const fail = (e) => {
 export async function loadFor(route, id) {
   if (!db.sb) return;
   ctx.loading = true; ctx.error = null;
+  ctx.route = route; ctx.routeId = id;
   try {
     if (!db.state.departments.length) await db.loadDepartments();
     const me = db.state.me;
@@ -169,40 +171,13 @@ export async function loadFor(route, id) {
       jobs.push(db.listProjects().then(p => { ctx.projects = p; }).catch(() => { ctx.projects = []; }));
       jobs.push(db.listReviews(ctx.period).then(r => { ctx.reviews = r; }).catch(() => { ctx.reviews = []; }));
     }
-    /* HR dashboard: the roster, the HR files, this year's leave (for the
-       balance, sick days and "on leave today"), every 1:1 and every review
-       readable to this session. Hiring requests only for HR — RLS would
-       return none to anyone else anyway. */
-    if (route === 'hr') {
-      const hr = V.isHR(me);
-      jobs.push(db.listPeople().then(p => { ctx.people = p; }));
-      jobs.push(db.listHrEmployees().then(x => { ctx.hrEmployees = x; }).catch(() => { ctx.hrEmployees = []; }));
-      jobs.push(db.listLeaves({ since: `${new Date().getFullYear()}-01-01` }).then(x => { ctx.hrLeaves = x; }).catch(() => { ctx.hrLeaves = []; }));
-      jobs.push(db.listOneOnOnes().then(x => { ctx.hrOneOnOnes = x; }).catch(() => { ctx.hrOneOnOnes = []; }));
-      jobs.push(db.listAllReviews().then(x => { ctx.hrReviews = x; }).catch(() => { ctx.hrReviews = []; }));
-      ctx.hiring = [];
-      if (hr) jobs.push(db.listHiring().then(x => { ctx.hiring = x; }).catch(() => { ctx.hiring = []; }));
-    }
     if (route === 'hrreq' && id) {
       ctx.hireReq = null;
       jobs.push(db.getHiring(id).then(x => { ctx.hireReq = x; }).catch(() => { ctx.hireReq = null; }));
       jobs.push(db.listPeople().then(p => { ctx.people = p; }));
     }
-    /* One employee: fetched by id so a deep link works. The private file is
-       asked for only by HR; for anyone else RLS would hand back nothing. */
-    if (route === 'hremp' && id) {
-      ctx.hrId = id; ctx.hrEmp = null; ctx.hrPriv = null; ctx.hrReqFor = null;
-      ctx.hrLeaves = []; ctx.hrOneOnOnes = []; ctx.hrReviews = [];
-      jobs.push(db.listPeople().then(p => { ctx.people = p; }));
-      jobs.push(db.getHrEmployee(id).then(x => { ctx.hrEmp = x; }).catch(() => { ctx.hrEmp = null; }));
-      jobs.push(db.listLeaves({ employee_id: id }).then(x => { ctx.hrLeaves = x; }).catch(() => {}));
-      jobs.push(db.listOneOnOnes({ employee_id: id }).then(x => { ctx.hrOneOnOnes = x; }).catch(() => {}));
-      jobs.push(db.listAllReviews({ subject_id: id }).then(x => { ctx.hrReviews = x; }).catch(() => {}));
-      if (V.isHR(me)) {
-        jobs.push(db.getHrPrivate(id).then(x => { ctx.hrPriv = x; }).catch(() => { ctx.hrPriv = null; }));
-        jobs.push(db.listHiring().then(x => { ctx.hrReqFor = x.find(h => h.hired_profile_id === id) || null; }).catch(() => {}));
-      }
-    }
+    /* The HR system (hrctl.js) loads its own screens. */
+    if (HC.HR_ROUTES.includes(route)) jobs.push(HC.loadHR(route, id, ctx));
     if (route === 'admin') {
       jobs.push(db.listPeople().then(p => { ctx.people = p; }));
       jobs.push(db.listInvitations().then(i => { ctx.invites = i; }).catch(() => { ctx.invites = []; }));
@@ -555,6 +530,7 @@ export function wireApp(lang) {
   };
 
   wireHR(lang);
+  HC.wireHR2(lang, { ctx, rerender, fail, reload: () => loadFor(ctx.route, ctx.routeId) });
 
   /* --- designer: move a stage along --- */
   $$('[data-stage]').forEach(b => b.onclick = async () => {
@@ -1033,10 +1009,6 @@ function wireHR(lang) {
     btn.disabled = true; btn.textContent = label;
     return () => { btn.disabled = false; btn.textContent = was; };
   };
-  const reloadEmp = async () => { await loadFor('hremp', ctx.hrId); rerender(); };
-
-  const left = $('[data-hr-left]');
-  if (left) left.onchange = () => { ctx.hrShowLeft = left.checked; rerender(); };
 
   /* A new hiring request. The ID copy goes to the private HR bucket first, so
      the row is only written once the file it points at exists. */
@@ -1101,90 +1073,6 @@ function wireHR(lang) {
       await loadFor('hrreq', ctx.hireReq.id); rerender();
     } catch (err) { done(); fail(err); }
   };
-
-  const file = $('#hrFileForm');
-  if (file) file.onsubmit = async (e) => {
-    e.preventDefault();
-    const done = busy(file, d.saving);
-    const ov = val('#efOverride');
-    try {
-      await db.saveHrEmployee(ctx.hrId, {
-        position: orNull('#efPos'), joining_date: orNull('#efJoin'),
-        employment_status: val('#efStatus') || 'active', phone: orNull('#efPhone'),
-        annual_leave_override: ov === '' ? null : Number(ov), job_description: orNull('#efJob'),
-      });
-      await reloadEmp();
-    } catch (err) { done(); fail(err); }
-  };
-
-  const priv = $('#hrPrivForm');
-  if (priv) priv.onsubmit = async (e) => {
-    e.preventDefault();
-    const done = busy(priv, d.saving);
-    try {
-      const f = $('#pvDoc')?.files?.[0] || null;
-      const patch = { national_id: orNull('#pvNat'), hr_notes: orNull('#pvNotes') };
-      if (f) {
-        const doc = await db.uploadHrDoc(f, `employees/${ctx.hrId}`);
-        patch.id_doc_path = doc.path; patch.id_doc_name = doc.name;
-      }
-      await db.saveHrPrivate(ctx.hrId, patch);
-      await reloadEmp();
-    } catch (err) { done(); fail(err); }
-  };
-
-  /* Leave: the day count fills itself in from the dates (calendar days,
-     inclusive) and stays editable — a half day, or a weekend that should not
-     count, is HR's call. */
-  const lv = $('#hrLeaveForm');
-  if (lv) {
-    let touched = false;
-    $('#lvDays').oninput = () => { touched = true; };
-    const auto = () => {
-      if ($('#lvFrom').value && !$('#lvTo').value) $('#lvTo').value = $('#lvFrom').value;
-      const n = V.leaveDays($('#lvFrom').value, $('#lvTo').value);
-      if (!touched && n) $('#lvDays').value = n;
-    };
-    $('#lvFrom').onchange = auto; $('#lvTo').onchange = auto;
-    lv.onsubmit = async (e) => {
-      e.preventDefault();
-      const done = busy(lv, d.saving);
-      try {
-        await db.addLeave({
-          employee_id: ctx.hrId, kind: val('#lvKind'),
-          start_date: val('#lvFrom'), end_date: val('#lvTo'),
-          days: Number(val('#lvDays')), note: orNull('#lvNote'),
-        });
-        await reloadEmp();
-      } catch (err) { done(); fail(err); }
-    };
-  }
-
-  const oo = $('#hrOoForm');
-  if (oo) oo.onsubmit = async (e) => {
-    e.preventDefault();
-    const done = busy(oo, d.saving);
-    try {
-      await db.addOneOnOne({
-        employee_id: ctx.hrId, held_on: val('#ooDate'),
-        notes: orNull('#ooNotes'), action_items: orNull('#ooActions'),
-      });
-      await reloadEmp();
-    } catch (err) { done(); fail(err); }
-  };
-
-  $$('[data-hr-leave-del]').forEach(b => b.onclick = async () => {
-    if (!confirm(d.hrDelConfirm)) return;
-    b.disabled = true;
-    try { await db.deleteLeave(b.dataset.hrLeaveDel); await reloadEmp(); }
-    catch (err) { fail(err); b.disabled = false; }
-  });
-  $$('[data-hr-oo-del]').forEach(b => b.onclick = async () => {
-    if (!confirm(d.hrDelConfirm)) return;
-    b.disabled = true;
-    try { await db.deleteOneOnOne(b.dataset.hrOoDel); await reloadEmp(); }
-    catch (err) { fail(err); b.disabled = false; }
-  });
 }
 
 /* --------------------------------------------------------------- rendering */
@@ -1208,10 +1096,9 @@ function bodyFor(lang, route, id) {
   if (route === 'performance') return V.performanceView(lang, ctx);
   if (route === 'docs')  return V.docsView(lang, ctx);
   if (route === 'admin') return V.adminView(lang, ctx);
-  if (route === 'hr')     return V.hrView(lang, ctx);
   if (route === 'hrnew')  return V.hrHireView(lang, ctx);
   if (route === 'hrreq')  return V.hrRequestView(lang, ctx);
-  if (route === 'hremp')  return V.hrEmployeeView(lang, ctx);
+  if (HC.HR_ROUTES.includes(route)) return HC.bodyHR(lang, route, id, ctx);
   /* Gated in the view as well as in the sidebar. A hidden nav item is a
      decoration; this is the check that survives somebody typing the URL. */
   if (route === 'highlights') {
