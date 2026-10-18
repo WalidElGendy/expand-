@@ -11,6 +11,7 @@ import * as db from './db.js';
 import * as V from './dash.js';
 import * as HC from './hrctl.js';
 import * as TC from './tenderctl.js';
+import * as MG from './mgmt.js';
 
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -131,6 +132,12 @@ export async function loadFor(route, id) {
       (['home', 'new'].includes(route) && V.canPlan(me));
     const isDesigner = !['pm', 'bd', 'content'].includes(me.department_id);
 
+    /* Home for admins and managers is the management dashboard: it also
+       needs the company-wide tender rows and HR figures. */
+    if (route === 'home' && MG.isManagement(me)) {
+      jobs.push(db.mgmtTenders().then(x => { ctx.mgTenders = x; }).catch(() => { ctx.mgTenders = []; }));
+      jobs.push(db.mgmtHR().then(x => { ctx.mgHR = x; }).catch(() => { ctx.mgHR = null; }));
+    }
     if (wantsProjects || route === 'new') {
       jobs.push(db.listProjects().then(p => { ctx.projects = p; }));
       jobs.push(db.listPeople().then(p => { ctx.people = p; }));
@@ -534,6 +541,23 @@ export function wireApp(lang) {
   wireHR(lang);
   HC.wireHR2(lang, { ctx, rerender, fail, reload: () => loadFor(ctx.route, ctx.routeId) });
   TC.wireTenders(lang, { ctx, rerender, fail, reload: () => loadFor(ctx.route, ctx.routeId) });
+
+  /* --- management dashboard: tabs are view state; tiles that link open on Enter too --- */
+  $$('[data-mg-tab]').forEach(b => b.onclick = () => { ctx.mgTab = b.dataset.mgTab; rerender(); window.scrollTo({ top: 0 }); });
+  $$('.kpi--link').forEach(k => k.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); location.hash = k.dataset.route; } });
+
+  /* --- project: contract value --- */
+  const cv = $('#cvForm');
+  if (cv) cv.onsubmit = async (e) => {
+    e.preventDefault();
+    const raw = $('#cvValue').value.trim();
+    const v = raw === '' ? null : Number(raw);
+    if (v !== null && (!Number.isFinite(v) || v < 0)) { fail(new Error(V.DSTR[lang].cvInvalid)); return; }
+    const btn = cv.querySelector('button');
+    btn.disabled = true;
+    try { await db.updateProject(ctx.project.id, { contract_value_sar: v }); await loadFor('project', ctx.project.id); rerender(); }
+    catch (err) { btn.disabled = false; fail(err); }
+  };
 
   /* --- designer: move a stage along --- */
   $$('[data-stage]').forEach(b => b.onclick = async () => {
@@ -1110,5 +1134,6 @@ function bodyFor(lang, route, id) {
       ? V.highlightsView(lang, ctx)
       : V.homeView(lang, ctx);
   }
+  if (MG.isManagement()) return MG.mgmtView(lang, ctx);
   return V.homeView(lang, ctx);
 }
