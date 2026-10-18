@@ -9,7 +9,7 @@
 
 import * as db from './db.js';
 import * as L from './tenderlogic.js';
-import { esc, fmt, deptName, statusPill as projectPill } from './dash.js';
+import { esc, fmt, deptName, statusPill as projectPill, dropField } from './dash.js';
 
 export const TSTR = {
   en: {
@@ -63,6 +63,11 @@ export const TSTR = {
     denied: 'Tenders are open to tender analysts, the approvers and the project manager assigned to a tender.',
     notFound: 'This tender does not exist or you cannot see it.',
     draftRestored: 'Restored what you were typing.', unsaved: 'Unsaved changes',
+    up: { title: 'Tender documents', rfp: 'RFP / terms booklet', rfpHint: 'Drop the RFP here or click to choose — PDF, Word, Excel or ZIP',
+      other: 'Other documents (BOQ, drawings…)', otherHint: 'Optional — add as many as you need',
+      note: 'Files are uploaded when you save. A file picked but not saved is not kept if you leave the page.',
+      uploading: 'Saving and uploading {n} file(s)…', failed: 'The tender was saved, but {n} file(s) did not upload: {names}. Add them again from the tender page.' },
+    dept: 'Department',
   },
   ar: {
     nav: 'المناقصات', title: 'المناقصات', sub: 'ما نتقدم له، ولماذا',
@@ -115,6 +120,11 @@ export const TSTR = {
     denied: 'المناقصات متاحة لمحللي المناقصات وأصحاب القرار ومدير المشروع المعيّن على المناقصة.',
     notFound: 'هذه المناقصة غير موجودة أو لا يمكنك رؤيتها.',
     draftRestored: 'تمت استعادة ما كنت تكتبه.', unsaved: 'تغييرات غير محفوظة',
+    up: { title: 'مستندات المناقصة', rfp: 'كراسة الشروط والمواصفات (RFP)', rfpHint: 'اسحب الكراسة هنا أو اضغط للاختيار — PDF أو Word أو Excel أو ZIP',
+      other: 'مستندات أخرى (جدول الكميات، المخططات…)', otherHint: 'اختياري — أضف ما تحتاج',
+      note: 'تُرفع الملفات عند الحفظ. الملف المختار دون حفظ لا يُحتفظ به إذا غادرت الصفحة.',
+      uploading: 'جارٍ الحفظ ورفع {n} ملف…', failed: 'تم حفظ المناقصة، لكن لم يُرفع {n} ملف: {names}. أضفها مرة أخرى من صفحة المناقصة.' },
+    dept: 'القسم',
   },
 };
 
@@ -420,6 +430,7 @@ export function tenderView(lang, ctx) {
   const events = ctx.tnEvents || [];
   return `
 <nav class="crumb">${go('#/tenders', t.title)} <span class="muted">/</span> <span class="muted">${esc(x.ref || '')}</span></nav>
+${ctx.tnUploadError ? `<p class="note note--warn">${esc(ctx.tnUploadError)}</p>` : ''}
 <section class="card">
   <div class="card__head"><h2>${esc(x.title)}</h2>${statusPill(x.status, lang)}
     <span style="margin-inline-start:auto;display:flex;gap:8px;flex-wrap:wrap">${actions}</span></div>
@@ -506,6 +517,10 @@ ${card(isNew ? t.newT : `${t.edit} · ${x.ref}`, `<div class="inlineform" style=
   ${inp('issued_on', 'date')}${inp('questions_due', 'date')}${inp('site_visit_on', 'date')}${inp('submission_due', 'date')}
   ${inp('value_sar', 'number', 'min="0" step="1"')}${inp('client_budget_sar', 'number', 'min="0" step="1"')}${inp('bond_sar', 'number', 'min="0" step="1"')}
   ${area('scope', 4)}</div></div>`)}
+${card(t.up.title, `<div class="inlineform" style="border-bottom:0"><div class="fields">
+  <div class="f">${dropField('tnRfp', t.up.rfp, t.up.rfpHint, { multiple: true, accept: '.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar,.png,.jpg,.jpeg' })}</div>
+  <div class="f">${dropField('tnOther', t.up.other, t.up.otherHint, { multiple: true })}</div>
+  </div><p class="note">${esc(t.up.note)}</p></div>`)}
 ${card(t.sec.reqs, `<div style="padding:0 16px">${tbl(`<th>${t.sec.reqs}</th><th>${f.status}</th><th></th>`, reqs.map(q => reqRow(lang, q)).join(''))}</div>
   <div class="actions" style="padding:8px 16px 14px"><button type="button" class="btn btn--sm" data-add-req>${esc(t.reqAdd)}</button></div>`)}
 ${card(t.sec.comps, `<div style="padding:0 16px">${tbl(`<th>${t.comp.name}</th><th>${t.comp.year}</th><th>${t.comp.project}</th><th class="num">${t.comp.price}</th><th>${t.comp.won}</th><th></th>`,
@@ -537,7 +552,7 @@ export function tenderSettingsView(lang, ctx) {
 ${tabs(lang, 'settings')}
 ${card(`${s.approvers} / ${s.analysts}`, `<p class="note" style="margin:8px 16px">${esc(s.hint)}</p>
 <form data-tn-settings>
-${tbl(`<th>${s.person}</th><th>${t.f.status}</th><th>${s.approver}</th><th>${s.analyst}</th>`, people.map(p => `<tr>
+${tbl(`<th>${s.person}</th><th>${t.dept}</th><th>${s.approver}</th><th>${s.analyst}</th>`, people.map(p => `<tr>
   <td>${esc(p.full_name || p.email)}${p.user_id ? '' : ` <span class="small muted">(${esc(s.notSigned)})</span>`}</td>
   <td class="small muted">${esc(p.department_id ? deptName(p.department_id, lang) : '—')} · ${esc(p.role)}</td>
   <td><input type="checkbox" data-tn-ap="${esc(p.id)}"${on(st.approvers, p.id)} /></td>
