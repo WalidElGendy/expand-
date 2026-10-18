@@ -10,6 +10,7 @@
 import * as db from './db.js';
 import * as V from './dash.js';
 import * as HC from './hrctl.js';
+import * as TC from './tenderctl.js';
 
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -178,6 +179,7 @@ export async function loadFor(route, id) {
     }
     /* The HR system (hrctl.js) loads its own screens. */
     if (HC.HR_ROUTES.includes(route)) jobs.push(HC.loadHR(route, id, ctx));
+    if (TC.TN_ROUTES.includes(route)) jobs.push(TC.loadTenders(route, id, ctx));
     if (route === 'admin') {
       jobs.push(db.listPeople().then(p => { ctx.people = p; }));
       jobs.push(db.listInvitations().then(i => { ctx.invites = i; }).catch(() => { ctx.invites = []; }));
@@ -531,6 +533,7 @@ export function wireApp(lang) {
 
   wireHR(lang);
   HC.wireHR2(lang, { ctx, rerender, fail, reload: () => loadFor(ctx.route, ctx.routeId) });
+  TC.wireTenders(lang, { ctx, rerender, fail, reload: () => loadFor(ctx.route, ctx.routeId) });
 
   /* --- designer: move a stage along --- */
   $$('[data-stage]').forEach(b => b.onclick = async () => {
@@ -1099,6 +1102,7 @@ function bodyFor(lang, route, id) {
   if (route === 'hrnew')  return V.hrHireView(lang, ctx);
   if (route === 'hrreq')  return V.hrRequestView(lang, ctx);
   if (HC.HR_ROUTES.includes(route)) return HC.bodyHR(lang, route, id, ctx);
+  if (TC.TN_ROUTES.includes(route)) return TC.bodyTenders(lang, route, id, ctx);
   /* Gated in the view as well as in the sidebar. A hidden nav item is a
      decoration; this is the check that survives somebody typing the URL. */
   if (route === 'highlights') {
