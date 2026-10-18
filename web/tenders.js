@@ -175,8 +175,9 @@ function hbars(rows, { fillC = 'var(--brand)', fmtN = (n) => String(n) } = {}) {
 }
 
 /** Approved and rejected per month: two series, so a legend; labels only on
-    the largest bar of each series. Colours are the reserved status pair and
-    the legend says which is which, so colour is never the only cue. */
+    the largest bar of each series. Colours are categorical slots 1 and 4:
+    the green/red status pair fails colour-blind separation (deutan ΔE 4.1),
+    these pass in both themes, and the legend names each one. */
 function monthlyChart(lang, months) {
   const t = T(lang);
   if (!months.some(m => m.approved || m.rejected)) return empty(t.dash.noData);
@@ -190,8 +191,8 @@ function monthlyChart(lang, months) {
   const bar = (x, y, w, h) => { const r = Math.min(4, w / 2, h); return h <= 0 ? '' : `M${x} ${y + h}V${y + r}q0-${r} ${r}-${r}h${w - 2 * r}q${r} 0 ${r} ${r}V${y + h}Z`; };
   const mlabel = (k) => new Date(k + '-01T00:00:00Z').toLocaleDateString(lang === 'ar' ? 'ar-SA-u-ca-gregory-nu-latn' : 'en-GB', { month: 'short', timeZone: 'UTC' });
   return `<div class="split__legend" style="padding:8px 16px 0;margin:0">
-      <span><i class="sw" style="background:var(--ok)"></i>${esc(t.dash.approved)}</span>
-      <span><i class="sw" style="background:var(--critical)"></i>${esc(t.dash.rejected)}</span></div>
+      <span><i class="sw" style="background:var(--s1)"></i>${esc(t.dash.approved)}</span>
+      <span><i class="sw" style="background:var(--s4)"></i>${esc(t.dash.rejected)}</span></div>
     <div class="chartwrap"><svg viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="${esc(t.dash.monthly)}">
     <g class="grid"><line x1="${PL}" x2="${W - PR}" y1="${base}" y2="${base}"/></g>
     ${series.map((m, i) => {
@@ -200,8 +201,8 @@ function monthlyChart(lang, months) {
       const xa = cx - bw - 1, xr = cx + 1;
       return `<g class="bar"><title>${esc(mlabel(m.month))} ${esc(m.month.slice(0, 4))} — ${esc(t.dash.approved)} ${m.approved}, ${esc(t.dash.rejected)} ${m.rejected}</title>
         <rect x="${PL + i * step}" y="${PT}" width="${step}" height="${ph}" fill="transparent"/>
-        <path d="${bar(xa, base - ha, bw, ha)}" style="fill:var(--ok)"/>
-        <path d="${bar(xr, base - hr, bw, hr)}" style="fill:var(--critical)"/>
+        <path d="${bar(xa, base - ha, bw, ha)}" style="fill:var(--s1)"/>
+        <path d="${bar(xr, base - hr, bw, hr)}" style="fill:var(--s4)"/>
         ${i === maxA && m.approved ? `<text x="${xa + bw / 2}" y="${base - ha - 5}" class="val" text-anchor="middle">${m.approved}</text>` : ''}
         ${i === maxR && m.rejected ? `<text x="${xr + bw / 2}" y="${base - hr - 5}" class="val" text-anchor="middle">${m.rejected}</text>` : ''}
         <text x="${cx}" y="${H - 9}" class="axis" text-anchor="middle">${esc(mlabel(m.month))}</text></g>`;
