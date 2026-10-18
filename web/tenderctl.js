@@ -116,6 +116,7 @@ export function wireTenders(lang, { ctx, rerender, fail, reload }) {
     try { await fn(); await done(); } catch (err) { busy(btn, false); oops(err); }
   };
   const x = ctx.tender;
+  if (ctx.route === 'tender' && ctx.tnUploadError) ctx.tnUploadError = null;   // shown once, on this render
 
   /* --- dashboard & list --- */
   const yr = $('[data-tn-year]');
@@ -225,12 +226,25 @@ export function wireTenders(lang, { ctx, rerender, fail, reload }) {
       e.preventDefault();
       const row = collectForm(form);
       const btn = form.querySelector('button[type=submit]');
+      /* The files go up after the row exists: the storage path is the
+         tender's id, which is how the bucket decides who may read them. */
+      const uploads = [...($('#tnRfp')?.files || [])].map(f => [f, 'rfp'])
+        .concat([...($('#tnOther')?.files || [])].map(f => [f, 'other']));
       busy(btn, true);
+      const label = btn.textContent;
+      if (uploads.length) btn.textContent = t.up.uploading.replace('{n}', uploads.length);
+      let saved;
       try {
-        const saved = id ? await D.updateTender(id, row) : await D.createTender(row);
-        clearDraft(id);
-        location.hash = `#/t/${saved.id}`;
-      } catch (err) { busy(btn, false); oops(err); }
+        saved = id ? await D.updateTender(id, row) : await D.createTender(row);
+      } catch (err) { busy(btn, false); btn.textContent = label; oops(err); return; }
+      clearDraft(id);
+      const failed = [];
+      for (const [f, kind] of uploads) {
+        try { await D.addFile(saved.id, f, kind); } catch { failed.push(f.name); }
+      }
+      /* Said on the tender page, which is where they can be added again. */
+      ctx.tnUploadError = failed.length ? t.up.failed.replace('{n}', failed.length).replace('{names}', failed.join(', ')) : null;
+      location.hash = `#/t/${saved.id}`;
     };
   }
 
