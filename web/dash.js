@@ -42,6 +42,8 @@ export const canEditProduction = (me = db.state.me) =>
 
 export const DSTR = {
   en: {
+    contractValue: 'Contract value (SAR)', cvSave: 'Save value', cvInvalid: 'Enter a number of riyals, or leave it empty.',
+    cvHint: 'What the client pays. Feeds the Sales dashboard.',
     signIn: 'Sign in', signOut: 'Sign out', email: 'Email', password: 'Password',
     firstTime: 'First time here?', setPassword: 'Create your password',
     firstTimeTitle: 'Getting in for the first time',
@@ -349,6 +351,8 @@ export const DSTR = {
     hrNoAccess: 'This screen is for HR, and for supervisors about their own team.',
   },
   ar: {
+    contractValue: 'قيمة العقد (ر.س)', cvSave: 'حفظ القيمة', cvInvalid: 'أدخل مبلغاً بالريال أو اتركه فارغاً.',
+    cvHint: 'ما يدفعه العميل. تُستخدم في لوحة المبيعات.',
     signIn: 'تسجيل الدخول', signOut: 'تسجيل الخروج', email: 'البريد الإلكتروني', password: 'كلمة المرور',
     firstTime: 'أول مرة هنا؟', setPassword: 'أنشئ كلمة المرور',
     firstTimeTitle: 'الدخول لأول مرة',
@@ -2095,11 +2099,17 @@ export function projectView(lang, ctx) {
     ${fact(t.start, esc(fmt(p.start_on, lang)))}
     ${fact(t.due, `${esc(fmt(p.due_on, lang))}${late ? ` <span class="bad small">${late} ${esc(t.overdue)}</span>` : ''}`)}
     ${fact(t.estimate, esc(fmt(p.estimated_delivery, lang)))}
+    ${fact(t.contractValue, p.contract_value_sar != null ? esc(`SAR ${Number(p.contract_value_sar).toLocaleString('en-US', { maximumFractionDigits: 0 })}`) : '—', p.contract_value_sar != null ? '' : 'muted')}
     ${fact(t.createdOn, esc(fmt((p.created_at || '').slice(0, 10), lang)))}
     ${fact(t.updatedOn, esc(fmt((p.updated_at || '').slice(0, 10), lang)))}
     ${p.lead ? fact(t.fromLead,
       `<button class="link" data-act="go" data-route="#/l/${esc(p.lead.id)}">${esc(p.lead.name)}${p.lead.company ? ` · ${esc(p.lead.company)}` : ''}</button>`) : ''}
   </div>
+
+  ${canPlan() ? `<form id="cvForm" class="inlineform" style="border-bottom:0;padding-top:0"><div class="fields">
+    <label class="f"><span>${esc(t.contractValue)}</span><input id="cvValue" type="number" min="0" step="1" inputmode="numeric" value="${esc(p.contract_value_sar ?? '')}" /></label>
+    <div class="f" style="align-self:end"><button class="btn btn--sm">${esc(t.cvSave)}</button></div></div>
+    <p class="note">${esc(t.cvHint)}</p></form>` : ''}
 
   <h3 class="subhead">${esc(t.description)}</h3>
   <p class="prose${p.description ? '' : ' muted'}">${esc(p.description || t.noDescription)}</p>
