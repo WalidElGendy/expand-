@@ -14,6 +14,7 @@ import { WorkCalendar, iso, parse } from '../engine/calendar.js';
 import * as db from './db.js';
 import * as C from './controller.js';
 import { HSTR } from './hr.js';
+import { TSTR, canSeeTenders } from './tenders.js';
 import {
   DSTR, signInView, canPlan, isHR, sizeOptionsHtml,
   buildScheduler, monthlyLoad, workloadCalendar,
@@ -182,6 +183,13 @@ function currentRoute() {
   // Before '#/leads' is irrelevant (different prefix), but the trailing slash
   // still matters: '#/l/' must not swallow a future '#/list'.
   if (h.startsWith('#/l/'))       return { name: 'lead', id: h.slice(4) };
+  /* Tenders: the specific pages before the dashboard's prefix. */
+  if (h.startsWith('#/tenders/new'))      return { name: 'tendernew' };
+  if (h.startsWith('#/tenders/list'))     return { name: 'tenderlist' };
+  if (h.startsWith('#/tenders/settings')) return { name: 'tenderset' };
+  if (h.startsWith('#/tenders'))          return { name: 'tenders' };
+  if (h.startsWith('#/t/') && h.endsWith('/edit')) return { name: 'tenderedit', id: h.slice(4, -5) };
+  if (h.startsWith('#/t/'))       return { name: 'tender', id: h.slice(4).split('/')[0] };
   if (h.startsWith('#/new'))      return { name: 'new' };
   if (h.startsWith('#/leads'))    return { name: 'leads' };
   if (h.startsWith('#/docs'))     return { name: 'docs' };
@@ -206,7 +214,8 @@ function currentRoute() {
    showed an empty table and called it zero projects. */
 const APP_ROUTES = ['home', 'projects', 'project', 'new', 'leads', 'lead', 'docs', 'admin',
   'estimate', 'highlights', 'pipeline', 'performance', 'hr', 'hrnew', 'hrreq', 'hremp',
-  'hrsec', 'hrrun', 'hrletter', 'me'];
+  'hrsec', 'hrrun', 'hrletter', 'me',
+  'tenders', 'tenderlist', 'tendernew', 'tender', 'tenderedit', 'tenderset'];
 
 function render() {
   document.documentElement.lang = S.lang;
@@ -285,6 +294,8 @@ function headTitle(r) {
   if (r.name === 'projects')   return { h1: d.projects, sub: '' };
   if (r.name === 'pipeline')   return { h1: d.pipeline, sub: d.pipelineSub };
   if (r.name === 'performance') return { h1: d.perf, sub: d.perfSub };
+  if (['tenders', 'tenderlist', 'tendernew', 'tender', 'tenderedit', 'tenderset'].includes(r.name))
+    return { h1: TSTR[S.lang].title, sub: TSTR[S.lang].sub };
   return { h1: 'expand', sub: '' };
 }
 
@@ -303,6 +314,7 @@ const ICON = {
   search: 'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM21 21l-4.3-4.3',
   brief:  'M3 8h18v12H3zM8.5 8V5.5A1.5 1.5 0 0 1 10 4h4a1.5 1.5 0 0 1 1.5 1.5V8M3 13h18',
   me:     'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4.5 20a7.5 7.5 0 0 1 15 0',
+  gavel:  'M14 13l-7.5 7.5a2.12 2.12 0 0 1-3-3L11 10M16 16l6-6M8 8l6-6M9 7l8 8M21 11l-8-8',
   sun:    'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4',
   moon:   'M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z',
 };
@@ -352,6 +364,9 @@ function appNav() {
     items.push({ group: 'work', route: '#/new', icon: 'plus', label: () => d.newProject });
   }
   items.push({ group: 'work', route: '#/leads', icon: 'users', label: () => d.leads });
+  /* Tenders: the analysts, the approver (Operations Director) and any PM
+     who has been handed one. RLS gives everyone else an empty list anyway. */
+  if (canSeeTenders(me)) items.push({ group: 'work', route: '#/tenders', icon: 'gavel', label: () => TSTR[S.lang].nav });
   items.push({ group: 'work', route: '#/docs',  icon: 'doc',   label: () => d.documents });
   /* Business highlights is a management screen — it names people and says how
      much each is carrying — so it is offered to the same people the database
@@ -382,6 +397,7 @@ const GROUP_LABEL = {
    `startsWith`, `#/` matches everything and every row lights up at once. */
 function isOn(route) {
   const h = location.hash || '#/';
+  if (route === '#/tenders' && h.startsWith('#/t/')) return true;
   return h === route || h.startsWith(route + '/');
 }
 
