@@ -196,10 +196,10 @@ begin
     if t.status <> 'review' then raise exception 'not_in_review'; end if;
     select * into pm from profiles where id = p_pm and is_active;
     if not found then raise exception 'pm_required'; end if;
-    insert into projects (name, client, description, due_on, owner_id, created_by, status, size)
+    insert into projects (name, client, description, due_on, owner_id, created_by, status, size, contract_value_sar)
     values (t.title, t.client,
             concat_ws(E'\n\n', 'Tender ' || t.ref || coalesce(' · ' || t.tender_no, ''), nullif(btrim(coalesce(t.scope, '')), '')),
-            t.submission_due, p_pm, me, 'intake', 'M')
+            t.submission_due, p_pm, me, 'intake', 'M', t.value_sar)
     returning id into pid;
     insert into project_events (project_id, kind, body, created_by)
     values (pid, 'note', 'Created from tender ' || t.ref || ', approved by ' || coalesce(who, '—')
