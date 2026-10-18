@@ -79,6 +79,10 @@ async function loadMe() {
       .select('id', { count: 'exact', head: true })
       .eq('supervisor_id', data.id);
     data.has_reports = (count || 0) > 0;
+    /* What this person may do with tenders — decides whether the sidebar
+       offers the Tenders tab. A failure just hides it. */
+    const tr = await sb.rpc('tender_role');
+    data.tender = tr.error ? {} : (tr.data || {});
   }
   return data;
 }
