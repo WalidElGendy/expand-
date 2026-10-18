@@ -298,6 +298,11 @@ export const listPeople = async () => ok(await sb
   .select('id, full_name, email, department_id, supervisor_id, role, is_active, asana_gid, user_id, last_seen_at')
   .order('full_name'));
 
+/* Management dashboard: company-wide tender rows and HR figures, through
+   functions that only admins and managers (and HR / tender staff) may call. */
+export async function mgmtTenders() { const { data, error } = await sb.rpc('mgmt_tenders'); if (error) throw new Error(error.message); return data || []; }
+export async function mgmtHR() { const { data, error } = await sb.rpc('mgmt_hr'); if (error) throw new Error(error.message); return data || null; }
+
 export const listInvitations = async () => ok(await sb
   .from('invitations').select('*').order('created_at', { ascending: false }));
 
@@ -336,7 +341,7 @@ export const setPerson = async (id, patch) => ok(await sb
 const PROJECT_COLS = `
   id, name, client, description, size, status, start_on, due_on, delivered_on,
   estimated_delivery, estimate_meta, is_crm_list, import_flags, asana_url,
-  created_at, updated_at, owner_id, lead_id,
+  created_at, updated_at, owner_id, lead_id, contract_value_sar,
   lead:lead_id ( id, name, company ),
   owner:owner_id ( id, full_name, department_id ),
   project_stages ( id, department_id, assignee_id, effort_days, planned_start,
