@@ -48,6 +48,7 @@ export const state = {
   me: null,          // the profiles row for the signed-in user
   departments: [],
   online: new Set(), // profile ids with the app open RIGHT NOW — see joinPresence
+  onlineWho: [],     // the same people, with name and department, for the sidebar
 };
 
 /** Throws with the server's message rather than a generic one, because
@@ -59,6 +60,7 @@ export async function loadSession() {
   const { data } = await sb.auth.getSession();
   state.session = data.session || null;
   state.me = state.session ? await loadMe() : null;
+  if (state.me) joinPresence();
   return state.session;
 }
 
@@ -101,24 +103,38 @@ export const onAuthChange = (fn) => sb?.auth.onAuthStateChange(fn);
    every offline row blank, which is most rows most of the time. */
 
 let presenceChan = null;
+let presenceKey = null;
 let heartbeat = null;
 const onlineWatchers = new Set();
 export const onOnlineChange = (fn) => { onlineWatchers.add(fn); return () => onlineWatchers.delete(fn); };
 
 export function joinPresence() {
-  if (!sb || !state.me || presenceChan) return;
+  if (!sb || !state.me) return;
+  // Already in, as this person: nothing to do. In as somebody else (signed
+  // out and back in as another account without a reload): leave first, or
+  // the channel would keep announcing the previous person.
+  if (presenceChan && presenceKey === state.me.id) return;
+  if (presenceChan) leavePresence();
+  presenceKey = state.me.id;
   // Keyed by PROFILE id, not auth id: the roster is keyed on profiles, so the
   // admin screen can look a row up without a second mapping.
   presenceChan = sb.channel('app-presence', { config: { presence: { key: state.me.id } } });
 
   presenceChan
     .on('presence', { event: 'sync' }, () => {
-      state.online = new Set(Object.keys(presenceChan.presenceState()));
+      const ps = presenceChan?.presenceState() || {};
+      state.online = new Set(Object.keys(ps));
+      /* Name and department travel with the presence itself, so everyone —
+         not just admins, who are the only ones loading the full roster — can
+         see who is here. */
+      state.onlineWho = Object.entries(ps).map(([id, metas]) => ({
+        id, name: metas?.[0]?.name || '', dept: metas?.[0]?.dept || null,
+      })).sort((a, b) => a.name.localeCompare(b.name));
       onlineWatchers.forEach(fn => { try { fn(state.online); } catch { /* a bad watcher must not kill presence */ } });
     })
     .subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
-        await presenceChan.track({ name: state.me.full_name || state.me.email, at: new Date().toISOString() });
+        await presenceChan?.track({ name: state.me?.full_name || state.me?.email, dept: state.me?.department_id || null, at: new Date().toISOString() });
       }
     });
 
@@ -137,7 +153,10 @@ export function leavePresence() {
   if (!presenceChan) return;
   try { sb.removeChannel(presenceChan); } catch { /* already gone */ }
   presenceChan = null;
+  presenceKey = null;
   state.online = new Set();
+  state.onlineWho = [];
+  onlineWatchers.forEach(fn => { try { fn(state.online); } catch { /* ignore */ } });
 }
 
 /* Fire and forget. A failed heartbeat is not worth an error on screen — the
