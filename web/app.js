@@ -431,6 +431,7 @@ function sidebar() {
       </nav>`).join('')}
 
     <div class="side__foot${me ? '' : ' side__foot--cta'}">
+      ${me ? `<div id="onlineBox">${onlineBlock()}</div>` : ''}
       ${me ? `
         <div class="mecard">
           <span class="ava">${esc((me.full_name || me.email || '?').trim().slice(0, 1).toUpperCase())}</span>
@@ -443,6 +444,55 @@ function sidebar() {
     </div>
   </aside>`;
 }
+
+/* Who else has the app open right now, for everyone signed in — not only
+   admins. Repainted on its own when people arrive or leave, so a form being
+   filled in elsewhere on the page is never wiped by somebody signing in. */
+const ONLINE_T = { en: { t: 'Online now', you: 'you' }, ar: { t: 'متصل الآن', you: 'أنت' } };
+function onlineBlock() {
+  const who = db.state.onlineWho || [];
+  if (!who.length) return '';
+  const t = ONLINE_T[S.lang] || ONLINE_T.en;
+  const meId = db.state.me?.id;
+  const rows = [...who].sort((a, b) => (b.id === meId) - (a.id === meId));
+  return `<details class="online"${S.onlineOpen === false ? '' : ' open'}>
+    <summary title="${esc(t.t)}"><span class="live"><i></i></span><span class="online__t">${esc(t.t)}</span><span class="online__n">${who.length}</span></summary>
+    <ul class="online__list">${rows.map(p => `<li>
+      <span class="ava ava--xs" style="--c:${esc(db.dept(p.dept)?.colour || 'var(--ink4)')}">${esc((p.name || '?').trim().slice(0, 1).toUpperCase())}</span>
+      <span class="online__name">${esc(p.name || '—')}${p.id === meId ? ` <span class="muted">(${esc(t.you)})</span>` : ''}</span></li>`).join('')}</ul>
+  </details>`;
+}
+function paintOnline() {
+  const box = document.getElementById('onlineBox');
+  if (box) box.innerHTML = onlineBlock();
+}
+// `toggle` does not bubble, but it does reach a capturing listener.
+document.addEventListener('toggle', (e) => { if (e.target?.classList?.contains('online')) S.onlineOpen = e.target.open; }, true);
+
+/* A tab left open across a deploy keeps running the old code — which is how
+   a fix can be live and still not reach the person it was for. Check now and
+   then, and offer a reload rather than forcing one (a half-typed form must
+   not vanish). */
+const BUILD_ID = '__BUILD_ID__';
+let newBuildShown = false;
+async function checkForNewBuild() {
+  if (newBuildShown || BUILD_ID.startsWith('__')) return;
+  try {
+    const html = await (await fetch('/?v=' + Date.now(), { cache: 'no-store' })).text();
+    const live = (html.match(/<meta name="expand-build" content="([^"]+)"/) || [])[1];
+    if (live && live !== BUILD_ID) {
+      newBuildShown = true;
+      const bar = document.createElement('div');
+      bar.className = 'newbuild';
+      bar.innerHTML = `<span>${S.lang === 'ar' ? 'يتوفر إصدار أحدث من التطبيق.' : 'A newer version of Expand is available.'}</span>
+        <button class="btn btn--primary btn--sm" type="button">${S.lang === 'ar' ? 'تحديث' : 'Reload'}</button>`;
+      bar.querySelector('button').onclick = () => location.reload();
+      document.body.appendChild(bar);
+    }
+  } catch { /* offline — try again later */ }
+}
+setInterval(checkForNewBuild, 5 * 60 * 1000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkForNewBuild(); });
 
 /* Only routes that actually render a filterable table get a search box. A
    search field that filters nothing is worse than no search field. */
@@ -965,7 +1015,7 @@ function estimate(fromForm) {
       // A repaint when somebody arrives or leaves, but only where it shows.
       // Registered whether or not there is a session yet: an admin who signs
       // in through the form joins presence later and needs it too.
-      db.onOnlineChange(() => { if (currentRoute().name === 'admin') render(); });
+      db.onOnlineChange(() => { if (currentRoute().name === 'admin') render(); else paintOnline(); });
       await go();
     }).catch(() => go());
   } else {
