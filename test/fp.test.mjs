@@ -67,6 +67,15 @@ t('matchEmployees', () => {
   assert.deepEqual(m.unmatchedRemote.map(u => u.no), ['4', '5']);
   assert.deepEqual(m.unmatchedLocal.map(u => u.id), ['d1', 'd2']);
 });
+t('matchEmployees skips terminated duplicates', () => {
+  const remote = [
+    { employeeNumber: '9', status: 'Terminated', name: { english: 'Fahad S' }, contact: { email: 'f@x.com' } },
+    { employeeNumber: '00023', status: 'Active', name: { english: 'Fahad S' }, contact: { email: 'f@x.com' } },
+  ];
+  const m = matchEmployees(remote, [{ id: 'f', email: 'f@x.com', full_name: 'Fahad S' }]);
+  assert.equal(m.byNo.get('00023'), 'f'); assert.equal(m.byNo.has('9'), false);
+  assert.deepEqual(m.unmatchedRemote, []);
+});
 t('syncRange', () => {
   assert.deepEqual(syncRange({ today: '2026-10-20' }), { from: '2026-10-18', to: '2026-10-20' });
   assert.deepEqual(syncRange({ today: '2026-10-20', attendanceStart: '2026-10-19' }), { from: '2026-10-19', to: '2026-10-20' });
