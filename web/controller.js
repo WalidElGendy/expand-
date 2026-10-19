@@ -576,6 +576,24 @@ export function wireApp(lang) {
     } catch (err) { fail(err); btn.disabled = false; btn.textContent = V.DSTR[lang].prUpload; }
   };
 
+  /* --- one project: design uploads (2D / 3D) --- */
+  document.querySelectorAll('form[data-des-form]').forEach(form => {
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const team = form.dataset.desForm;
+      const files = [...(form.querySelector('input[type=file]')?.files || [])];
+      if (!files.length) return;
+      const btn = form.querySelector('button[type=submit]');
+      btn.disabled = true; btn.textContent = V.DSTR[lang].uploading;
+      try {
+        for (const f of files) {
+          await db.uploadFile('docs', f, { purpose: 'design', project_id: ctx.project.id, department_id: team });
+        }
+        await loadFor('project', ctx.project.id); rerender();
+      } catch (err) { fail(err); btn.disabled = false; btn.textContent = V.DSTR[lang].desUpload; }
+    };
+  });
+
   /* --- one project: production schedule + files --- */
   const prodForm = $('#prodForm');
   if (prodForm) prodForm.onsubmit = async (e) => {
