@@ -631,6 +631,13 @@ export const listLeadEvents = async (lead_id) => ok(await sb
   .select('id, kind, body, occurred_at, author:created_by ( id, full_name )')
   .eq('lead_id', lead_id).order('occurred_at', { ascending: false }));
 
+/* Take an unowned lead. The database refuses if somebody got there first. */
+export async function pickUpLead(id) {
+  const { data, error } = await sb.rpc('pick_up_lead', { p_id: id });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
 export const addLeadEvent = async (e) => ok(await sb
   .from('lead_events').insert({ ...e, created_by: state.me?.id }).select().single());
 
