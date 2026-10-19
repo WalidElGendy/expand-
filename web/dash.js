@@ -50,6 +50,15 @@ export const canPrice = (me = db.state.me) =>
   canPlan(me) || (!!me && me.is_active !== false &&
     (me.department_id === 'pricing' || ['lead', 'manager', 'admin'].includes(me.role)));
 
+/* Who may upload designs: the 2D and 3D teams, plus planners, leads,
+   managers and admins. Mirrors can_design() in the database. A designer only
+   sees the upload box for their own team; the others see both. */
+export const canDesign = (team, me = db.state.me) => {
+  if (!me || me.is_active === false) return false;
+  if (canPlan(me) || ['lead', 'manager', 'admin'].includes(me.role)) return true;
+  return team ? me.department_id === team : ['2d', '3d'].includes(me.department_id);
+};
+
 /* Saudi VAT, shown under the pricing lines. */
 export const VAT_RATE = 0.15;
 export const sarFmt = (v) => `SAR ${(Number(v) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -308,6 +317,11 @@ export const DSTR = {
     prSub: 'Subtotal', prVat: 'VAT 15%', prTotal: 'Total incl. VAT', prBadNumber: 'Quantity and price must be numbers of zero or more.',
     prSheet: 'Pricing sheet', prSheetHint: 'Excel, PDF or Word — the full priced breakdown.', prUpload: 'Upload', prSheets: 'Pricing sheets',
     prReadOnly: 'Only the pricing team, planners and managers can edit pricing.',
+    desHead: 'Design', des3d: '3D design', des2d: '2D design (technical drawings)',
+    desFile: 'Design files', desHint3d: 'Renders, images, PDF or the 3D model. Uploading marks the 3D stage done.',
+    desHint2d: 'Technical drawings — PDF, DWG, DXF, images. Uploading marks the 2D stage done and sends the project to pricing.',
+    desUpload: 'Upload design', desNone: 'No designs uploaded yet.', desNoStage: 'No stage on this project',
+    desReadOnly: 'Only the 2D and 3D teams, planners and managers can upload designs.',
     procSt: { pending: 'Pending', in_process: 'In process', done: 'Done', not_available: 'Not available', expensive: 'Expensive' },
     prodHead: 'Production', prodSchedule: 'Production schedule',
     prodScheduleHint: 'Phases, dates, who does what — free text.',
@@ -608,6 +622,11 @@ export const DSTR = {
     prSub: 'المجموع', prVat: 'ضريبة القيمة المضافة 15%', prTotal: 'الإجمالي شامل الضريبة', prBadNumber: 'الكمية والسعر يجب أن تكون أرقاماً صفراً أو أكثر.',
     prSheet: 'ملف التسعير', prSheetHint: 'Excel أو PDF أو Word — التفصيل الكامل للأسعار.', prUpload: 'رفع', prSheets: 'ملفات التسعير',
     prReadOnly: 'تعديل التسعير متاح لفريق التسعير والمخططين والمدراء فقط.',
+    desHead: 'التصميم', des3d: 'التصميم ثلاثي الأبعاد', des2d: 'التصميم ثنائي الأبعاد (الرسومات الفنية)',
+    desFile: 'ملفات التصميم', desHint3d: 'صور أو PDF أو المجسم ثلاثي الأبعاد. الرفع يجعل مرحلة 3D مكتملة.',
+    desHint2d: 'الرسومات الفنية — PDF أو DWG أو DXF أو صور. الرفع يجعل مرحلة 2D مكتملة وينقل المشروع إلى التسعير.',
+    desUpload: 'رفع التصميم', desNone: 'لا توجد تصاميم مرفوعة بعد.', desNoStage: 'لا توجد هذه المرحلة في المشروع',
+    desReadOnly: 'رفع التصاميم متاح لفريقي 2D و3D والمخططين والمدراء فقط.',
     procSt: { pending: 'قيد الانتظار', in_process: 'قيد التنفيذ', done: 'تم', not_available: 'غير متوفر', expensive: 'مكلف' },
     prodHead: 'الإنتاج', prodSchedule: 'جدول الإنتاج',
     prodScheduleHint: 'المراحل والتواريخ ومن يقوم بماذا — نص حر.',
@@ -2098,7 +2117,8 @@ export function projectView(lang, ctx) {
   const inProd = ['won', 'in_production'].includes(p.status);
   // Their files live in the same table, so keep them out of the general
   // Documents list where they would just be noise.
-  const docFiles = files.filter(f => !['procurement', 'production', 'pricing'].includes(f.purpose));
+  const docFiles = files.filter(f => !['procurement', 'production', 'pricing', 'design'].includes(f.purpose));
+  const showDesign = stages.some(s => ['2d', '3d'].includes(s.department_id)) || files.some(f => f.purpose === 'design');
   /* Pricing is open while the project is being won; afterwards it stays
      visible (read-only for most) if anything was ever priced. */
   const pricingOpen = !['delivered', 'archived', 'lost'].includes(p.status);
@@ -2170,6 +2190,8 @@ ${mayMove ? `
       <td>${statusPill(s.status, lang)}</td></tr>`).join('')}</tbody>
   </table></div>` : `<p class="note">${esc(t.noStages)}</p>`}
 </section>
+
+${showDesign ? designSection(lang, ctx) : ''}
 
 ${showPricing ? pricingSection(lang, ctx) : ''}
 
@@ -2386,6 +2408,52 @@ export function pricingSection(lang, ctx) {
       <span class="muted small">${f.size_bytes ? `${Math.max(1, Math.round(f.size_bytes / 1024))} KB` : ''}${f.uploader?.full_name ? ` · ${esc(t.uploadedBy.replace('{who}', f.uploader.full_name))}` : ''}</span>
     </li>`).join('')}</ul></div>` : ''}
   ${canEdit ? '' : `<p class="note">${esc(t.prReadOnly)}</p>`}
+</section>`;
+}
+
+/* ========================================================================
+   Design: the 3D and 2D teams upload their work here, one group per team.
+   An upload marks that team's stage done (trigger design_uploaded in the
+   database); a 2D upload also moves an in-design project to pricing.
+   ======================================================================== */
+
+export function designSection(lang, ctx) {
+  const t = DSTR[lang];
+  const files = (ctx.projectFiles || []).filter(f => f.purpose === 'design');
+  const stages = ctx.project?.project_stages || [];
+  const anyEdit = canDesign('2d') || canDesign('3d');
+
+  const group = (team, title, hint) => {
+    const st = stages.find(s => s.department_id === team);
+    const mine = files.filter(f => f.department_id === team);
+    const id = `desFiles${team}`;
+    return `
+  <div class="desgroup">
+    <div class="desgroup__head">
+      <span class="pill" style="--c:${esc(db.dept(team)?.colour || '#555')}">${esc(deptName(team, lang))}</span>
+      <h3>${esc(title)}</h3>
+      ${st ? statusPill(st.status, lang) : `<span class="muted small">${esc(t.desNoStage)}</span>`}
+    </div>
+    ${canDesign(team) ? `<form class="inlineform" data-des-form="${team}" style="border-bottom:0;padding-inline:0">
+      ${dropField(id, t.desFile, hint, { accept: 'image/*,.pdf,.dwg,.dxf,.skp,.max,.3ds,.obj,.fbx,.zip,.rar,.ppt,.pptx', multiple: true })}
+      <div class="actions"><button type="submit" class="btn btn--primary btn--sm">${esc(t.desUpload)}</button></div>
+    </form>` : ''}
+    ${mine.length ? `<ul class="filelist">${mine.map(f => `
+      <li class="filerow">
+        <button class="link" data-file="${esc(f.id)}">${esc(f.title || f.filename)}</button>
+        <span class="muted small">${f.size_bytes ? `${Math.max(1, Math.round(f.size_bytes / 1024))} KB · ` : ''}${esc(sinceText(f.created_at, lang, t))}${f.uploader?.full_name ? ` · ${esc(t.uploadedBy.replace('{who}', f.uploader.full_name))}` : ''}</span>
+      </li>`).join('')}</ul>` : `<p class="note">${esc(t.desNone)}</p>`}
+  </div>`;
+  };
+
+  return `
+<section class="card">
+  <div class="card__head"><h2>${esc(t.desHead)}</h2><span class="muted small">${files.length}</span></div>
+  <div class="desgrid">
+    ${group('3d', t.des3d, t.desHint3d)}
+    ${group('2d', t.des2d, t.desHint2d)}
+  </div>
+  ${anyEdit ? '' : `<p class="note">${esc(t.desReadOnly)}</p>`}
 </section>`;
 }
 
