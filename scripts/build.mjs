@@ -42,7 +42,12 @@ for (const jwt of js.match(/eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-
 if (/\bsb_secret_[A-Za-z0-9_-]{8,}/.test(js)) {
   throw new Error('a secret API key reached the bundle — it bypasses row-level security and must never ship');
 }
-const shell = readFileSync(root + 'web/index.html', 'utf8');
+/* A build id, so an open tab can tell it is running an old deploy. Derived
+   from the bundle itself: the same code always gets the same id. */
+const { createHash } = await import('node:crypto');
+const BUILD_ID = createHash('sha256').update(js).digest('hex').slice(0, 12);
+js = js.split('__BUILD_ID__').join(BUILD_ID);
+const shell = readFileSync(root + 'web/index.html', 'utf8').split('__BUILD_ID__').join(BUILD_ID);
 if (!shell.includes('/*__BUNDLE__*/')) throw new Error('web/index.html lost its /*__BUNDLE__*/ marker');
 
 mkdirSync(root + 'public', { recursive: true });
