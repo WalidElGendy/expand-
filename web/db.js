@@ -101,6 +101,7 @@ export const onAuthChange = (fn) => sb?.auth.onAuthStateChange(fn);
    every offline row blank, which is most rows most of the time. */
 
 let presenceChan = null;
+let heartbeat = null;
 const onlineWatchers = new Set();
 export const onOnlineChange = (fn) => { onlineWatchers.add(fn); return () => onlineWatchers.delete(fn); };
 
@@ -123,10 +124,12 @@ export function joinPresence() {
 
   touchLastSeen();
   // Only while the tab is visible: a laptop shut with the tab open should
-  // stop claiming the person is here.
-  setInterval(() => { if (document.visibilityState === 'visible') touchLastSeen(); }, 120000);
+  // stop claiming the person is here. Started once per page — signing out
+  // and back in must not stack a second timer.
+  if (heartbeat) return;
+  heartbeat = setInterval(() => { if (document.visibilityState === 'visible' && state.me) touchLastSeen(); }, 120000);
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') touchLastSeen();
+    if (document.visibilityState === 'visible' && state.me) touchLastSeen();
   });
 }
 
@@ -146,6 +149,10 @@ export async function signIn(email, password) {
   if (error) throw new Error(error.message);
   state.session = data.session;
   state.me = await loadMe();
+  /* Signing in on a page that is already open never passes through the
+     start-up path that joins presence, so without this the person shows as
+     never-seen to the admin until they happen to reload the tab. */
+  joinPresence();
   return state.me;
 }
 
@@ -221,6 +228,10 @@ export async function verifyCode(email, code) {
   const data = await exchangeCode(addr, token, (args) => sb.auth.verifyOtp(args));
   state.session = data.session;
   state.me = await loadMe();
+  /* Signing in on a page that is already open never passes through the
+     start-up path that joins presence, so without this the person shows as
+     never-seen to the admin until they happen to reload the tab. */
+  joinPresence();
   return state.me;
 }
 
@@ -235,6 +246,7 @@ export async function updatePassword(password) {
 export const announceAccount = () => callFn('account-ready', {}).catch(() => {});
 
 export async function signOut() {
+  leavePresence();
   await sb.auth.signOut();
   state.session = null; state.me = null;
 }
