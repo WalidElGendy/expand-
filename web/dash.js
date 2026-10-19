@@ -2151,10 +2151,12 @@ export function projectView(lang, ctx) {
       `<button class="link" data-act="go" data-route="#/l/${esc(p.lead.id)}">${esc(p.lead.name)}${p.lead.company ? ` · ${esc(p.lead.company)}` : ''}</button>`) : ''}
   </div>
 
-  ${canPlan() ? `<form id="cvForm" class="inlineform" style="border-bottom:0;padding-top:0"><div class="fields">
-    <label class="f"><span>${esc(t.contractValue)}</span><input id="cvValue" type="number" min="0" step="1" inputmode="numeric" value="${esc(p.contract_value_sar ?? '')}" /></label>
-    <div class="f" style="align-self:end"><button class="btn btn--sm">${esc(t.cvSave)}</button></div></div>
-    <p class="note">${esc(t.cvHint)}</p></form>` : ''}
+  ${canPlan() ? `<form id="cvForm" class="inlineform" style="border-bottom:0;padding-top:0">
+    <div class="fields" style="grid-template-columns:minmax(0, 320px)">
+      <label class="f"><span>${esc(t.contractValue)}</span><input id="cvValue" type="number" min="0" step="1" inputmode="numeric" value="${esc(p.contract_value_sar ?? '')}" /></label>
+    </div>
+    <p class="note">${esc(t.cvHint)}</p>
+    <div class="actions"><button type="submit" class="btn btn--sm">${esc(t.cvSave)}</button></div></form>` : ''}
 
   <h3 class="subhead">${esc(t.description)}</h3>
   <p class="prose${p.description ? '' : ' muted'}">${esc(p.description || t.noDescription)}</p>
