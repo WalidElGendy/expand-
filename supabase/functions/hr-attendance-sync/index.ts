@@ -105,17 +105,27 @@ Deno.serve(async (req) => {
   }
 
   try {
-    /* 1. every employee in the fingerprint system */
+    /* 1. every employee in the fingerprint system.
+       Paging is driven by totalRecordsCount from the FIRST page: later pages
+       report a wrong pageCount (page 3 of 44 people claims 11 pages), and a
+       page past the end answers 204 with an empty body. */
     const remote: any[] = [];
-    for (let page = 1, pages = 1; page <= pages && page <= 200; page++) {
+    let total = Infinity, perPage = 20;
+    for (let page = 1; page <= 200 && remote.length < total; page++) {
       const res = await mal(`/v1/employee/list?pageNumber=${page}`);
       if (res.status === 401 || res.status === 403) throw new Error('the fingerprint system refused the API key');
-      if (!res.ok) throw new Error(`employee list failed (${res.status}): ${(await res.text()).slice(0, 200)}`);
-      const j = await res.json();
+      if (res.status === 204) break;
+      const text = await res.text();
+      if (!res.ok) throw new Error(`employee list failed (${res.status}): ${text.slice(0, 200)}`);
+      if (!text.trim()) break;
+      const j = JSON.parse(text);
       const recs = Array.isArray(j) ? j : (j.records || []);
+      if (page === 1 && !Array.isArray(j)) {
+        total = Number(j.totalRecordsCount) || Infinity;
+        perPage = Number(j.count) || recs.length || 20;
+      }
       remote.push(...recs);
-      pages = Array.isArray(j) ? 1 : (j.pageCount || Math.ceil((j.totalRecordsCount || recs.length) / 20) || 1);
-      if (!recs.length) break;
+      if (Array.isArray(j) || !recs.length || recs.length < perPage) break;
     }
 
     /* 2. pair with people here */
@@ -129,6 +139,15 @@ Deno.serve(async (req) => {
     const m = matchEmployees(remote, local);
     for (const l of m.links) {
       await admin.from('hr_employees').upsert({ profile_id: l.profile_id, device_no: l.device_no }, { onConflict: 'profile_id' });
+    }
+    /* The fingerprint system knows each person's joining date. Fill it in
+       where the HR file has none yet — never overwrite what HR typed. */
+    const joined = new Map(remote.map((r: any) => [String(r.employeeNumber ?? '').trim(), String(r.joinedDate || '').slice(0, 10)]));
+    for (const [no, pid] of m.byNo) {
+      const d = joined.get(no);
+      if (/^\d{4}-\d\d-\d\d$/.test(d || '')) {
+        await admin.from('hr_employees').update({ joining_date: d }).eq('profile_id', pid).is('joining_date', null);
+      }
     }
 
     /* 3–4. attendance per paired employee */
@@ -147,7 +166,9 @@ Deno.serve(async (req) => {
         });
         if (res.status === 204 || res.status === 404) { await res.body?.cancel(); return; }
         if (!res.ok) { errors.push(`${no}: HTTP ${res.status}`); await res.body?.cancel(); return; }
-        const list = await res.json();
+        const text = await res.text();
+        if (!text.trim()) return;
+        const list = JSON.parse(text);
         for (const rec of (Array.isArray(list) ? list : [list])) {
           records++;
           const row = recordToRow(rec, pid, tz);
