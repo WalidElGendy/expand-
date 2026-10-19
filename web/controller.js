@@ -93,7 +93,7 @@ export async function loadFor(route, id) {
        pops in its documents a second later reads as broken. */
     if (route === 'project' && id) {
       ctx.project = null; ctx.projectFiles = []; ctx.projectTasks = []; ctx.projectEvents = [];
-      ctx.procurementItems = []; ctx.productionInfo = null;
+      ctx.procurementItems = []; ctx.productionInfo = null; ctx.pricingItems = [];
       jobs.push(db.getProject(id).then(p => { ctx.project = p; }).catch(() => { ctx.project = null; }));
       jobs.push(db.listFiles({ project_id: id }).then(f => { ctx.projectFiles = f; }).catch(() => {}));
       jobs.push(db.listProjectTasks(id).then(x => { ctx.projectTasks = x; }).catch(() => {}));
@@ -103,6 +103,7 @@ export async function loadFor(route, id) {
       // that never reached production — the sections simply do not render.
       jobs.push(db.listProcurementItems(id).then(x => { ctx.procurementItems = x; }).catch(() => { ctx.procurementItems = []; }));
       jobs.push(db.getProductionInfo(id).then(x => { ctx.productionInfo = x; }).catch(() => { ctx.productionInfo = null; }));
+      jobs.push(db.listPricingItems(id).then(x => { ctx.pricingItems = x; }).catch(() => { ctx.pricingItems = []; }));
     }
 
     /* One lead. Same reasoning as the project page: fetched by id so a deep
@@ -516,6 +517,63 @@ export function wireApp(lang) {
       }
       await loadFor('project', ctx.project.id); rerender();
     } catch (err) { fail(err); btn.disabled = false; }
+  };
+
+  /* --- one project: pricing lines + pricing sheet ---
+     Cells save on change without a re-render; the line total and the totals
+     under the table are recomputed in place so the numbers follow typing. */
+  const prRecalc = () => {
+    let sub = 0;
+    $$('[data-pr-row]').forEach(tr => {
+      const q = Number(tr.querySelector('[data-field="qty"]')?.value) || 0;
+      const u = Number(tr.querySelector('[data-field="unit_price_sar"]')?.value) || 0;
+      const line = q * u; sub += line;
+      const cell = tr.querySelector('[data-pr-line]'); if (cell) cell.textContent = V.sarFmt(line);
+    });
+    const set = (sel, v) => { const el = $(sel); if (el) el.textContent = V.sarFmt(v); };
+    set('[data-pr-sub]', sub); set('[data-pr-vat]', sub * V.VAT_RATE); set('[data-pr-total]', sub * (1 + V.VAT_RATE));
+  };
+  $$('[data-pr]').forEach(inp => {
+    if (inp.type === 'number') inp.oninput = prRecalc;
+    inp.onchange = async () => {
+      const field = inp.dataset.field;
+      let value = inp.value.trim();
+      if (field === 'qty' || field === 'unit_price_sar') {
+        value = value === '' ? (field === 'qty' ? 0 : null) : Number(value);
+        if (value !== null && (!Number.isFinite(value) || value < 0)) { fail(new Error(V.DSTR[lang].prBadNumber)); return; }
+      } else if (field !== 'name') value = value || null;
+      try { await db.updatePricingItem(inp.dataset.pr, { [field]: value }); }
+      catch (e) { fail(e); }
+    };
+  });
+  const prAdd = $('[data-pr-add]');
+  if (prAdd) prAdd.onclick = async () => {
+    prAdd.disabled = true;
+    try {
+      await db.addPricingItem(ctx.project.id, { sort: (ctx.pricingItems || []).length });
+      await loadFor('project', ctx.project.id); rerender();
+      const rows = $$('[data-pr-row]'); rows[rows.length - 1]?.querySelector('input')?.focus();
+    } catch (e) { fail(e); prAdd.disabled = false; }
+  };
+  $$('[data-pr-del]').forEach(b => b.onclick = async () => {
+    if (!confirm(V.DSTR[lang].prDelConfirm)) return;
+    b.disabled = true;
+    try { await db.deletePricingItem(b.dataset.prDel); await loadFor('project', ctx.project.id); rerender(); }
+    catch (e) { fail(e); b.disabled = false; }
+  });
+  const prFileForm = $('#prFileForm');
+  if (prFileForm) prFileForm.onsubmit = async (e) => {
+    e.preventDefault();
+    const files = [...($('#prFiles')?.files || [])];
+    if (!files.length) return;
+    const btn = prFileForm.querySelector('button[type=submit]');
+    btn.disabled = true; btn.textContent = V.DSTR[lang].uploading;
+    try {
+      for (const f of files) {
+        await db.uploadFile('docs', f, { purpose: 'pricing', project_id: ctx.project.id, department_id: 'pricing' });
+      }
+      await loadFor('project', ctx.project.id); rerender();
+    } catch (err) { fail(err); btn.disabled = false; btn.textContent = V.DSTR[lang].prUpload; }
   };
 
   /* --- one project: production schedule + files --- */
