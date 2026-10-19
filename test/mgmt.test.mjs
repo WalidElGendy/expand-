@@ -47,27 +47,14 @@ t('salesStats', () => {
   const b = s.byOwner.find(o => o.id === 'b'); assert.deepEqual([b.accepted, b.value, b.winRate], [3, 1250000, 100]);
   assert.equal(s.deliveredValue.find(m => m.month === '2026-08').value, 1000000);
 });
-t('leadStats', () => {
-  const leads = [
-    { status: 'new', source: 'LinkedIn', owner_id: null, next_follow_up_on: '2026-10-01' },
-    { status: 'not_contacted', source: 'linkedin' },
-    { status: 'contacted', source: 'Expo', owner_id: 'o', owner: { full_name: 'O' }, next_follow_up_on: '2026-10-30', value_sar: 100 },
-    { status: 'proposal', source: 'Expo', owner_id: 'o', owner: { full_name: 'O' }, next_follow_up_on: '2026-10-17' },
-    { status: 'won', source: 'Expo' }, { status: 'lost' }, { status: 'not_interested' }, { status: 'wrong_number' },
-  ];
-  const s = M.leadStats(leads, today);
-  assert.deepEqual(s.stages, { new: 2, contacted: 1, interested: 0, proposal: 1, won: 1, dead: 3 });
-  assert.deepEqual([s.open, s.overdue, s.noOwner, s.conversion, s.value, s.valued], [4, 2, 2, 33, 100, 1]);
-  assert.deepEqual(s.bySource.map(x => [x.label, x.n, x.won]), [['Expo', 3, 1], ['—', 3, 0], ['LinkedIn', 2, 0]]);
-  assert.deepEqual(s.byOwner.map(o => [o.id, o.n, o.overdue]).sort((a, b) => String(a[0]).localeCompare(String(b[0]))), [[null, 2, 1], ['o', 2, 1]]);
-});
 t('attention', () => {
   const ps = M.projectStats(projects, today), ss = M.salesStats(projects, today);
-  const a = M.attention({ ps, ss, ls: { overdue: 3, noOwner: 0 }, ts: { review: 2, dueSoon: [{ t: { status: 'review' }, left: 3 }] },
+  const a = M.attention({ ps, ss, ts: { review: 2, dueSoon: [{ t: { status: 'review' }, left: 3 }] },
     hr: { contracts_expired: 1, contracts_ending: 0, pending_requests: 4, probation_ending: 0, no_file: 0 },
     risks: [{ risk: true, dept: '3d', top: { name: 'X', n: 5 }, share: 0.8 }] });
   assert.equal(a[0].level, 'critical');
-  assert.ok(a.findIndex(x => x.level === 'warn') > a.findIndex(x => x.key === 'followOverdue'));
+  assert.ok(a.findIndex(x => x.level === 'warn') > a.findIndex(x => x.key === 'tendersUrgent'));
+  assert.ok(!a.some(x => /lead|follow/i.test(x.key)));   // leads carry no statistics
   assert.ok(a.some(x => x.key === 'keyPerson' && x.share === 80 && x.who === 'X'));
   assert.ok(!a.some(x => x.key === 'contractsEnding'));   // zero counts are dropped
   assert.equal(a.at(-1).level, 'info');
