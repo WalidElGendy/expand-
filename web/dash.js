@@ -3321,8 +3321,10 @@ export function adminView(lang, ctx) {
      shades of one. The one that matters is `waiting`: somebody created a
      login and is sitting on the sign-in screen until an admin says yes. */
   const keyOf = (p) => {
-    if (p.user_id && online.has(p.id)) return 'online';
+    // Waiting first: somebody parked on the approval screen is "online" too,
+    // but what the admin needs to see is that they are waiting for a yes.
     if (p.user_id && !p.is_active)     return 'waiting';
+    if (p.user_id && online.has(p.id)) return 'online';
     /* An account exists but nobody has ever opened the app with it. Minting a
        sign-in link creates the auth user immediately, so "has a login" stopped
        being the same question as "has arrived" — and an admin watching this
