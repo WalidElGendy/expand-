@@ -10,17 +10,6 @@ export const ACCEPTED = ['won', 'in_production', 'delivered'];
 export const OPEN_SALES = ['intake', 'in_design', 'pricing', 'submitted'];
 export const CLOSED = ['delivered', 'archived', 'lost'];
 
-/* Lead statuses grouped into the stages management talks about. */
-export const LEAD_STAGES = {
-  new: ['new', 'not_contacted'],
-  contacted: ['contacted', 'follow_up', 'no_answer'],
-  interested: ['interested', 'qualified'],
-  proposal: ['proposal'],
-  won: ['won'],
-  dead: ['not_interested', 'lost', 'wrong_number', 'not_delivered', 'address_not_found'],
-};
-export const leadStage = (status) => Object.keys(LEAD_STAGES).find(k => LEAD_STAGES[k].includes(status)) || 'new';
-
 const num = (v) => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) ? 0 : Number(v));
 const DAY = 86400000;
 export const addDays = (iso, n) => new Date(Date.parse(iso + 'T00:00:00Z') + n * DAY).toISOString().slice(0, 10);
@@ -164,46 +153,13 @@ export function salesStats(all, today) {
   };
 }
 
-/* --------------------------------------------------------------- leads */
-
-export function leadStats(leads, today) {
-  const stages = Object.fromEntries(Object.keys(LEAD_STAGES).map(k => [k, 0]));
-  const sources = new Map(), owners = new Map();
-  let overdue = 0, noOwner = 0, value = 0, valued = 0, open = 0, lostish = 0;
-  for (const l of leads) {
-    const st = leadStage(l.status);
-    stages[st]++;
-    const isOpen = st !== 'won' && st !== 'dead';
-    if (['lost', 'not_interested'].includes(l.status)) lostish++;
-    const src = String(l.source || '').trim() || '—';
-    const s = tally(sources, src.toLowerCase(), () => ({ label: src, n: 0, won: 0 }));
-    s.n++; if (st === 'won') s.won++;
-    if (!isOpen) continue;
-    open++;
-    const late = l.next_follow_up_on && l.next_follow_up_on < today;
-    if (late) overdue++;
-    if (!l.owner_id) noOwner++;
-    if (num(l.value_sar) > 0) { value += num(l.value_sar); valued++; }
-    const o = tally(owners, l.owner_id || '', () => ({ id: l.owner_id || null, name: l.owner?.full_name || '', n: 0, overdue: 0 }));
-    o.n++; if (late) o.overdue++;
-  }
-  const closed = stages.won + lostish;
-  return {
-    total: leads.length, open, overdue, noOwner, stages,
-    conversion: closed ? Math.round((stages.won / closed) * 100) : null,
-    bySource: [...sources.values()].sort((a, b) => b.n - a.n),
-    byOwner: [...owners.values()].sort((a, b) => b.n - a.n),
-    value, valued,
-  };
-}
-
 /* ---------------------------------------------------------- attention */
 
 /**
  * What needs a decision this week, most serious first. Each item names its
  * count and where to go; the view supplies the words.
  */
-export function attention({ ps, ss, ls, ts, hr, risks = [] }) {
+export function attention({ ps, ss, ts, hr, risks = [] }) {
   const out = [];
   const add = (level, key, n, route, extra = {}) => { if (n > 0) out.push({ level, key, n, route, ...extra }); };
   if (ps) {
@@ -218,11 +174,7 @@ export function attention({ ps, ss, ls, ts, hr, risks = [] }) {
     add('critical', 'tendersUrgent', urgent, '#/tenders');
     add('warn', 'tendersAwaiting', ts.review, '#/tenders');
   }
-  if (ls) {
-    add('critical', 'followOverdue', ls.overdue, '#/leads');
-    add('warn', 'leadsNoOwner', ls.noOwner, '#/leads');
-  }
-  if (ss) add('info', 'atEtemad', ss.submitted, '#/pipeline');
+  if (ss) add('info', 'atEtemad', ss.submitted, '#/projects');
   if (hr) {
     add('critical', 'contractsExpired', hr.contracts_expired || 0, '#/hr');
     add('warn', 'contractsEnding', hr.contracts_ending || 0, '#/hr');
