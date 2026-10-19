@@ -518,6 +518,27 @@ export const updateProcurementItem = async (id, patch) => ok(await sb
 export const deleteProcurementItem = async (id) => ok(await sb
   .from('procurement_items').delete().eq('id', id).select());
 
+/* ----------------------------------------------------------------- pricing
+   The pricing team's lines on a project: quantity × unit price. Writable by
+   can_price() (pricing department, planners, leads, managers, admins). */
+export const listPricingItems = async (project_id) => ok(await sb
+  .from('pricing_items')
+  .select('id, project_id, name, description, qty, unit, unit_price_sar, sort, created_at')
+  .eq('project_id', project_id)
+  .order('sort', { ascending: true })
+  .order('created_at', { ascending: true }));
+
+export const addPricingItem = async (project_id, patch = {}) => ok(await sb
+  .from('pricing_items')
+  .insert({ project_id, name: patch.name || '', qty: patch.qty ?? 1, sort: patch.sort ?? 0, created_by: state.me?.id })
+  .select().single());
+
+export const updatePricingItem = async (id, patch) => ok(await sb
+  .from('pricing_items').update(patch).eq('id', id).select().single());
+
+export const deletePricingItem = async (id) => ok(await sb
+  .from('pricing_items').delete().eq('id', id).select());
+
 /** One row per project, edited in place. Upsert on project_id so saving the
     schedule twice does not create a second row nobody knows which to believe. */
 export async function getProductionInfo(project_id) {
