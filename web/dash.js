@@ -44,6 +44,16 @@ export const canEditProduction = (me = db.state.me) =>
   canPlan(me) || (!!me && me.is_active !== false &&
     (me.department_id === 'production' || ['lead', 'manager', 'admin'].includes(me.role)));
 
+/* Who may price a project: the pricing team, plus planners, leads, managers
+   and admins. Mirrors can_price() in the database. */
+export const canPrice = (me = db.state.me) =>
+  canPlan(me) || (!!me && me.is_active !== false &&
+    (me.department_id === 'pricing' || ['lead', 'manager', 'admin'].includes(me.role)));
+
+/* Saudi VAT, shown under the pricing lines. */
+export const VAT_RATE = 0.15;
+export const sarFmt = (v) => `SAR ${(Number(v) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
 export const DSTR = {
   en: {
     contractValue: 'Contract value (SAR)', cvSave: 'Save value', cvInvalid: 'Enter a number of riyals, or leave it empty.',
@@ -293,6 +303,11 @@ export const DSTR = {
     procAdd: '+ Add item', procNone: 'No items added yet.', procView: 'View', procPhoto: 'Add photo',
     procList: 'Upload a list', procListHint: 'Excel, PDF or a photo of the full items list',
     procDelConfirm: 'Remove this item from the list?',
+    prHead: 'Pricing', prItem: 'Item', prDesc: 'Description', prQty: 'Qty', prUnit: 'Unit', prUnitPrice: 'Unit price (SAR)',
+    prLine: 'Total', prAdd: 'Add item', prNone: 'No pricing items yet.', prDelConfirm: 'Remove this pricing item?',
+    prSub: 'Subtotal', prVat: 'VAT 15%', prTotal: 'Total incl. VAT', prBadNumber: 'Quantity and price must be numbers of zero or more.',
+    prSheet: 'Pricing sheet', prSheetHint: 'Excel, PDF or Word — the full priced breakdown.', prUpload: 'Upload', prSheets: 'Pricing sheets',
+    prReadOnly: 'Only the pricing team, planners and managers can edit pricing.',
     procSt: { pending: 'Pending', in_process: 'In process', done: 'Done', not_available: 'Not available', expensive: 'Expensive' },
     prodHead: 'Production', prodSchedule: 'Production schedule',
     prodScheduleHint: 'Phases, dates, who does what — free text.',
@@ -588,6 +603,11 @@ export const DSTR = {
     procAdd: '+ إضافة صنف', procNone: 'لا توجد أصناف بعد.', procView: 'عرض', procPhoto: 'إضافة صورة',
     procList: 'رفع قائمة', procListHint: 'إكسل أو PDF أو صورة لقائمة الأصناف كاملة',
     procDelConfirm: 'حذف هذا الصنف من القائمة؟',
+    prHead: 'التسعير', prItem: 'البند', prDesc: 'الوصف', prQty: 'الكمية', prUnit: 'الوحدة', prUnitPrice: 'سعر الوحدة (ريال)',
+    prLine: 'الإجمالي', prAdd: 'إضافة بند', prNone: 'لا توجد بنود تسعير بعد.', prDelConfirm: 'حذف بند التسعير هذا؟',
+    prSub: 'المجموع', prVat: 'ضريبة القيمة المضافة 15%', prTotal: 'الإجمالي شامل الضريبة', prBadNumber: 'الكمية والسعر يجب أن تكون أرقاماً صفراً أو أكثر.',
+    prSheet: 'ملف التسعير', prSheetHint: 'Excel أو PDF أو Word — التفصيل الكامل للأسعار.', prUpload: 'رفع', prSheets: 'ملفات التسعير',
+    prReadOnly: 'تعديل التسعير متاح لفريق التسعير والمخططين والمدراء فقط.',
     procSt: { pending: 'قيد الانتظار', in_process: 'قيد التنفيذ', done: 'تم', not_available: 'غير متوفر', expensive: 'مكلف' },
     prodHead: 'الإنتاج', prodSchedule: 'جدول الإنتاج',
     prodScheduleHint: 'المراحل والتواريخ ومن يقوم بماذا — نص حر.',
@@ -2078,7 +2098,11 @@ export function projectView(lang, ctx) {
   const inProd = ['won', 'in_production'].includes(p.status);
   // Their files live in the same table, so keep them out of the general
   // Documents list where they would just be noise.
-  const docFiles = files.filter(f => !['procurement', 'production'].includes(f.purpose));
+  const docFiles = files.filter(f => !['procurement', 'production', 'pricing'].includes(f.purpose));
+  /* Pricing is open while the project is being won; afterwards it stays
+     visible (read-only for most) if anything was ever priced. */
+  const pricingOpen = !['delivered', 'archived', 'lost'].includes(p.status);
+  const showPricing = pricingOpen || (ctx.pricingItems || []).length || files.some(f => f.purpose === 'pricing');
 
   const fact = (label, value, cls = '') =>
     `<div class="fact"><span class="fact__l">${esc(label)}</span><span class="fact__v ${cls}">${value}</span></div>`;
@@ -2146,6 +2170,8 @@ ${mayMove ? `
       <td>${statusPill(s.status, lang)}</td></tr>`).join('')}</tbody>
   </table></div>` : `<p class="note">${esc(t.noStages)}</p>`}
 </section>
+
+${showPricing ? pricingSection(lang, ctx) : ''}
 
 ${inProd ? productionSections(lang, ctx) : ''}
 
@@ -2293,6 +2319,74 @@ export function productionSections(lang, ctx) {
 </section>`;
 
   return procurement + '\n' + production;
+}
+
+/* ========================================================================
+   Pricing: item lines (qty × unit price) with subtotal, VAT and total, and
+   the pricing sheet as a file. The pricing team works here; everyone else
+   with access sees it read-only.
+   ======================================================================== */
+
+export function pricingSection(lang, ctx) {
+  const t = DSTR[lang];
+  const items = ctx.pricingItems || [];
+  const sheets = (ctx.projectFiles || []).filter(f => f.purpose === 'pricing');
+  const canEdit = canPrice();
+  const line = (it) => (Number(it.qty) || 0) * (Number(it.unit_price_sar) || 0);
+  const sub = items.reduce((a, it) => a + line(it), 0);
+  const num = (v) => (v === null || v === undefined ? '' : String(v));
+
+  const editRow = (it) => `<tr data-pr-row>
+    <td><input class="cellinput" data-pr="${esc(it.id)}" data-field="name" value="${esc(it.name || '')}" placeholder="${esc(t.prItem)}" /></td>
+    <td><input class="cellinput" data-pr="${esc(it.id)}" data-field="description" value="${esc(it.description || '')}" placeholder="${esc(t.prDesc)}" /></td>
+    <td class="num"><input class="cellinput cellinput--num" type="number" min="0" step="any" inputmode="decimal" data-pr="${esc(it.id)}" data-field="qty" value="${esc(num(it.qty))}" /></td>
+    <td><input class="cellinput cellinput--unit" data-pr="${esc(it.id)}" data-field="unit" value="${esc(it.unit || '')}" placeholder="m², pcs…" /></td>
+    <td class="num"><input class="cellinput cellinput--num" type="number" min="0" step="any" inputmode="decimal" data-pr="${esc(it.id)}" data-field="unit_price_sar" value="${esc(num(it.unit_price_sar))}" /></td>
+    <td class="num" data-pr-line>${esc(sarFmt(line(it)))}</td>
+    <td class="proc-actions"><button class="x" data-pr-del="${esc(it.id)}" title="${esc(t.remove)}" aria-label="${esc(t.remove)}">✕</button></td>
+  </tr>`;
+  const viewRow = (it) => `<tr>
+    <td>${esc(it.name || '—')}</td>
+    <td class="${it.description ? '' : 'muted'}">${esc(it.description || '—')}</td>
+    <td class="num">${esc(num(it.qty))}</td><td>${esc(it.unit || '')}</td>
+    <td class="num">${it.unit_price_sar != null ? esc(sarFmt(it.unit_price_sar)) : '<span class="muted">—</span>'}</td>
+    <td class="num">${esc(sarFmt(line(it)))}</td>
+  </tr>`;
+  const cols = canEdit ? 7 : 6;
+  const span = cols - (canEdit ? 2 : 1);
+  const totalRow = (label, attr, v, strong = false) => `<tr class="prtotal${strong ? ' prtotal--grand' : ''}">
+    <td colspan="${span}" class="num">${esc(label)}</td><td class="num" ${attr}>${esc(sarFmt(v))}</td>${canEdit ? '<td></td>' : ''}</tr>`;
+
+  return `
+<section class="card">
+  <div class="card__head"><h2>${esc(t.prHead)}</h2><span class="muted small">${items.length}</span></div>
+  <div class="tblwrap"><table class="tbl tbl--tight tbl--proc tbl--pricing">
+    <thead><tr>
+      <th>${esc(t.prItem)}</th><th>${esc(t.prDesc)}</th><th class="num">${esc(t.prQty)}</th><th>${esc(t.prUnit)}</th>
+      <th class="num">${esc(t.prUnitPrice)}</th><th class="num">${esc(t.prLine)}</th>${canEdit ? '<th></th>' : ''}
+    </tr></thead>
+    <tbody>
+      ${items.length ? items.map(canEdit ? editRow : viewRow).join('')
+        : `<tr><td class="tbl__empty" colspan="${cols}">${esc(t.prNone)}</td></tr>`}
+    </tbody>
+    ${items.length ? `<tfoot>
+      ${totalRow(t.prSub, 'data-pr-sub', sub)}
+      ${totalRow(t.prVat, 'data-pr-vat', sub * VAT_RATE)}
+      ${totalRow(t.prTotal, 'data-pr-total', sub * (1 + VAT_RATE), true)}
+    </tfoot>` : ''}
+  </table></div>
+  ${canEdit ? `<div class="actions"><button type="button" class="btn btn--sm" data-pr-add>${esc(t.prAdd)}</button></div>
+  <form id="prFileForm" class="inlineform" style="border-bottom:0">
+    ${dropField('prFiles', t.prSheet, t.prSheetHint, { accept: '.xls,.xlsx,.csv,.pdf,.doc,.docx,.numbers', multiple: true })}
+    <div class="actions"><button type="submit" class="btn btn--sm">${esc(t.prUpload)}</button></div>
+  </form>` : ''}
+  ${sheets.length ? `<div style="padding:0 16px 14px"><h3 class="subhead">${esc(t.prSheets)}</h3><ul class="filelist">${sheets.map(f => `
+    <li class="filerow">
+      <button class="link" data-file="${esc(f.id)}">${esc(f.title || f.filename)}</button>
+      <span class="muted small">${f.size_bytes ? `${Math.max(1, Math.round(f.size_bytes / 1024))} KB` : ''}${f.uploader?.full_name ? ` · ${esc(t.uploadedBy.replace('{who}', f.uploader.full_name))}` : ''}</span>
+    </li>`).join('')}</ul></div>` : ''}
+  ${canEdit ? '' : `<p class="note">${esc(t.prReadOnly)}</p>`}
+</section>`;
 }
 
 /* ------------------------------ new project ------------------------------- */
