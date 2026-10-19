@@ -961,11 +961,11 @@ function estimate(fromForm) {
          screen — not just the admin one. Presence only knows about people who
          joined it, so if a designer never opened the People tab they would
          never appear online to the admin who did. */
-      if (session) {
-        db.joinPresence();
-        // A repaint when somebody arrives or leaves, but only where it shows.
-        db.onOnlineChange(() => { if (currentRoute().name === 'admin') render(); });
-      }
+      if (session) db.joinPresence();
+      // A repaint when somebody arrives or leaves, but only where it shows.
+      // Registered whether or not there is a session yet: an admin who signs
+      // in through the form joins presence later and needs it too.
+      db.onOnlineChange(() => { if (currentRoute().name === 'admin') render(); });
       await go();
     }).catch(() => go());
   } else {
