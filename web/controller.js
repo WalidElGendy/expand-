@@ -408,7 +408,7 @@ export function wireApp(lang) {
     const btn = leadNote.querySelector('button[type=submit]');
     btn.disabled = true;
     try {
-      await db.addLeadEvent({ lead_id: ctx.lead.id, kind: 'note', body });
+      await db.addLeadEvent({ lead_id: ctx.lead.id, kind: $('#leadNoteKind')?.value || 'note', body });
       ctx.leadEvents = await db.listLeadEvents(ctx.lead.id);
       rerender();
     } catch (err) { fail(err); btn.disabled = false; }
@@ -599,6 +599,20 @@ export function wireApp(lang) {
       await db.updateLead(sel.dataset.lead, { status: sel.value });
       await db.addLeadEvent({ lead_id: sel.dataset.lead, kind: 'status_change', body: `→ ${sel.value}` });
     } catch (e) { fail(e); }
+  });
+
+  /* --- leads: pick one up (list row or the lead's own page) --- */
+  $$('[data-pickup]').forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    try {
+      await db.pickUpLead(b.dataset.pickup);
+      await loadFor(ctx.route, ctx.routeId);
+      rerender();
+    } catch (e) {
+      b.disabled = false;
+      fail(/already_taken/.test(e.message) ? new Error(V.DSTR[lang].pickedTaken) : e);
+      if (/already_taken/.test(e.message)) { await loadFor(ctx.route, ctx.routeId); rerender(); }
+    }
   });
 
   $$('[data-note]').forEach(b => b.onclick = async () => {
