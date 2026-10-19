@@ -24,6 +24,10 @@ const today = () => iso(CAL.nextWorking(new Date()));
    manager/admin or in PM. It lives here so the sidebar, the "New project"
    button and the row actions cannot drift apart from each other — or from
    the policy, which is the only one of the four that actually decides. */
+/* Who may work leads: sales, managers and admins. Mirrors can_sell(). */
+export const canSell = (me = db.state.me) =>
+  !!me && me.is_active !== false && (['admin', 'manager'].includes(me.role) || me.department_id === 'bd');
+
 export const canPlan = (me = db.state.me) =>
   !!me && me.is_active !== false &&
   (['admin', 'manager'].includes(me.role) || me.department_id === 'pm');
@@ -144,6 +148,8 @@ export const DSTR = {
     committedDays: 'Design days committed', openLeads: 'Open leads', nextFree: 'A new project would deliver',
     ofTotal: 'of', needsReview: 'Needs review', allRows: 'All', teamsCol: 'Teams',
     overdueFollow: 'Follow-ups overdue',
+    pickUp: 'Pick up', pickUpLead: 'Pick up this lead', pickedTaken: 'Someone else picked this lead up a moment ago.',
+    touchKind: 'Type', touch: { note: 'Note', call: 'Call', email: 'Email', meeting: 'Meeting' },
     titleHint: 'What is this document called?',
     descHint: 'What is it for, and who should read it? Optional.',
     dropHint: 'PDF, Word, PowerPoint, Excel or images. You can pick several at once.',
@@ -453,6 +459,8 @@ export const DSTR = {
     committedDays: 'أيام تصميم ملتزم بها', openLeads: 'عملاء محتملون مفتوحون', nextFree: 'مشروع جديد يُسلَّم في',
     ofTotal: 'من', needsReview: 'تحتاج مراجعة', allRows: 'الكل', teamsCol: 'الفرق',
     overdueFollow: 'متابعات متأخرة',
+    pickUp: 'استلام', pickUpLead: 'استلام هذا العميل', pickedTaken: 'استلم شخص آخر هذا العميل قبل قليل.',
+    touchKind: 'النوع', touch: { note: 'ملاحظة', call: 'مكالمة', email: 'بريد', meeting: 'اجتماع' },
     titleHint: 'ما اسم هذا المستند؟',
     descHint: 'ما الغرض منه، ومن يجب أن يقرأه؟ اختياري.',
     dropHint: 'PDF أو وورد أو باوربوينت أو إكسل أو صور. يمكن اختيار عدة ملفات.',
@@ -1901,10 +1909,6 @@ export function highlightsView(lang, ctx) {
 <section class="card">
   <div class="card__head"><h2>${esc(t.hlPipeline)}</h2></div>
   <div class="kpis kpis--in">
-    ${kpi(P.leadsNoOwner, t.hlLeadsNoOwner, { colour: 'var(--warn)', bad: P.leadsNoOwner > 0,
-      sub: t.hlOfLeads.replace('{n}', P.leadsTotal) })}
-    ${kpi(P.followOverdue, t.hlFollowOverdue, { colour: 'var(--critical)', bad: P.followOverdue > 0,
-      sub: `${lang === 'ar' ? 'من' : 'of'} ${P.followTotal} ${lang === 'ar' ? 'لها موعد متابعة' : 'with a date set'}` })}
     ${kpi(P.atEtemad, t.hlAtEtemad, { colour: 'var(--s1)', sub: t.hlAtEtemadSub })}
     ${kpi(P.projNoOwner, t.hlProjNoOwner, { colour: 'var(--s4)', bad: P.projNoOwner > 0,
       sub: t.hlOfProjects.replace('{n}', P.projOpen) })}
@@ -1935,8 +1939,6 @@ export function pmView(lang, ctx) {
   const committed = Math.round(liveStages.reduce((sum, s) => sum + effortOf(s), 0));
   const unpriced = liveStages.filter(s => !effortOf(s)).length;
 
-  const leads = ctx.leads || [];
-  const openLeads = leads.filter(l => !['won', 'lost'].includes(l.status)).length;
 
   /* The product's own promise, on the dashboard: if a medium proposal landed
      today, when would it deliver — against everything already committed.
@@ -1986,7 +1988,6 @@ export function pmView(lang, ctx) {
   ${kpi(committed, t.committedDays, { colour: 'var(--s2)',
     sub: unpriced ? `${unpriced} ${lang === 'ar' ? 'مرحلة بلا رقم جهد' : 'stages have no effort figure'}`
                   : (lang === 'ar' ? 'جهد متبقٍ' : 'effort still to do') })}
-  ${kpi(openLeads, t.openLeads, { sub: `${leads.length} ${lang === 'ar' ? 'في القائمة' : 'in the list'}`, colour: 'var(--s3)' })}
   ${kpi(esc(fmt(freeFrom, lang)), t.nextFree, { date: true, sub: lang === 'ar' ? 'حجم متوسط، يبدأ اليوم' : 'medium size, starting today', colour: 'var(--s1)' })}
 </div>
 
@@ -2738,8 +2739,11 @@ export function rfpWinRate(personId, projects = []) {
 
 /** Which half-and-half applies to a person, by department. */
 export const AUTO_WEIGHT = 60, FORM_WEIGHT = 40;
+/* Sales used to be scored on lead conversion. The imported lead statuses
+   did not reflect reality, so since 19 Oct 2026 sales staff are scored on
+   the review form alone until the picked-up leads build a real record. */
 export const autoKindFor = (dept) =>
-  dept === 'bd' ? 'sales' : dept === 'pm' ? 'rfp' : null;
+  dept === 'pm' ? 'rfp' : null;
 
 /**
  * The whole score for one person.
@@ -2966,7 +2970,6 @@ export function pipelineView(lang, ctx) {
   const t = DSTR[lang];
   const leads = ctx.leads || [];
   const { cols, unmapped } = pipelineStages(leads);
-  const live = cols.slice(0, 3).reduce((n, c) => n + c.leads.length - c.spent, 0);
 
   const card = (l) => {
     const late = lateBy(l.next_follow_up_on);
@@ -2996,15 +2999,6 @@ export function pipelineView(lang, ctx) {
   const CAP = 40;
 
   return `
-<div class="kpis kpis--5">
-  ${kpi(live, t.pipeLive, { colour: 'var(--brand)',
-    sub: `${leads.length} ${lang === 'ar' ? 'في القائمة' : 'in the list'}` })}
-  ${cols.map(c => kpi(c.leads.length, t.pipe[c.key], {
-    colour: c.key === 'closed' ? 'var(--ok)' : c.key === 'new' ? 'var(--ink3)' : 'var(--warn)',
-    sub: c.spent ? t.pipeSpent.replace('{n}', c.spent) : '',
-  })).join('')}
-</div>
-
 <section class="card">
   <div class="card__head">
     <h2>${esc(t.pipeline)}</h2>
@@ -3036,34 +3030,16 @@ export function leadsView(lang, ctx) {
   const ORDER = ['new', 'not_contacted', 'contacted', 'interested', 'follow_up',
                  'qualified', 'proposal', 'won', 'not_interested', 'lost',
                  'wrong_number', 'no_answer', 'not_delivered', 'address_not_found'];
-  const STATUSES = ORDER.filter(s => leads.some(l => l.status === s)).slice(0, 6);
-  const counts = Object.fromEntries(STATUSES.map(s => [s, leads.filter(l => l.status === s).length]));
-  const stale = leads.filter(l => l.status !== 'won' && l.status !== 'lost' && lateBy(l.next_follow_up_on)).length;
-  const open = leads.filter(l => !['won', 'lost'].includes(l.status)).length;
   const matched = filterLeads(leads, ctx.lf);
   const rows = matched.slice(0, 200);
   const anyTitle = rows.some(l => l.title);
 
-  /* Same tiles as the dashboard rather than the old edge-to-edge strip: the
-     strip had no card, no colour and no denominator, so "0 qualified" read as
-     a rendering gap instead of the finding it is. Each tile carries the share
-     of the whole list, and its dot matches the pill the same status wears in
-     the table below. */
-  const share = (n) => leads.length
-    ? `${Math.round((n / leads.length) * 100)}% ${lang === 'ar' ? 'من القائمة' : 'of the list'}`
-    : '';
+  /* No statistics on this screen: the imported statuses and owners did not
+     reflect reality (reset on 19 Oct 2026). A salesperson picks a lead up
+     and documents every touch; the list is the record. */
+  const mayPick = canSell();
 
   return `
-<div class="kpis kpis--4">
-  ${kpi(open, t.openLeads, { colour: 'var(--brand)',
-    sub: `${leads.length} ${lang === 'ar' ? 'في القائمة' : 'in the list'}` })}
-  ${kpi(stale, t.overdueFollow, { bad: stale > 0, colour: 'var(--critical)',
-    sub: lang === 'ar' ? 'موعد المتابعة فات' : 'follow-up date has passed' })}
-  ${STATUSES.map(s => kpi(counts[s], t.st[s] || s, {
-    colour: ST_COLOUR[s] || 'var(--ink3)', sub: share(counts[s]),
-  })).join('')}
-</div>
-
 <section class="card">
   <div class="card__head">
     <h2>${esc(t.leads)}</h2>
@@ -3099,7 +3075,9 @@ export function leadsView(lang, ctx) {
             </select>
           </td>
           <td class="num ${late ? 'bad' : 'muted'}">${esc(fmt(l.next_follow_up_on, lang))}</td>
-          <td class="muted small">${esc(l.owner?.full_name || t.unassigned)}</td>
+          <td class="small">${l.owner?.full_name ? esc(l.owner.full_name)
+            : mayPick ? `<button class="btn btn--sm" data-pickup="${esc(l.id)}">${esc(t.pickUp)}</button>`
+            : `<span class="muted">${esc(t.unassigned)}</span>`}</td>
           <td class="num"><button class="link small" data-note="${esc(l.id)}">${esc(t.logNote)}</button></td>
         </tr>`;
       }).join('')
@@ -3145,6 +3123,7 @@ export function leadView(lang, ctx) {
     <h2>${esc(l.name)}</h2>
     ${statusPill(l.status, lang)}
     ${l.source ? `<span class="chip">${esc(l.source)}</span>` : ''}
+    ${!l.owner_id && canSell() ? `<button class="btn btn--primary btn--sm" style="margin-inline-start:auto" data-pickup="${esc(l.id)}">${esc(t.pickUpLead)}</button>` : ''}
   </div>
   <div class="factgrid">
     ${fact(t.company, esc(co || t.companyUnknown), co ? '' : 'muted')}
@@ -3194,6 +3173,8 @@ export function leadView(lang, ctx) {
   <div class="card__head"><h2>${esc(t.leadHistory)}</h2></div>
   ${mayEdit ? `<form id="leadNoteForm" class="inlineform">
     <div class="fields">
+      <label class="f"><span>${esc(t.touchKind)}</span><select id="leadNoteKind">
+        ${['note', 'call', 'email', 'meeting'].map(k => `<option value="${k}">${esc(t.touch[k])}</option>`).join('')}</select></label>
       <label class="f f--wide"><span>${esc(t.addNote)}</span><input id="leadNoteBody" required /></label>
     </div>
     <div class="actions"><button type="submit" class="btn btn--sm">${esc(t.post)}</button></div>
