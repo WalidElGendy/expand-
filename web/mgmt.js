@@ -20,7 +20,7 @@ import { esc, fmt, deptName, keyPersonRisk, DSTR } from './dash.js';
 export const MSTR = {
   en: {
     title: 'Management', sub: 'Every department at a glance — and what needs a decision',
-    tabs: { overview: 'Overview', projects: 'Projects', sales: 'Sales', tenders: 'Tenders', leads: 'Business & leads', hr: 'HR' },
+    tabs: { overview: 'Overview', projects: 'Projects', sales: 'Sales', tenders: 'Tenders', hr: 'HR' },
     open: 'Open {x}', noData: 'Nothing to show yet.',
     k: { live: 'Live projects', overdueSub: '{n} overdue', due30: 'Due in 30 days', atEtemad: 'At Etemad', winRate: 'Win rate',
       winSub: '{a} accepted · {l} rejected', winNoLost: '{a} accepted · no rejections recorded yet', valueWon: 'Contract value won', valueSub: 'across {n} of {t} accepted projects',
@@ -68,7 +68,7 @@ export const MSTR = {
   },
   ar: {
     title: 'الإدارة', sub: 'كل الأقسام في نظرة واحدة — وما يحتاج إلى قرار',
-    tabs: { overview: 'نظرة عامة', projects: 'المشاريع', sales: 'المبيعات', tenders: 'المناقصات', leads: 'الأعمال والعملاء المحتملون', hr: 'الموارد البشرية' },
+    tabs: { overview: 'نظرة عامة', projects: 'المشاريع', sales: 'المبيعات', tenders: 'المناقصات', hr: 'الموارد البشرية' },
     open: 'فتح {x}', noData: 'لا يوجد ما يُعرض بعد.',
     k: { live: 'المشاريع الجارية', overdueSub: '{n} متأخرة', due30: 'مستحقة خلال 30 يوماً', atEtemad: 'على منصة اعتماد', winRate: 'نسبة الفوز',
       winSub: '{a} مقبولة · {l} مرفوضة', winNoLost: '{a} مقبولة · لا توجد مرفوضة مسجلة بعد', valueWon: 'قيمة العقود المكتسبة', valueSub: 'من {n} مشروع من أصل {t} مقبولة',
@@ -208,12 +208,11 @@ function compute(ctx) {
   const projects = (ctx.projects || []).filter(p => !p.is_crm_list);
   const ps = M.projectStats(projects, today);
   const ss = M.salesStats(projects, today);
-  const ls = M.leadStats(ctx.leads || [], today);
   const tenders = ctx.mgTenders || [];
   const ts = TL.tenderStats(tenders, { today });
   const hr = ctx.mgHR || null;
   const risks = keyPersonRisk(projects);
-  return { today, projects, ps, ss, ls, ts, hr, risks, tenders, att: M.attention({ ps, ss, ls, ts, hr, risks }) };
+  return { today, projects, ps, ss, ts, hr, risks, tenders, att: M.attention({ ps, ss, ts, hr, risks }) };
 }
 
 function attentionCard(lang, D) {
@@ -245,11 +244,6 @@ function deptBars(lang, D) {
   return hbars(D.ps.byDept.map(r => ({ label: deptName(r.dept, lang), n: r.n, part: r.unassigned, colour: deptColour(r.dept),
     sub: r.unassigned ? `${r.unassigned} ${t.unassigned}` : '' })));
 }
-function leadStageBars(lang, D) {
-  const t = T(lang).l;
-  return hbars(Object.keys(M.LEAD_STAGES).map(k => ({ label: t.stage[k], n: D.ls.stages[k] })));
-}
-
 function overviewTab(lang, ctx, D) {
   const t = T(lang), k = t.k;
   const hr = D.hr;
@@ -257,11 +251,11 @@ function overviewTab(lang, ctx, D) {
 <div class="kpis kpis--4">
   ${kpi(D.ps.live, k.live, { colour: 'var(--s1)', sub: fill(k.overdueSub, { n: D.ps.overdue }), bad: D.ps.overdue > 0, route: '#/projects' })}
   ${kpi(D.ps.due30, k.due30, { colour: 'var(--s2)', route: '#/projects' })}
-  ${kpi(D.ss.submitted, k.atEtemad, { colour: 'var(--s3)', route: '#/pipeline' })}
+  ${kpi(D.ss.submitted, k.atEtemad, { colour: 'var(--s3)', route: '#/projects' })}
   ${winKpi(lang, D.ss, 'var(--s4)')}
   ${kpi(sar(D.ss.valueWon), k.valueWon, { colour: 'var(--s1)', sub: fill(k.valueSub, { n: D.ss.valuedCount, t: D.ss.accepted }) })}
   ${kpi(D.ts.review, k.tenders, { colour: 'var(--s2)', sub: fill(k.tendersSub, { p: D.ts.conversion === null ? '—' : `${D.ts.conversion}%` }), route: '#/tenders' })}
-  ${kpi(D.ls.open, k.leads, { colour: 'var(--s3)', sub: fill(k.leadsSub, { n: D.ls.overdue }), bad: D.ls.overdue > 0, route: '#/leads' })}
+  ${kpi(D.ps.delivered12, t.p.delivered12, { colour: 'var(--s3)', sub: D.ps.onTimeRate === null ? '' : `${D.ps.onTimeRate}% ${t.p.onTime.toLowerCase()}`, route: '#/projects' })}
   ${kpi(hr ? hr.active : '—', k.staff, { colour: 'var(--s4)', sub: hr ? fill(k.staffSub, { p: hr.present_today, l: hr.on_leave_today + hr.sick_today }) : '', route: '#/hr' })}
 </div>
 ${attentionCard(lang, D)}
@@ -271,7 +265,7 @@ ${attentionCard(lang, D)}
 </div>
 <div class="chartrow" style="margin:14px 0">
   ${card(t.p.byDept, deptBars(lang, D) || empty(t.noData), more(lang, '#/highlights', t.p.details))}
-  ${card(t.l.stages, leadStageBars(lang, D) || empty(t.noData), more(lang, '#/leads', t.tabs.leads))}
+  ${card(t.s.funnel, hbars([{ label: t.s.submitted, n: D.ss.submitted }, { label: t.s.accepted, n: D.ss.accepted }, { label: t.s.lost, n: D.ss.lost }]), more(lang, '#/projects', t.tabs.projects))}
 </div>`;
 }
 
@@ -311,7 +305,7 @@ function salesTab(lang, ctx, D) {
 </div>
 <p class="note" style="margin:0 0 14px">${esc(s.valueNote)}</p>
 <div class="chartrow" style="margin:14px 0">
-  ${card(s.funnel, hbars([{ label: s.submitted, n: ss.submitted }, { label: s.accepted, n: ss.accepted }, { label: s.lost, n: ss.lost }]), more(lang, '#/pipeline', DSTR[lang].pipeline))}
+  ${card(s.funnel, hbars([{ label: s.submitted, n: ss.submitted }, { label: s.accepted, n: ss.accepted }, { label: s.lost, n: ss.lost }]), more(lang, '#/projects', t.tabs.projects))}
   ${card(s.delivered, columns(lang, ss.deliveredValue.map(m => ({ label: monthLabel(m.month, lang), sub: m.month.slice(0, 4), value: m.value })),
     [{ key: 'value', label: s.value, colour: 'var(--brand)' }], { title: s.delivered, fmtN: (v) => TL.sar(v, { compact: true }) }))}
 </div>
@@ -347,24 +341,6 @@ function tendersTab(lang, ctx, D) {
   ${card(tt.clients, hbars(ts.clients.slice(0, 10).map(c => ({ label: c.name, n: c.n, sub: TL.sar(c.value, { compact: true }) }))) || empty(t.noData))}
   ${card(tt.pms, hbars(ts.pms.slice(0, 10).map(r => ({ label: people.find(p => p.id === r.id)?.full_name || '—', n: r.n, sub: TL.sar(r.value, { compact: true }) }))) || empty(t.noData))}
 </div>`;
-}
-
-function leadsTab(lang, ctx, D) {
-  const t = T(lang), l = t.l, ls = D.ls;
-  return `
-<div class="kpis kpis--4">
-  ${kpi(ls.open, t.k.leads, { colour: 'var(--s1)', sub: fill(t.k.leadsSub, { n: ls.overdue }), bad: ls.overdue > 0, route: '#/leads' })}
-  ${kpi(ls.conversion === null ? '—' : `${ls.conversion}%`, l.conversion, { colour: 'var(--s2)', sub: l.convSub })}
-  ${kpi(ls.noOwner, l.noOwner, { colour: 'var(--s3)', bad: ls.noOwner > 0 })}
-  ${ls.valued ? kpi(sar(ls.value), l.value, { colour: 'var(--s4)', sub: `${ls.valued}/${ls.open}` })
-    : kpi(ls.stages.won, l.wonK, { colour: 'var(--s4)', sub: fill(l.totalSub, { n: ls.total }) })}
-</div>
-<div class="chartrow" style="margin:14px 0">
-  ${card(l.stages, leadStageBars(lang, D) || empty(t.noData), more(lang, '#/leads', t.tabs.leads))}
-  ${card(l.bySource, hbars(ls.bySource.slice(0, 10).map(s => ({ label: s.label === '—' ? l.noSource : s.label, n: s.n, colour: s.label === '—' ? 'var(--ink4)' : '', sub: s.won ? fill(l.wonSub, { n: s.won }) : '' }))) || empty(t.noData))}
-</div>
-${card(l.byOwner, hbars(ls.byOwner.slice(0, 15).map(o => ({ label: o.name || T(lang).p.noOwner, n: o.n, colour: o.id ? 'var(--brand)' : 'var(--ink4)',
-  sub: o.overdue ? fill(l.overdueSub, { n: o.overdue }) : '' }))) || empty(t.noData))}`;
 }
 
 function hrTab(lang, ctx, D) {
@@ -408,6 +384,6 @@ const TSTR_REASONS = {
 export function mgmtView(lang, ctx) {
   const tab = ctx.mgTab || 'overview';
   const D = compute(ctx);
-  const body = { overview: overviewTab, projects: projectsTab, sales: salesTab, tenders: tendersTab, leads: leadsTab, hr: hrTab }[tab] || overviewTab;
+  const body = { overview: overviewTab, projects: projectsTab, sales: salesTab, tenders: tendersTab, hr: hrTab }[tab] || overviewTab;
   return tabs(lang, tab) + body(lang, ctx, D);
 }
