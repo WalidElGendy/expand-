@@ -110,6 +110,10 @@ export function matchEmployees(remote, local) {
   for (const r of remote) {
     const no = String(r.employeeNumber ?? '').trim();
     if (!no) continue;
+    /* A re-hired person has two records with the same email: the old one is
+       Terminated and has no attendance (the API answers 404 for it). Pairing
+       the old number first would leave that person with no punches at all. */
+    if (String(r.status || '').toLowerCase() === 'terminated') continue;
     let p = localByDevice.get(no), how = 'device';
     if (!p) {
       const e = normEmail(r.contact?.email || r.email);
