@@ -840,7 +840,7 @@ export const setSupervisor = async (personId, supervisorId) => ok(await sb.from(
 
 export const listFiles = async (filter = {}) => {
   let q = sb.from('files')
-    .select('id, purpose, title, description, bucket, path, filename, mime, size_bytes, created_at, project_id, lead_id, procurement_item_id, project:project_id ( id, name ), uploader:uploaded_by ( id, full_name )')
+    .select('id, purpose, title, description, bucket, path, filename, mime, size_bytes, created_at, department_id, project_id, lead_id, procurement_item_id, project:project_id ( id, name ), uploader:uploaded_by ( id, full_name )')
     .order('created_at', { ascending: false });
   if (filter.project_id) q = q.eq('project_id', filter.project_id);
   if (filter.purpose)    q = q.eq('purpose', filter.purpose);
