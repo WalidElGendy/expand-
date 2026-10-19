@@ -970,6 +970,23 @@ for (const lang of ['en', 'ar']) {
   check(!readOnly.includes('id="stForm"') && !readOnly.includes('id="noteForm"'),
     'a designer is offered project controls the database will refuse');
   check(readOnly.includes('Project 10'), 'a designer cannot see the project at all');
+
+  // Design: each team uploads into its own box; a 3D designer gets the 3D
+  // upload only, and design files stay out of the general Documents list.
+  const desProj = { ...proj(11, null, 'in_design'), project_stages: [
+    { id: 's2', department_id: '2d', status: 'pending', sort: 2 },
+    { id: 's3', department_id: '3d', status: 'done', sort: 1 }] };
+  const desFiles = [{ id: 'd1', filename: 'render.png', purpose: 'design', department_id: '3d', created_at: '2026-10-19T08:00:00Z' }];
+  const des3 = D.projectView('en', { project: desProj, projectFiles: desFiles });
+  check(des3.includes(D.DSTR.en.desHead), 'the project page has no Design section');
+  check(des3.includes('data-des-form="3d"') && !des3.includes('data-des-form="2d"'),
+    'a 3D designer is not given exactly the 3D upload');
+  check(des3.split('data-file="d1"').length === 2,
+    'an uploaded design is not listed exactly once (Design section, not Documents)');
+  dbmod.state.me = { id: 'u8', role: 'member', department_id: 'pricing', is_active: true };
+  const desRo = D.projectView('en', { project: desProj, projectFiles: desFiles });
+  check(!desRo.includes('data-des-form') && desRo.includes(D.DSTR.en.desReadOnly),
+    'someone outside design is offered a design upload');
   dbmod.state.me = was;
 }
 
