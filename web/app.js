@@ -176,6 +176,7 @@ function currentRoute() {
   if (h.startsWith('#/reset'))    return { name: 'signin' };   // recovery lands here
   if (h.startsWith('#/code'))     return { name: 'signin' };   // the link in an emailed code lands here
   if (h.startsWith('#/home'))     return { name: 'home' };
+  if (h.startsWith('#/tasks'))    return { name: 'tasks' };
   if (h.startsWith('#/projects')) return { name: 'projects' };
   // Must be tested before '#/p' would ever be reached by a prefix match, and
   // after '#/projects' for the same reason — '#/projects' starts with '#/p'.
@@ -214,7 +215,7 @@ function currentRoute() {
    showed an empty table and called it zero projects. */
 const APP_ROUTES = ['home', 'projects', 'project', 'new', 'leads', 'lead', 'docs', 'admin',
   'estimate', 'highlights', 'pipeline', 'performance', 'hr', 'hrnew', 'hrreq', 'hremp',
-  'hrsec', 'hrrun', 'hrletter', 'me',
+  'hrsec', 'hrrun', 'hrletter', 'me', 'tasks',
   'tenders', 'tenderlist', 'tendernew', 'tender', 'tenderedit', 'tenderset'];
 
 function render() {
@@ -285,6 +286,7 @@ function headTitle(r) {
   const d = DSTR[S.lang];
   if (r.name === 'home')       return { h1: d.home, sub: d.homeSub };
   if (r.name === 'new')        return { h1: d.newProject, sub: '' };
+  if (r.name === 'tasks')      return { h1: d.myTasks, sub: d.myTasksSub };
   if (r.name === 'leads')      return { h1: d.leads, sub: d.leadsSub };
   if (r.name === 'docs')       return { h1: d.documents, sub: '' };
   if (r.name === 'admin')      return { h1: d.people, sub: d.peopleSub };
@@ -304,6 +306,7 @@ function headTitle(r) {
    file, so a second request for six glyphs is a request too many. */
 const ICON = {
   home:   'M3 10.5 12 3l9 7.5M5.5 9.5V21h13V9.5',
+  check:  'M9 11.5l2.5 2.5L16 9.5M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5z',
   plus:   'M12 5v14M5 12h14',
   users:  'M16 20v-1.5a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4V20M9 10.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M22 20v-1.5a4 4 0 0 0-3-3.9M16 3.6a4 4 0 0 1 0 7.7',
   doc:    'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M9 13h6M9 17h4',
@@ -353,6 +356,7 @@ function appNav() {
   const me = db.state.me, d = DSTR[S.lang];
   if (!me) return [];
   const items = [{ group: 'work', route: '#/home', icon: 'home', label: () => d.home }];
+  items.push({ group: 'work', route: '#/tasks', icon: 'check', label: () => d.myTasks });
   /* Everyone gets Projects. What the company is building is not privileged
      information here — the read policy already lets any active user see it,
      and a designer who cannot find the project their stage belongs to is
