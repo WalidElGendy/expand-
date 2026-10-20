@@ -182,6 +182,18 @@ html[dir="rtl"] .navbtn.is-on { background: linear-gradient(270deg, var(--midnig
 .tbl--pricing td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .tbl--pricing tfoot td { border-top: 1px solid var(--line); color: var(--ink2); }
 .tbl--pricing .prtotal--grand td { color: var(--ink1); font-weight: 700; }
+.tasklist { list-style: none; margin: 0; padding: 4px 16px 14px; display: grid; gap: 2px; }
+.taskrow { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.taskrow:last-child { border-bottom: 0; }
+.taskrow__chk { margin-top: 3px; width: 16px; height: 16px; accent-color: var(--brand); flex: none; cursor: pointer; }
+.taskrow__chk:disabled { cursor: default; }
+.taskrow__b { display: grid; gap: 3px; min-width: 0; flex: 1; }
+.taskrow__n { font-weight: 600; overflow-wrap: anywhere; }
+.taskrow__d { color: var(--ink2); font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.taskrow__m { color: var(--ink3, var(--ink2)); font-size: 12px; }
+.taskrow__m b { color: var(--ink2); font-weight: 600; }
+.taskrow--done .taskrow__n { text-decoration: line-through; color: var(--ink3, var(--ink2)); font-weight: 500; }
+.taskrow .x { flex: none; }
 .desgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 12px; padding: 0 16px 14px; }
 .desgroup { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; min-width: 0; }
 .desgroup__head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
