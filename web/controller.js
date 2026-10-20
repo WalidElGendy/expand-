@@ -106,6 +106,11 @@ export async function loadFor(route, id) {
       jobs.push(db.listPricingItems(id).then(x => { ctx.pricingItems = x; }).catch(() => { ctx.pricingItems = []; }));
     }
 
+    /* My tasks: the full page, and the short list on top of Home. */
+    if (route === 'tasks' || route === 'home') {
+      jobs.push(db.listMyTasks().then(x => { ctx.myTasks = x; }).catch(() => { ctx.myTasks = []; }));
+    }
+
     /* One lead. Same reasoning as the project page: fetched by id so a deep
        link works, and the proposals come with it because "did we bid for
        them" is the question the page exists to answer. */
@@ -575,6 +580,42 @@ export function wireApp(lang) {
       await loadFor('project', ctx.project.id); rerender();
     } catch (err) { fail(err); btn.disabled = false; btn.textContent = V.DSTR[lang].prUpload; }
   };
+
+  /* --- tasks: add on a project, tick off, remove (project page, My tasks, home) --- */
+  const taskReload = async () => {
+    const h = location.hash || '';
+    if (h.startsWith('#/p/') && ctx.project) await loadFor('project', ctx.project.id);
+    else await loadFor(h.startsWith('#/tasks') ? 'tasks' : 'home');
+    rerender();
+  };
+  const taskForm = $('#taskForm');
+  if (taskForm) taskForm.onsubmit = async (e) => {
+    e.preventDefault();
+    const name = $('#taskName').value.trim();
+    const who = $('#taskWho').value;
+    if (!name || !who) return;
+    const btn = taskForm.querySelector('button[type=submit]');
+    btn.disabled = true; btn.textContent = V.DSTR[lang].saving;
+    try {
+      await db.addTask({
+        project_id: ctx.project.id, name, assignee_id: who,
+        notes: $('#taskNotes').value.trim() || null,
+        due_on: $('#taskDue').value || null,
+      });
+      await taskReload();
+    } catch (err) { fail(err); btn.disabled = false; btn.textContent = V.DSTR[lang].tkAdd; }
+  };
+  $$('[data-task-done]').forEach(cb => cb.onchange = async () => {
+    cb.disabled = true;
+    try { await db.setTaskDone(cb.dataset.taskDone, cb.checked); await taskReload(); }
+    catch (err) { cb.checked = !cb.checked; cb.disabled = false; fail(err); }
+  });
+  $$('[data-task-del]').forEach(b => b.onclick = async () => {
+    if (!confirm(V.DSTR[lang].tkDelConfirm)) return;
+    b.disabled = true;
+    try { await db.deleteTask(b.dataset.taskDel); await taskReload(); }
+    catch (err) { b.disabled = false; fail(err); }
+  });
 
   /* --- one project: design uploads (2D / 3D) --- */
   document.querySelectorAll('form[data-des-form]').forEach(form => {
@@ -1224,6 +1265,8 @@ function bodyFor(lang, route, id) {
       ? V.highlightsView(lang, ctx)
       : V.homeView(lang, ctx);
   }
-  if (MG.isManagement()) return MG.mgmtView(lang, ctx);
-  return V.homeView(lang, ctx);
+  if (route === 'tasks') return V.myTasksCard(lang, ctx);
+  const top = route === 'home' ? V.myTasksCard(lang, ctx, { compact: true }) : '';
+  if (MG.isManagement()) return top + MG.mgmtView(lang, ctx);
+  return top + V.homeView(lang, ctx);
 }
