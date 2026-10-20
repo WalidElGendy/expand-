@@ -578,7 +578,7 @@ export const setStageStatus = async (id, status) => {
 
 export const listMyTasks = async () => ok(await sb
   .from('tasks')
-  .select('id, name, due_on, completed, section_name, project:project_id ( id, name )')
+  .select('id, name, notes, due_on, completed, section_name, created_at, assignee_id, created_by, project:project_id ( id, name ), assignee:assignee_id ( id, full_name ), creator:created_by ( id, full_name )')
   .eq('assignee_id', state.me?.id)
   .eq('completed', false)
   .order('due_on', { ascending: true, nullsFirst: false })
@@ -586,12 +586,15 @@ export const listMyTasks = async () => ok(await sb
 
 export const listProjectTasks = async (project_id) => ok(await sb
   .from('tasks')
-  .select('id, name, due_on, completed, section_name, assignee:assignee_id ( id, full_name )')
+  .select('id, name, notes, due_on, completed, section_name, created_at, assignee_id, created_by, asana_gid, assignee:assignee_id ( id, full_name ), creator:created_by ( id, full_name )')
   .eq('project_id', project_id)
   .order('due_on', { ascending: true, nullsFirst: false }));
 
 export const addTask = async (t) => ok(await sb
   .from('tasks').insert({ ...t, created_by: state.me?.id }).select().single());
+
+export const deleteTask = async (id) => ok(await sb
+  .from('tasks').delete().eq('id', id).select());
 
 export const setTaskDone = async (id, completed) => ok(await sb
   .from('tasks')
