@@ -675,7 +675,16 @@ const slug = (s) => String(s || 'file')
  * an object that failed to upload is a broken link the UI cannot detect,
  * whereas an orphaned object with no row is invisible and harmless.
  */
+/* Per-file caps, the same as each storage bucket's file_size_limit. Checked
+   here so a too-big file fails at once with a clear message, not after
+   minutes of uploading. */
+export const UPLOAD_LIMIT_MB = { docs: 200, refs: 20, rfps: 50, tenders: 50 };
+
 export async function uploadFile(bucket, file, meta = {}) {
+  const cap = UPLOAD_LIMIT_MB[bucket];
+  if (cap && file.size > cap * 1048576) {
+    throw new Error(`"${file.name}" is ${(file.size / 1048576).toFixed(0)} MB — the limit is ${cap} MB per file.`);
+  }
   const stamp = Date.now().toString(36);
   const path = `${meta.project_id || meta.lead_id || 'library'}/${stamp}-${slug(file.name)}`;
 
