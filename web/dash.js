@@ -59,6 +59,15 @@ export const canDesign = (team, me = db.state.me) => {
   return team ? me.department_id === team : ['2d', '3d'].includes(me.department_id);
 };
 
+/* Tasks on a project. Any active colleague can add one and assign it to
+   anyone; the assignee, the person who added it, planners and leads can
+   tick it off or edit it; the person who added it and planners can remove
+   it. Mirrors the policies on `tasks`. */
+export const canEditTask = (x, me = db.state.me) => !!me && me.is_active !== false &&
+  (canPlan(me) || ['lead', 'manager', 'admin'].includes(me.role) || x.assignee_id === me.id || x.created_by === me.id);
+export const canDeleteTask = (x, me = db.state.me) => !!me && me.is_active !== false &&
+  (canPlan(me) || x.created_by === me.id);
+
 /* Saudi VAT, shown under the pricing lines. */
 export const VAT_RATE = 0.15;
 export const sarFmt = (v) => `SAR ${(Number(v) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -302,6 +311,12 @@ export const DSTR = {
     noHistory: 'Nothing recorded yet. Status changes from this page will show up here.',
     noDocuments: 'No files uploaded for this project.',
     tasksHead: 'Tasks', noTasks: 'No tasks on this project.',
+    tkTitle: 'Task', tkTitlePh: 'What needs doing?', tkDesc: 'Description', tkDescPh: 'Details, links, what “done” looks like…',
+    tkWho: 'Assign to', tkPick: 'Choose a team member', tkDue: 'Due date', tkAdd: 'Add task',
+    tkDone: 'Done', tkOpen: 'open', tkBy: 'added by {who}', tkNone: 'No tasks yet. Add the first one above.',
+    tkDel: 'Remove task', tkDelConfirm: 'Remove this task?', tkNoOne: 'Unassigned',
+    myTasks: 'My tasks', myTasksSub: 'Tasks assigned to you on any project.', myTasksNone: 'Nothing assigned to you right now.',
+    myTasksAll: 'See all my tasks', tkProject: 'Project',
     stagesHead: 'Teams and stages', noStages: 'No stages on this project yet.',
     moveTo: 'Move to', statusNote: 'Why (optional)', movedBy: '{who} moved it to {to}',
     createdOn: 'Created', updatedOn: 'Last change', noDescription: 'No description was written.',
@@ -607,6 +622,12 @@ export const DSTR = {
     noHistory: 'لا شيء مسجل بعد. تغييرات الحالة من هذه الصفحة ستظهر هنا.',
     noDocuments: 'لا توجد ملفات مرفوعة لهذا المشروع.',
     tasksHead: 'المهام', noTasks: 'لا توجد مهام على هذا المشروع.',
+    tkTitle: 'المهمة', tkTitlePh: 'ما المطلوب إنجازه؟', tkDesc: 'الوصف', tkDescPh: 'التفاصيل والروابط وما يعنيه الإنجاز…',
+    tkWho: 'إسناد إلى', tkPick: 'اختر عضواً من الفريق', tkDue: 'تاريخ التسليم', tkAdd: 'إضافة مهمة',
+    tkDone: 'منجزة', tkOpen: 'مفتوحة', tkBy: 'أضافها {who}', tkNone: 'لا توجد مهام بعد. أضف أول مهمة أعلاه.',
+    tkDel: 'حذف المهمة', tkDelConfirm: 'حذف هذه المهمة؟', tkNoOne: 'غير مسندة',
+    myTasks: 'مهامي', myTasksSub: 'المهام المسندة إليك في كل المشاريع.', myTasksNone: 'لا توجد مهام مسندة إليك حالياً.',
+    myTasksAll: 'عرض كل مهامي', tkProject: 'المشروع',
     stagesHead: 'الفرق والمراحل', noStages: 'لا توجد مراحل على هذا المشروع بعد.',
     moveTo: 'انقل إلى', statusNote: 'السبب (اختياري)', movedBy: '{who} نقله إلى {to}',
     createdOn: 'أُنشئ', updatedOn: 'آخر تغيير', noDescription: 'لم يُكتب وصف.',
@@ -2209,18 +2230,7 @@ ${inProd ? productionSections(lang, ctx) : ''}
     </li>`).join('')}</ul>` : `<p class="note">${esc(t.noDocuments)}</p>`}
 </section>
 
-${tasks.length ? `
-<section class="card">
-  <div class="card__head"><h2>${esc(t.tasksHead)}</h2>
-    <span class="muted small">${tasks.filter(x => !x.completed).length} / ${tasks.length}</span></div>
-  <div class="tblwrap"><table class="tbl tbl--tight"><tbody>
-    ${tasks.slice(0, 60).map(x => `<tr>
-      <td class="${x.completed ? 'muted' : ''}">${x.completed ? '✓ ' : ''}${esc(x.name)}</td>
-      <td class="small muted">${esc(x.section_name || '')}</td>
-      <td class="small muted">${esc(x.assignee?.full_name || '')}</td>
-      <td class="num muted">${esc(fmt(x.due_on, lang))}</td></tr>`).join('')}
-  </tbody></table></div>
-</section>` : ''}
+${tasksSection(lang, ctx)}
 
 <section class="card">
   <div class="card__head"><h2>${esc(t.history)}</h2></div>
@@ -2456,6 +2466,84 @@ export function designSection(lang, ctx) {
     ${group('2d', t.des2d, t.desHint2d)}
   </div>
   ${anyEdit ? '' : `<p class="note">${esc(t.desReadOnly)}</p>`}
+</section>`;
+}
+
+/* ========================================================================
+   Tasks: add a task, describe it, assign it to anyone on the team. The
+   assignee sees it under My tasks; adding, completing and reassigning are
+   written to the project History by the task_history trigger.
+   ======================================================================== */
+
+const taskRow = (lang, x, { showProject = false } = {}) => {
+  const t = DSTR[lang];
+  const late = !x.completed && lateBy(x.due_on);
+  const edit = canEditTask(x);
+  return `
+  <li class="taskrow${x.completed ? ' taskrow--done' : ''}">
+    <input type="checkbox" class="taskrow__chk" data-task-done="${esc(x.id)}"${x.completed ? ' checked' : ''}${edit ? '' : ' disabled'}
+      aria-label="${esc(t.tkDone)}" />
+    <div class="taskrow__b">
+      <span class="taskrow__n">${esc(x.name)}</span>
+      ${x.notes ? `<span class="taskrow__d">${esc(x.notes)}</span>` : ''}
+      <span class="taskrow__m">
+        ${showProject && x.project ? `<button class="link" data-act="go" data-route="#/p/${esc(x.project.id)}">${esc(x.project.name)}</button> · ` : ''}
+        <b>${esc(x.assignee?.full_name || t.tkNoOne)}</b>
+        ${x.due_on ? ` · <span class="${late ? 'bad' : ''}">${esc(fmt(x.due_on, lang))}${late ? ` (${late} ${esc(t.overdue)})` : ''}</span>` : ''}
+        ${x.section_name ? ` · ${esc(x.section_name)}` : ''}
+        ${x.creator?.full_name ? ` · ${esc(t.tkBy.replace('{who}', x.creator.full_name))}` : ''}
+      </span>
+    </div>
+    ${canDeleteTask(x) ? `<button class="x" data-task-del="${esc(x.id)}" title="${esc(t.tkDel)}" aria-label="${esc(t.tkDel)}">✕</button>` : ''}
+  </li>`;
+};
+
+const taskOrder = (a, b) => (a.completed - b.completed) ||
+  String(a.due_on || '9999').localeCompare(String(b.due_on || '9999')) ||
+  String(b.created_at || '').localeCompare(String(a.created_at || ''));
+
+export function tasksSection(lang, ctx) {
+  const t = DSTR[lang], me = db.state.me;
+  const tasks = (ctx.projectTasks || []).slice().sort(taskOrder);
+  const people = (ctx.people || []).filter(p => p.is_active !== false)
+    .slice().sort((a, b) => String(a.full_name || a.email).localeCompare(String(b.full_name || b.email)));
+  const canAdd = !!me && me.is_active !== false;
+  const open = tasks.filter(x => !x.completed).length;
+
+  return `
+<section class="card">
+  <div class="card__head"><h2>${esc(t.tasksHead)}</h2>
+    <span class="muted small">${open} ${esc(t.tkOpen)} / ${tasks.length}</span></div>
+  ${canAdd ? `<form id="taskForm" class="inlineform">
+    <div class="fields">
+      <label class="f f--wide"><span>${esc(t.tkTitle)}</span><input id="taskName" required maxlength="200" placeholder="${esc(t.tkTitlePh)}" /></label>
+      <label class="f"><span>${esc(t.tkWho)}</span>
+        <select id="taskWho" required>
+          <option value="">${esc(t.tkPick)}</option>
+          ${people.map(p => `<option value="${esc(p.id)}">${esc(p.full_name || p.email)}${p.department_id ? ` · ${esc(deptName(p.department_id, lang))}` : ''}</option>`).join('')}
+        </select></label>
+      <label class="f"><span>${esc(t.tkDue)}</span><input id="taskDue" type="date" /></label>
+      <label class="f f--wide"><span>${esc(t.tkDesc)}</span><textarea id="taskNotes" rows="3" placeholder="${esc(t.tkDescPh)}"></textarea></label>
+    </div>
+    <div class="actions"><button type="submit" class="btn btn--primary btn--sm">${esc(t.tkAdd)}</button></div>
+  </form>` : ''}
+  ${tasks.length ? `<ul class="tasklist">${tasks.slice(0, 200).map(x => taskRow(lang, x)).join('')}</ul>`
+    : `<p class="note">${esc(t.tkNone)}</p>`}
+</section>`;
+}
+
+/* The assignee's side: every open task assigned to me, on any project. */
+export function myTasksCard(lang, ctx, { compact = false } = {}) {
+  const t = DSTR[lang];
+  const tasks = (ctx.myTasks || []).slice().sort(taskOrder);
+  if (compact && !tasks.length) return '';
+  const shown = compact ? tasks.slice(0, 5) : tasks;
+  return `
+<section class="card">
+  <div class="card__head"><h2>${esc(t.myTasks)}</h2><span class="muted small">${tasks.length}</span>
+    ${compact && tasks.length > shown.length ? `<button class="link" style="margin-inline-start:auto" data-act="go" data-route="#/tasks">${esc(t.myTasksAll)}</button>` : ''}</div>
+  ${shown.length ? `<ul class="tasklist">${shown.map(x => taskRow(lang, x, { showProject: true })).join('')}</ul>`
+    : `<p class="note">${esc(t.myTasksNone)}</p>`}
 </section>`;
 }
 
