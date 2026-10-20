@@ -987,6 +987,20 @@ for (const lang of ['en', 'ar']) {
   const desRo = D.projectView('en', { project: desProj, projectFiles: desFiles });
   check(!desRo.includes('data-des-form') && desRo.includes(D.DSTR.en.desReadOnly),
     'someone outside design is offered a design upload');
+
+  // Tasks: anyone active can add one, and the dropdown lists every active
+  // team member; the assignee can tick it, an outsider cannot remove it.
+  const tkPeople = [{ id: 'u1', full_name: 'Aya', department_id: '2d', is_active: true },
+                    { id: 'u2', full_name: 'Badr', department_id: '3d', is_active: true },
+                    { id: 'u3', full_name: 'Gone', department_id: '3d', is_active: false }];
+  const tkTasks = [{ id: 'k1', name: 'Check the booth height', notes: 'Venue max is 4m', assignee_id: 'u8', created_by: 'u1',
+                     assignee: { full_name: 'Pricer' }, creator: { full_name: 'Aya' }, completed: false }];
+  const tk = D.projectView('en', { project: desProj, projectTasks: tkTasks, people: tkPeople });
+  check(tk.includes('id="taskForm"') && tk.includes('value="u1"') && tk.includes('value="u2"') && !tk.includes('value="u3"'),
+    'the task form does not offer exactly the active team members');
+  check(tk.includes('Venue max is 4m') && tk.includes('data-task-done="k1"') && !tk.includes('data-task-done="k1" disabled'),
+    'the assignee cannot see or tick off their task');
+  check(!tk.includes('data-task-del="k1"'), 'someone who did not add a task is offered to remove it');
   dbmod.state.me = was;
 }
 
