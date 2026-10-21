@@ -7,7 +7,7 @@ import * as db from './db.js';
 import * as D from './hrdb.js';
 import * as V from './hr.js';
 import * as H from './hrlogic.js';
-import { isHR, quarterOf, leaveSummary } from './dash.js';
+import { isHR, quarterOf, leaveSummary, DSTR } from './dash.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -230,6 +230,21 @@ export function wireHR2(lang, { ctx, rerender, fail, reload }) {
     busy(btn, true);
     try { await fn(); await done(); } catch (err) { busy(btn, false); fail(err); }
   };
+
+  /* --- profile photo: your own on My HR, anyone's for HR on their page --- */
+  $$('[data-ava-file]').forEach(inp => inp.onchange = async () => {
+    const f = inp.files?.[0];
+    if (!f) return;
+    const lab = inp.closest('label');
+    if (lab) { lab.classList.add('is-busy'); lab.firstChild.textContent = DSTR[lang].avaSaving; }
+    try { await db.setAvatar(inp.dataset.avaFile, f); await done(); }
+    catch (err) {
+      if (lab) lab.classList.remove('is-busy');
+      fail(err.message === 'bad_image' ? new Error(DSTR[lang].avaBad) : err);
+      rerender();
+    }
+  });
+  $$('[data-ava-del]').forEach(b => b.onclick = run(b, () => db.removeAvatar(b.dataset.avaDel)));
 
   /* --- tabs & filters (view state only) --- */
   $$('[data-emp-tab]').forEach(b => b.onclick = () => { ctx.empTab = b.dataset.empTab; rerender(); });
