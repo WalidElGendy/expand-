@@ -581,6 +581,25 @@ export function wireApp(lang) {
     } catch (err) { fail(err); btn.disabled = false; btn.textContent = V.DSTR[lang].prUpload; }
   };
 
+  /* --- one project: add more documents --- */
+  const docAddBtn = $('[data-doc-add]'), docAddForm = $('#docAddForm');
+  if (docAddBtn && docAddForm) {
+    const show = (on) => { docAddForm.hidden = !on; docAddBtn.setAttribute('aria-expanded', String(on)); docAddBtn.hidden = on; };
+    docAddBtn.onclick = () => { show(true); docAddForm.querySelector('input[type=file]')?.click(); };
+    const cancel = $('[data-doc-cancel]'); if (cancel) cancel.onclick = () => show(false);
+    docAddForm.onsubmit = async (e) => {
+      e.preventDefault();
+      const files = [...(docAddForm.querySelector('input[type=file]')?.files || [])];
+      if (!files.length) return;
+      const btn = docAddForm.querySelector('button[type=submit]');
+      btn.disabled = true; btn.textContent = V.DSTR[lang].uploading;
+      try {
+        for (const f of files) await db.uploadFile('docs', f, { purpose: 'document', project_id: ctx.project.id });
+        await loadFor('project', ctx.project.id); rerender();
+      } catch (err) { fail(err); btn.disabled = false; btn.textContent = V.DSTR[lang].docUpload; }
+    };
+  }
+
   /* --- tasks: add on a project, tick off, remove (project page, My tasks, home) --- */
   const taskReload = async () => {
     const h = location.hash || '';
