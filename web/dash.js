@@ -310,6 +310,8 @@ export const DSTR = {
     overview: 'Overview', history: 'History', addNote: 'Add a note', post: 'Post',
     noHistory: 'Nothing recorded yet. Status changes from this page will show up here.',
     noDocuments: 'No files uploaded for this project.',
+    docAdd: '+ Add documents', docAddFiles: 'Documents', docAddHint: 'Any file type, up to 200 MB each. You can pick several at once.',
+    docUpload: 'Upload', docAdded: 'added {date}',
     tasksHead: 'Tasks', noTasks: 'No tasks on this project.',
     tkTitle: 'Task', tkTitlePh: 'What needs doing?', tkDesc: 'Description', tkDescPh: 'Details, links, what “done” looks like…',
     tkWho: 'Assign to', tkPick: 'Choose a team member', tkDue: 'Due date', tkAdd: 'Add task',
@@ -621,6 +623,8 @@ export const DSTR = {
     overview: 'نظرة عامة', history: 'السجل', addNote: 'أضف ملاحظة', post: 'نشر',
     noHistory: 'لا شيء مسجل بعد. تغييرات الحالة من هذه الصفحة ستظهر هنا.',
     noDocuments: 'لا توجد ملفات مرفوعة لهذا المشروع.',
+    docAdd: '+ إضافة مستندات', docAddFiles: 'المستندات', docAddHint: 'أي نوع ملف، حتى 200 ميجابايت للملف. يمكنك اختيار عدة ملفات.',
+    docUpload: 'رفع', docAdded: 'أُضيف {date}',
     tasksHead: 'المهام', noTasks: 'لا توجد مهام على هذا المشروع.',
     tkTitle: 'المهمة', tkTitlePh: 'ما المطلوب إنجازه؟', tkDesc: 'الوصف', tkDescPh: 'التفاصيل والروابط وما يعنيه الإنجاز…',
     tkWho: 'إسناد إلى', tkPick: 'اختر عضواً من الفريق', tkDue: 'تاريخ التسليم', tkAdd: 'إضافة مهمة',
@@ -2221,11 +2225,18 @@ ${showPricing ? pricingSection(lang, ctx) : ''}
 ${inProd ? productionSections(lang, ctx) : ''}
 
 <section class="card">
-  <div class="card__head"><h2>${esc(t.documents)}</h2><span class="muted small">${docFiles.length}</span></div>
+  <div class="card__head"><h2>${esc(t.documents)}</h2><span class="muted small">${docFiles.length}</span>
+    ${db.state.me?.is_active !== false && db.state.me ? `<button type="button" class="btn btn--sm" style="margin-inline-start:auto" data-doc-add aria-expanded="false" aria-controls="docAddForm">${esc(t.docAdd)}</button>` : ''}</div>
+  ${db.state.me?.is_active !== false && db.state.me ? `<form id="docAddForm" class="inlineform" hidden>
+    ${dropField('docAddFiles', t.docAddFiles, t.docAddHint, { multiple: true })}
+    <div class="actions"><button type="submit" class="btn btn--primary btn--sm">${esc(t.docUpload)}</button>
+      <button type="button" class="btn btn--sm" data-doc-cancel>${esc(t.cancel)}</button></div>
+  </form>` : ''}
   ${docFiles.length ? `<ul class="filelist">${docFiles.map(f => `
     <li class="filerow">
       <button class="link" data-file="${esc(f.id)}">${esc(f.title || f.filename)}</button>
       <span class="muted small">${esc(f.purpose)}${f.size_bytes ? ` · ${Math.max(1, Math.round(f.size_bytes / 1024))} KB` : ''}
+        ${f.created_at ? ` · ${esc(t.docAdded.replace('{date}', fmt(f.created_at.slice(0, 10), lang)))}` : ''}
         ${f.uploader?.full_name ? ` · ${esc(t.uploadedBy.replace('{who}', f.uploader.full_name))}` : ''}</span>
     </li>`).join('')}</ul>` : `<p class="note">${esc(t.noDocuments)}</p>`}
 </section>
