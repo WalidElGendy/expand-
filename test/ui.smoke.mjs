@@ -1006,6 +1006,13 @@ for (const lang of ['en', 'ar']) {
   const dk = D.projectView('en', { project: desProj, projectFiles: [{ id: 'f9', filename: 'brief.pdf', purpose: 'document', created_at: '2026-10-21T06:00:00Z' }] });
   check(dk.includes('data-doc-add') && dk.includes('id="docAddForm"'), 'there is no way to add documents to a project');
   check(dk.includes(D.DSTR.en.docAdded.split(' ')[0]), 'a document does not show the date it was added');
+
+  // Profile photo: the edit card offers an upload; without a photo the
+  // avatar falls back to the first letter of the name.
+  const ac = D.avatarCard('en', { id: 'u5', full_name: 'Salman', avatar_path: null }, { canEdit: true });
+  check(ac.includes('data-ava-file="u5"') && !ac.includes('data-ava-del'), 'the photo card does not offer an upload');
+  check(!D.avatarCard('en', { id: 'u5', full_name: 'Salman' }).includes('data-ava-file'), 'a read-only photo card offers an upload');
+  check(D.avaHtml('salman', null).includes('>S<'), 'an avatar without a photo does not show the initial');
   dbmod.state.me = was;
 }
 
