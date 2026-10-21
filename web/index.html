@@ -172,11 +172,15 @@ html[dir="rtl"] .navbtn.is-on { background: linear-gradient(270deg, var(--midnig
 .online__name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ava.ava--xs { width: 20px; height: 20px; border-radius: 6px; font-size: 10px; }
 .newbuild { position: fixed; inset-inline-end: 16px; bottom: 16px; z-index: 50; display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 14px; border-radius: 12px; background: var(--s-2); border: 1px solid var(--line2); box-shadow: 0 8px 28px rgba(0,0,0,.35); font-size: 13px; }
-.tbl--pricing { table-layout: fixed; min-width: 760px; }
-.tbl--pricing th:nth-child(1) { width: 22%; } .tbl--pricing th:nth-child(2) { width: 27%; }
-.tbl--pricing th:nth-child(3) { width: 8%; } .tbl--pricing th:nth-child(4) { width: 9%; }
-.tbl--pricing th:nth-child(5) { width: 15%; } .tbl--pricing th:nth-child(6) { width: 15%; }
-.tbl--pricing th:nth-child(7) { width: 40px; }
+.tbl--pricing { table-layout: fixed; min-width: 1240px; }
+.tbl--pricing th:nth-child(1) { width: 15%; } .tbl--pricing th:nth-child(2) { width: 19%; }
+.tbl--pricing th:nth-child(3) { width: 6%; } .tbl--pricing th:nth-child(4) { width: 6.5%; }
+.tbl--pricing th:nth-child(5) { width: 10%; } .tbl--pricing th:nth-child(6) { width: 10%; }
+.tbl--pricing th:nth-child(7) { width: 7%; } .tbl--pricing th:nth-child(8) { width: 11%; }
+.tbl--pricing th:nth-child(9) { width: 13%; } .tbl--pricing th:nth-child(10) { width: 40px; }
+.tbl--pricing .cellinput--who { width: 100%; min-width: 0; }
+.tbl--pricing .cellinput--who:disabled { opacity: 1; color: var(--ink2); }
+.tbl--pricing tr.prmine td { background: color-mix(in srgb, var(--brand) 7%, transparent); }
 .tbl--pricing .cellinput--num { width: 100%; min-width: 72px; text-align: end; font-variant-numeric: tabular-nums; }
 .tbl--pricing .cellinput--unit { width: 100%; min-width: 64px; }
 .tbl--pricing td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
