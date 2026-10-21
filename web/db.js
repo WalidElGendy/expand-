@@ -128,13 +128,13 @@ export function joinPresence() {
          not just admins, who are the only ones loading the full roster — can
          see who is here. */
       state.onlineWho = Object.entries(ps).map(([id, metas]) => ({
-        id, name: metas?.[0]?.name || '', dept: metas?.[0]?.dept || null,
+        id, name: metas?.[0]?.name || '', dept: metas?.[0]?.dept || null, avatar: metas?.[0]?.avatar || null,
       })).sort((a, b) => a.name.localeCompare(b.name));
       onlineWatchers.forEach(fn => { try { fn(state.online); } catch { /* a bad watcher must not kill presence */ } });
     })
     .subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
-        await presenceChan?.track({ name: state.me?.full_name || state.me?.email, dept: state.me?.department_id || null, at: new Date().toISOString() });
+        await presenceChan?.track({ name: state.me?.full_name || state.me?.email, dept: state.me?.department_id || null, avatar: state.me?.avatar_path || null, at: new Date().toISOString() });
       }
     });
 
@@ -326,7 +326,7 @@ export const dept = (id) => state.departments.find(d => d.id === id) || null;
 
 export const listPeople = async () => ok(await sb
   .from('profiles')
-  .select('id, full_name, email, department_id, supervisor_id, role, is_active, asana_gid, user_id, last_seen_at')
+  .select('id, full_name, email, department_id, supervisor_id, role, is_active, asana_gid, user_id, last_seen_at, avatar_path')
   .order('full_name'));
 
 /* Management dashboard: company-wide tender rows and HR figures, through
@@ -678,6 +678,41 @@ const slug = (s) => String(s || 'file')
  * an object that failed to upload is a broken link the UI cannot detect,
  * whereas an orphaned object with no row is invisible and harmless.
  */
+/* ------------------------------------------------------------ profile photos
+   Public 'avatars' bucket, one folder per profile id. The photo is cropped to
+   a square and shrunk to 320px in the browser first, so a 12 MB phone photo
+   becomes a ~30 KB JPEG that loads instantly next to every name. set_avatar()
+   lets a person change their own photo and HR change anyone's. */
+export const avatarUrl = (path) => (path && sb ? sb.storage.from('avatars').getPublicUrl(path).data.publicUrl : '');
+
+async function squareJpeg(file, size = 320) {
+  let bmp;
+  try { bmp = await createImageBitmap(file); } catch { throw new Error('bad_image'); }
+  const s = Math.min(bmp.width, bmp.height);
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  c.getContext('2d').drawImage(bmp, (bmp.width - s) / 2, (bmp.height - s) / 2, s, s, 0, 0, size, size);
+  return new Promise((res, rej) => c.toBlob(b => (b ? res(b) : rej(new Error('bad_image'))), 'image/jpeg', 0.86));
+}
+
+export async function setAvatar(profileId, file) {
+  if (!file || !/^image\//.test(file.type || '')) throw new Error('bad_image');
+  const blob = await squareJpeg(file);
+  const path = `${profileId}/${Date.now().toString(36)}.jpg`;
+  const up = await sb.storage.from('avatars').upload(path, blob, { contentType: 'image/jpeg', cacheControl: '31536000', upsert: false });
+  if (up.error) throw new Error(up.error.message);
+  const { error } = await sb.rpc('set_avatar', { p_profile: profileId, p_path: path });
+  if (error) throw new Error(error.message);
+  if (state.me && state.me.id === profileId) state.me.avatar_path = path;
+  return path;
+}
+
+export async function removeAvatar(profileId) {
+  const { error } = await sb.rpc('set_avatar', { p_profile: profileId, p_path: null });
+  if (error) throw new Error(error.message);
+  if (state.me && state.me.id === profileId) state.me.avatar_path = null;
+}
+
 /* Per-file caps, the same as each storage bucket's file_size_limit. Checked
    here so a too-big file fails at once with a clear message, not after
    minutes of uploading. */
