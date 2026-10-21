@@ -523,7 +523,7 @@ export const deleteProcurementItem = async (id) => ok(await sb
    can_price() (pricing department, planners, leads, managers, admins). */
 export const listPricingItems = async (project_id) => ok(await sb
   .from('pricing_items')
-  .select('id, project_id, name, description, qty, unit, unit_price_sar, sort, created_at')
+  .select('id, project_id, name, description, qty, unit, unit_price_sar, cost_sar, assignee_id, sort, created_at')
   .eq('project_id', project_id)
   .order('sort', { ascending: true })
   .order('created_at', { ascending: true }));
@@ -535,6 +535,14 @@ export const addPricingItem = async (project_id, patch = {}) => ok(await sb
 
 export const updatePricingItem = async (id, patch) => ok(await sb
   .from('pricing_items').update(patch).eq('id', id).select().single());
+
+/* Pricing lines assigned to me across projects (for My tasks). */
+export const listMyPricingItems = async () => ok(await sb
+  .from('pricing_items')
+  .select('id, name, description, qty, unit_price_sar, cost_sar, project:project_id ( id, name, status )')
+  .eq('assignee_id', state.me?.id)
+  .order('created_at', { ascending: false })
+  .limit(100));
 
 export const deletePricingItem = async (id) => ok(await sb
   .from('pricing_items').delete().eq('id', id).select());
