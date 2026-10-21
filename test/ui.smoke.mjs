@@ -1001,6 +1001,11 @@ for (const lang of ['en', 'ar']) {
   check(tk.includes('Venue max is 4m') && tk.includes('data-task-done="k1"') && !tk.includes('data-task-done="k1" disabled'),
     'the assignee cannot see or tick off their task');
   check(!tk.includes('data-task-del="k1"'), 'someone who did not add a task is offered to remove it');
+
+  // Documents: anyone active gets the add button, and each file shows its date.
+  const dk = D.projectView('en', { project: desProj, projectFiles: [{ id: 'f9', filename: 'brief.pdf', purpose: 'document', created_at: '2026-10-21T06:00:00Z' }] });
+  check(dk.includes('data-doc-add') && dk.includes('id="docAddForm"'), 'there is no way to add documents to a project');
+  check(dk.includes(D.DSTR.en.docAdded.split(' ')[0]), 'a document does not show the date it was added');
   dbmod.state.me = was;
 }
 
