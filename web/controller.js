@@ -110,6 +110,9 @@ export async function loadFor(route, id) {
     if (route === 'tasks' || route === 'home') {
       jobs.push(db.listMyTasks().then(x => { ctx.myTasks = x; }).catch(() => { ctx.myTasks = []; }));
     }
+    if (route === 'tasks') {
+      jobs.push(db.listMyPricingItems().then(x => { ctx.myPricing = x; }).catch(() => { ctx.myPricing = []; }));
+    }
 
     /* One lead. Same reasoning as the project page: fetched by id so a deep
        link works, and the proposals come with it because "did we bid for
@@ -535,20 +538,71 @@ export function wireApp(lang) {
       const line = q * u; sub += line;
       const cell = tr.querySelector('[data-pr-line]'); if (cell) cell.textContent = V.sarFmt(line);
     });
-    const set = (sel, v) => { const el = $(sel); if (el) el.textContent = V.sarFmt(v); };
+    /* Cost and profit come from the saved rows plus whatever is on screen,
+       so lines the viewer cannot edit still count. */
+    let cost = 0, costed = false, costedSales = 0, nCosted = 0;
+    const all_ = ctx.pricingItems || [];
+    all_.forEach(it => {
+      const tr = $(`[data-pr="${it.id}"][data-field="cost_sar"]`)?.closest('tr');
+      const q = Number(tr ? tr.querySelector('[data-field="qty"]').value : it.qty) || 0;
+      const p = Number(tr ? tr.querySelector('[data-field="unit_price_sar"]').value : it.unit_price_sar) || 0;
+      const raw = tr ? tr.querySelector('[data-field="cost_sar"]').value : (it.cost_sar ?? '');
+      if (raw === '' || raw === null) return;
+      costed = true; nCosted += 1;
+      cost += q * (Number(raw) || 0); costedSales += q * p;
+    });
+    const set = (sel, v) => { const el = $(sel); if (el) el.textContent = v === null ? '—' : V.sarFmt(v); };
     set('[data-pr-sub]', sub); set('[data-pr-vat]', sub * V.VAT_RATE); set('[data-pr-total]', sub * (1 + V.VAT_RATE));
+    set('[data-pr-cost]', costed ? cost : null); set('[data-pr-profit]', costed ? costedSales - cost : null);
+    const all = $('[data-pr-margin-all]');
+    if (all) {
+      const m = costedSales > 0 ? ((costedSales - cost) / costedSales) * 100 : null;
+      const d = V.DSTR[lang];
+      const cov = nCosted < all_.length ? ` · ${d.prCostedOf.replace('{n}', nCosted).replace('{m}', all_.length)}` : '';
+      all.textContent = m === null ? '' : `${d.prMargin} ${m.toFixed(1)}%${cov}`;
+      all.classList.toggle('bad', m !== null && m < 0); all.classList.toggle('muted', !(m !== null && m < 0));
+    }
   };
+  const prSave = async (id, patch) => {
+    try {
+      await db.updatePricingItem(id, patch);
+      const it = (ctx.pricingItems || []).find(x => x.id === id); if (it) Object.assign(it, patch);
+    } catch (e) { fail(e); }
+  };
+  $$('[data-pr-margin]').forEach(inp => {
+    const tr = inp.closest('tr');
+    const priceEl = tr.querySelector('[data-field="unit_price_sar"]'), costEl = tr.querySelector('[data-field="cost_sar"]');
+    // Typing a margin sets the price from the cost: price = cost ÷ (1 − margin).
+    inp.oninput = () => {
+      if (inp.value === '' || costEl.value === '') return;
+      const p = V.priceFor(costEl.value, inp.value);
+      if (p !== null && p >= 0) { priceEl.value = String(p); prRecalc(); }
+    };
+    inp.onchange = async () => {
+      if (inp.value === '' || costEl.value === '') return;
+      const p = V.priceFor(costEl.value, inp.value);
+      if (p === null || p < 0) { fail(new Error(V.DSTR[lang].prBadNumber)); return; }
+      await prSave(inp.dataset.prMargin, { unit_price_sar: p });
+    };
+  });
   $$('[data-pr]').forEach(inp => {
-    if (inp.type === 'number') inp.oninput = prRecalc;
+    if (inp.type === 'number') inp.oninput = () => {
+      // Price or cost changed: the margin follows.
+      const tr = inp.closest('tr'), m = tr?.querySelector('[data-pr-margin]');
+      if (m && (inp.dataset.field === 'unit_price_sar' || inp.dataset.field === 'cost_sar')) {
+        m.value = V.marginOf(tr.querySelector('[data-field="cost_sar"]').value, tr.querySelector('[data-field="unit_price_sar"]').value);
+      }
+      prRecalc();
+    };
     inp.onchange = async () => {
       const field = inp.dataset.field;
       let value = inp.value.trim();
-      if (field === 'qty' || field === 'unit_price_sar') {
+      if (field === 'assignee_id') { await prSave(inp.dataset.pr, { assignee_id: value || null }); return; }
+      if (field === 'qty' || field === 'unit_price_sar' || field === 'cost_sar') {
         value = value === '' ? (field === 'qty' ? 0 : null) : Number(value);
         if (value !== null && (!Number.isFinite(value) || value < 0)) { fail(new Error(V.DSTR[lang].prBadNumber)); return; }
       } else if (field !== 'name') value = value || null;
-      try { await db.updatePricingItem(inp.dataset.pr, { [field]: value }); }
-      catch (e) { fail(e); }
+      await prSave(inp.dataset.pr, { [field]: value });
     };
   });
   const prAdd = $('[data-pr-add]');
@@ -1284,7 +1338,7 @@ function bodyFor(lang, route, id) {
       ? V.highlightsView(lang, ctx)
       : V.homeView(lang, ctx);
   }
-  if (route === 'tasks') return V.myTasksCard(lang, ctx);
+  if (route === 'tasks') return V.myTasksCard(lang, ctx) + V.myPricingCard(lang, ctx);
   const top = route === 'home' ? V.myTasksCard(lang, ctx, { compact: true }) : '';
   if (MG.isManagement()) return top + MG.mgmtView(lang, ctx);
   return top + V.homeView(lang, ctx);
