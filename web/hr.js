@@ -8,7 +8,7 @@
 import * as db from './db.js';
 import * as H from './hrlogic.js';
 import { esc, fmt, kpi, deptName, isHR, formScore, KPI_ROWS, leaveSummary, dropField,
-         hrEmpPill, hrReqPill, DSTR, fileSize } from './dash.js';
+         hrEmpPill, hrReqPill, DSTR, fileSize, avatarCard, avaHtml } from './dash.js';
 
 /* ------------------------------------------------------------------ words */
 export const HSTR = {
@@ -617,8 +617,9 @@ export function hrEmpView(lang, ctx) {
 
   const head = `
 <section class="card">
-  <div class="card__head"><h2>${esc(p.full_name || p.email)}</h2>${hrEmpPill(status, lang)}
+  <div class="card__head">${avaHtml(p.full_name || p.email, p.avatar_path, { colour: db.dept(p.department_id)?.colour || '' })}<h2>${esc(p.full_name || p.email)}</h2>${hrEmpPill(status, lang)}
     <span class="muted small">${esc(e.position || '')}</span></div>
+  ${hr || p.id === me?.id ? avatarCard(lang, p, { canEdit: true }) : ''}
   <div class="factgrid">
     <div class="fact"><span class="fact__l">${esc(t.dept)}</span><span class="fact__v">${esc(p.department_id ? deptName(p.department_id, lang) : '—')}</span></div>
     <div class="fact"><span class="fact__l">${esc(DSTR[lang].hrSupervisor)}</span><span class="fact__v">${esc(p.supervisor_id ? nm(ctx.people, p.supervisor_id) : '—')}</span></div>
@@ -1276,6 +1277,10 @@ export function meView(lang, ctx) {
   const fpOnly = S.attendance_source === 'fingerprint';
   const slips = ctx.meSlips || [];
   return `
+<section class="card">
+  <div class="card__head"><h2>${esc(DSTR[lang].avaHead)}</h2></div>
+  ${avatarCard(lang, me, { canEdit: true })}
+</section>
 <section class="card clockcard">
   <div class="card__head"><h2>${esc(t.myHr)}</h2><span class="muted small">${esc(fmt(today, lang))} · ${esc(t.me.hours.replace('{a}', String(S.work_start).slice(0, 5)).replace('{b}', String(S.work_end).slice(0, 5)))}</span></div>
   <div class="clock">
