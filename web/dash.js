@@ -68,6 +68,35 @@ export const canEditTask = (x, me = db.state.me) => !!me && me.is_active !== fal
 export const canDeleteTask = (x, me = db.state.me) => !!me && me.is_active !== false &&
   (canPlan(me) || x.created_by === me.id);
 
+/* A person's avatar: their photo when they have one, otherwise the first
+   letter of their name on their department colour. */
+export const avaHtml = (name, path, { cls = '', colour = '' } = {}) => {
+  const url = db.avatarUrl(path);
+  const style = colour ? ` style="--c:${esc(colour)}"` : '';
+  return url
+    ? `<span class="ava ava--img ${cls}"${style}><img src="${esc(url)}" alt="" loading="lazy" /></span>`
+    : `<span class="ava ${cls}"${style}>${esc(String(name || '?').trim().slice(0, 1).toUpperCase())}</span>`;
+};
+
+/* The photo card: on My HR for yourself, on an employee's page for HR. */
+export function avatarCard(lang, person, { canEdit = false } = {}) {
+  const t = DSTR[lang];
+  if (!person) return '';
+  const has = !!person.avatar_path;
+  return `
+  <div class="avaedit" style="padding:16px">
+    ${avaHtml(person.full_name || person.email, person.avatar_path, { cls: 'ava--xl', colour: db.dept(person.department_id)?.colour || '' })}
+    ${canEdit ? `<div class="avaedit__b">
+      <div class="avaedit__actions">
+        <label class="btn btn--sm btn--primary">${esc(has ? t.avaChange : t.avaUpload)}
+          <input type="file" accept="image/jpeg,image/png,image/webp" data-ava-file="${esc(person.id)}" hidden /></label>
+        ${has ? `<button type="button" class="btn btn--sm" data-ava-del="${esc(person.id)}">${esc(t.avaRemove)}</button>` : ''}
+      </div>
+      <span class="muted small">${esc(t.avaHint)}</span>
+    </div>` : ''}
+  </div>`;
+}
+
 /* Saudi VAT, shown under the pricing lines. */
 export const VAT_RATE = 0.15;
 export const sarFmt = (v) => `SAR ${(Number(v) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -312,6 +341,9 @@ export const DSTR = {
     noDocuments: 'No files uploaded for this project.',
     docAdd: '+ Add documents', docAddFiles: 'Documents', docAddHint: 'Any file type, up to 200 MB each. You can pick several at once.',
     docUpload: 'Upload', docAdded: 'added {date}',
+    avaHead: 'Profile photo', avaUpload: 'Upload photo', avaChange: 'Change photo', avaRemove: 'Remove',
+    avaHint: 'JPG, PNG or WebP. It is cropped to a square and shown next to the name everywhere.',
+    avaBad: 'That file is not a photo this browser can read. Choose a JPG, PNG or WebP image.', avaSaving: 'Saving photo…',
     tasksHead: 'Tasks', noTasks: 'No tasks on this project.',
     tkTitle: 'Task', tkTitlePh: 'What needs doing?', tkDesc: 'Description', tkDescPh: 'Details, links, what “done” looks like…',
     tkWho: 'Assign to', tkPick: 'Choose a team member', tkDue: 'Due date', tkAdd: 'Add task',
@@ -625,6 +657,9 @@ export const DSTR = {
     noDocuments: 'لا توجد ملفات مرفوعة لهذا المشروع.',
     docAdd: '+ إضافة مستندات', docAddFiles: 'المستندات', docAddHint: 'أي نوع ملف، حتى 200 ميجابايت للملف. يمكنك اختيار عدة ملفات.',
     docUpload: 'رفع', docAdded: 'أُضيف {date}',
+    avaHead: 'الصورة الشخصية', avaUpload: 'رفع صورة', avaChange: 'تغيير الصورة', avaRemove: 'إزالة',
+    avaHint: 'JPG أو PNG أو WebP. تُقص إلى مربع وتظهر بجانب الاسم في كل مكان.',
+    avaBad: 'هذا الملف ليس صورة يمكن للمتصفح قراءتها. اختر صورة JPG أو PNG أو WebP.', avaSaving: 'جارٍ حفظ الصورة…',
     tasksHead: 'المهام', noTasks: 'لا توجد مهام على هذا المشروع.',
     tkTitle: 'المهمة', tkTitlePh: 'ما المطلوب إنجازه؟', tkDesc: 'الوصف', tkDescPh: 'التفاصيل والروابط وما يعنيه الإنجاز…',
     tkWho: 'إسناد إلى', tkPick: 'اختر عضواً من الفريق', tkDue: 'تاريخ التسليم', tkAdd: 'إضافة مهمة',
@@ -3684,7 +3719,7 @@ export function adminView(lang, ctx) {
           return `<tr data-who="${st.key}">
             <td>
               <span class="who">
-                <span class="ava ava--sm${st.key === 'online' ? ' ava--live' : ''}" style="--c:${esc(db.dept(p.department_id)?.colour || 'var(--ink4)')}">${esc((p.full_name || p.email || '?').trim().slice(0, 1).toUpperCase())}</span>
+                ${avaHtml(p.full_name || p.email, p.avatar_path, { cls: `ava--sm${st.key === 'online' ? ' ava--live' : ''}`, colour: db.dept(p.department_id)?.colour || 'var(--ink4)' })}
                 <span class="who__t">
                   <b>${esc(p.full_name || '—')}</b>
                   <span class="muted small">${esc(p.email || '—')}</span>
