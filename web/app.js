@@ -16,7 +16,7 @@ import * as C from './controller.js';
 import { HSTR } from './hr.js';
 import { TSTR, canSeeTenders } from './tenders.js';
 import {
-  DSTR, signInView, canPlan, isHR, sizeOptionsHtml,
+  DSTR, signInView, canPlan, isHR, sizeOptionsHtml, avaHtml,
   buildScheduler, monthlyLoad, workloadCalendar,
 } from './dash.js';
 
@@ -438,7 +438,7 @@ function sidebar() {
       ${me ? `<div id="onlineBox">${onlineBlock()}</div>` : ''}
       ${me ? `
         <div class="mecard">
-          <span class="ava">${esc((me.full_name || me.email || '?').trim().slice(0, 1).toUpperCase())}</span>
+          ${avaHtml(me.full_name || me.email, me.avatar_path, { colour: db.dept(me.department_id)?.colour || '' })}
           <span class="mecard__t">
             <span class="mecard__n">${esc(me.full_name || me.email || '')}</span>
             <span class="mecard__r">${esc(me.role || '')}</span>
@@ -462,7 +462,7 @@ function onlineBlock() {
   return `<details class="online"${S.onlineOpen === false ? '' : ' open'}>
     <summary title="${esc(t.t)}"><span class="live"><i></i></span><span class="online__t">${esc(t.t)}</span><span class="online__n">${who.length}</span></summary>
     <ul class="online__list">${rows.map(p => `<li>
-      <span class="ava ava--xs" style="--c:${esc(db.dept(p.dept)?.colour || 'var(--ink4)')}">${esc((p.name || '?').trim().slice(0, 1).toUpperCase())}</span>
+      ${avaHtml(p.name, p.id === meId ? db.state.me?.avatar_path : p.avatar, { cls: 'ava--xs', colour: db.dept(p.dept)?.colour || 'var(--ink4)' })}
       <span class="online__name">${esc(p.name || '—')}${p.id === meId ? ` <span class="muted">(${esc(t.you)})</span>` : ''}</span></li>`).join('')}</ul>
   </details>`;
 }
@@ -515,6 +515,9 @@ function topbar(r) {
     </div>` : ''}
     <div class="head__actions">
       ${r.name === 'estimate' ? `<button class="btn btn--ghost" data-act="reset">${esc(T().reset)}</button>` : ''}
+      ${db.state.me ? `<button class="mechip" data-act="go" data-route="#/me" title="${esc(HSTR[S.lang].myHr)}">
+        ${avaHtml(db.state.me.full_name || db.state.me.email, db.state.me.avatar_path, { cls: 'ava--sm', colour: db.dept(db.state.me.department_id)?.colour || '' })}
+        <span class="mechip__n">${esc(db.state.me.full_name || db.state.me.email || '')}</span></button>` : ''}
       ${db.state.session
         ? `<button class="btn btn--ghost" data-act="signout">${esc(d.signOut)}</button>`
         : `<button class="btn btn--primary btn--sm" data-act="go" data-route="#/signin">${esc(d.signIn)}</button>`}
