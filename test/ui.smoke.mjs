@@ -1013,6 +1013,18 @@ for (const lang of ['en', 'ar']) {
   check(ac.includes('data-ava-file="u5"') && !ac.includes('data-ava-del'), 'the photo card does not offer an upload');
   check(!D.avatarCard('en', { id: 'u5', full_name: 'Salman' }).includes('data-ava-file'), 'a read-only photo card offers an upload');
   check(D.avaHtml('salman', null).includes('>S<'), 'an avatar without a photo does not show the initial');
+
+  // Pricing: cost, margin and an owner per line; margin is (price − cost) ÷ price.
+  check(D.marginOf(70, 100) === '30' && D.marginOf('', 100) === '' && D.marginOf(70, 0) === '', 'the margin is not (price − cost) ÷ price');
+  check(D.priceFor(70, 30) === 100 && D.priceFor(70, 100) === null, 'typing a margin does not give the right price');
+  const prPeople = [{ id: 'u8', full_name: 'Pricer', department_id: 'pricing', is_active: true }, { id: 'u2', full_name: 'Badr', department_id: '3d', is_active: true }];
+  const prItems = [{ id: 'q1', name: 'Booth', qty: 2, unit_price_sar: 100, cost_sar: 70, assignee_id: 'u2' }];
+  dbmod.state.me = { id: 'u2', role: 'member', department_id: '3d', is_active: true };
+  const prAs = D.pricingSection('en', { pricingItems: prItems, people: prPeople, projectFiles: [] });
+  check(prAs.includes('data-field="cost_sar"') && prAs.includes('data-pr-margin="q1"') && prAs.includes('value="30"'),
+    'the person a pricing line is assigned to cannot fill in its cost and margin');
+  check(prAs.includes('data-field="assignee_id" disabled') && !prAs.includes('data-pr-del'), 'an assignee can reassign or delete a pricing line');
+  check(prAs.includes('SAR 60.00'), 'the profit total is missing');
   dbmod.state.me = was;
 }
 
