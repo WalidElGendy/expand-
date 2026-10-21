@@ -363,6 +363,11 @@ export const DSTR = {
     procDelConfirm: 'Remove this item from the list?',
     prHead: 'Pricing', prItem: 'Item', prDesc: 'Description', prQty: 'Qty', prUnit: 'Unit', prUnitPrice: 'Unit price (SAR)',
     prLine: 'Total', prAdd: 'Add item', prNone: 'No pricing items yet.', prDelConfirm: 'Remove this pricing item?',
+    prCost: 'Unit cost (SAR)', prMargin: 'Margin %', prMarginHint: 'Profit as a share of the selling price: (price − cost) ÷ price. Type a margin to set the price from the cost.',
+    prWho: 'Assigned to', prNobody: 'Unassigned', prCostTotal: 'Total cost', prProfit: 'Profit (before VAT)',
+    prAssignedOnly: 'You can fill in the lines assigned to you. The pricing team manages the rest.',
+    prCostedOf: 'on {n} of {m} lines with a cost',
+    myPricing: 'Pricing to fill in', myPricingSub: 'Pricing lines assigned to you.',
     prSub: 'Subtotal', prVat: 'VAT 15%', prTotal: 'Total incl. VAT', prBadNumber: 'Quantity and price must be numbers of zero or more.',
     prSheet: 'Pricing sheet', prSheetHint: 'Excel, PDF or Word — the full priced breakdown.', prUpload: 'Upload', prSheets: 'Pricing sheets',
     prReadOnly: 'Only the pricing team, planners and managers can edit pricing.',
@@ -679,6 +684,11 @@ export const DSTR = {
     procDelConfirm: 'حذف هذا الصنف من القائمة؟',
     prHead: 'التسعير', prItem: 'البند', prDesc: 'الوصف', prQty: 'الكمية', prUnit: 'الوحدة', prUnitPrice: 'سعر الوحدة (ريال)',
     prLine: 'الإجمالي', prAdd: 'إضافة بند', prNone: 'لا توجد بنود تسعير بعد.', prDelConfirm: 'حذف بند التسعير هذا؟',
+    prCost: 'تكلفة الوحدة (ريال)', prMargin: 'هامش الربح %', prMarginHint: 'الربح كنسبة من سعر البيع: (السعر − التكلفة) ÷ السعر. اكتب الهامش ليُحسب السعر من التكلفة.',
+    prWho: 'المسؤول', prNobody: 'غير مسند', prCostTotal: 'إجمالي التكلفة', prProfit: 'الربح (قبل الضريبة)',
+    prAssignedOnly: 'يمكنك تعبئة البنود المسندة إليك. فريق التسعير يدير البقية.',
+    prCostedOf: 'على {n} من {m} بنود لها تكلفة',
+    myPricing: 'تسعير مطلوب منك', myPricingSub: 'بنود التسعير المسندة إليك.',
     prSub: 'المجموع', prVat: 'ضريبة القيمة المضافة 15%', prTotal: 'الإجمالي شامل الضريبة', prBadNumber: 'الكمية والسعر يجب أن تكون أرقاماً صفراً أو أكثر.',
     prSheet: 'ملف التسعير', prSheetHint: 'Excel أو PDF أو Word — التفصيل الكامل للأسعار.', prUpload: 'رفع', prSheets: 'ملفات التسعير',
     prReadOnly: 'تعديل التسعير متاح لفريق التسعير والمخططين والمدراء فقط.',
@@ -2408,34 +2418,67 @@ export function productionSections(lang, ctx) {
    ======================================================================== */
 
 export function pricingSection(lang, ctx) {
-  const t = DSTR[lang];
+  const t = DSTR[lang], me = db.state.me;
   const items = ctx.pricingItems || [];
   const sheets = (ctx.projectFiles || []).filter(f => f.purpose === 'pricing');
   const canEdit = canPrice();
+  /* A line someone was assigned can be filled in by that person even when
+     they are not on the pricing team; who it is assigned to stays the pricing
+     team's call. Mirrors pricing_update_assignee in the database. */
+  const rowEdit = (it) => canEdit || (!!me && it.assignee_id === me.id);
+  const anyEdit = canEdit || items.some(rowEdit);
   const line = (it) => (Number(it.qty) || 0) * (Number(it.unit_price_sar) || 0);
+  const costLine = (it) => (Number(it.qty) || 0) * (Number(it.cost_sar) || 0);
   const sub = items.reduce((a, it) => a + line(it), 0);
+  const costSum = items.reduce((a, it) => a + costLine(it), 0);
+  const hasCost = (it) => it.cost_sar !== null && it.cost_sar !== undefined && it.cost_sar !== '';
+  const costed = items.some(hasCost);
+  const nCosted = items.filter(hasCost).length;
+  // Profit and margin over the costed lines only: a line with no cost yet is
+  // unknown, not pure profit.
+  const costedSales = items.filter(hasCost).reduce((a, it) => a + line(it), 0);
   const num = (v) => (v === null || v === undefined ? '' : String(v));
+  const people = (ctx.people || []).filter(p => p.is_active !== false)
+    .slice().sort((a, b) => String(a.full_name || a.email).localeCompare(String(b.full_name || b.email)));
+  const who = (id) => people.find(p => p.id === id) || (ctx.people || []).find(p => p.id === id);
 
-  const editRow = (it) => `<tr data-pr-row>
+  const whoSelect = (it) => `<select class="cellinput cellinput--who" data-pr="${esc(it.id)}" data-field="assignee_id"${canEdit ? '' : ' disabled'}>
+      <option value="">${esc(t.prNobody)}</option>
+      ${people.map(p => `<option value="${esc(p.id)}"${p.id === it.assignee_id ? ' selected' : ''}>${esc(p.full_name || p.email)}${p.department_id ? ` · ${esc(deptName(p.department_id, lang))}` : ''}</option>`).join('')}
+      ${it.assignee_id && !people.some(p => p.id === it.assignee_id) ? `<option value="${esc(it.assignee_id)}" selected>${esc(who(it.assignee_id)?.full_name || '—')}</option>` : ''}
+    </select>`;
+
+  const editRow = (it) => `<tr data-pr-row${it.assignee_id && it.assignee_id === me?.id ? ' class="prmine"' : ''}>
     <td><input class="cellinput" data-pr="${esc(it.id)}" data-field="name" value="${esc(it.name || '')}" placeholder="${esc(t.prItem)}" /></td>
     <td><input class="cellinput" data-pr="${esc(it.id)}" data-field="description" value="${esc(it.description || '')}" placeholder="${esc(t.prDesc)}" /></td>
     <td class="num"><input class="cellinput cellinput--num" type="number" min="0" step="any" inputmode="decimal" data-pr="${esc(it.id)}" data-field="qty" value="${esc(num(it.qty))}" /></td>
     <td><input class="cellinput cellinput--unit" data-pr="${esc(it.id)}" data-field="unit" value="${esc(it.unit || '')}" placeholder="m², pcs…" /></td>
+    <td class="num"><input class="cellinput cellinput--num" type="number" min="0" step="any" inputmode="decimal" data-pr="${esc(it.id)}" data-field="cost_sar" value="${esc(num(it.cost_sar))}" placeholder="—" /></td>
     <td class="num"><input class="cellinput cellinput--num" type="number" min="0" step="any" inputmode="decimal" data-pr="${esc(it.id)}" data-field="unit_price_sar" value="${esc(num(it.unit_price_sar))}" /></td>
+    <td class="num"><input class="cellinput cellinput--num cellinput--pct" type="number" step="any" max="99.9" inputmode="decimal" data-pr-margin="${esc(it.id)}" value="${esc(marginOf(it.cost_sar, it.unit_price_sar))}" placeholder="—" title="${esc(t.prMarginHint)}" /></td>
     <td class="num" data-pr-line>${esc(sarFmt(line(it)))}</td>
-    <td class="proc-actions"><button class="x" data-pr-del="${esc(it.id)}" title="${esc(t.remove)}" aria-label="${esc(t.remove)}">✕</button></td>
+    <td>${whoSelect(it)}</td>
+    <td class="proc-actions">${canEdit ? `<button class="x" data-pr-del="${esc(it.id)}" title="${esc(t.remove)}" aria-label="${esc(t.remove)}">✕</button>` : ''}</td>
   </tr>`;
   const viewRow = (it) => `<tr>
     <td>${esc(it.name || '—')}</td>
     <td class="${it.description ? '' : 'muted'}">${esc(it.description || '—')}</td>
     <td class="num">${esc(num(it.qty))}</td><td>${esc(it.unit || '')}</td>
+    <td class="num">${it.cost_sar != null ? esc(sarFmt(it.cost_sar)) : '<span class="muted">—</span>'}</td>
     <td class="num">${it.unit_price_sar != null ? esc(sarFmt(it.unit_price_sar)) : '<span class="muted">—</span>'}</td>
+    <td class="num">${marginOf(it.cost_sar, it.unit_price_sar) !== '' ? `${esc(marginOf(it.cost_sar, it.unit_price_sar))}%` : '<span class="muted">—</span>'}</td>
     <td class="num">${esc(sarFmt(line(it)))}</td>
+    <td class="${it.assignee_id ? '' : 'muted'}">${esc(who(it.assignee_id)?.full_name || '—')}</td>
+    ${anyEdit ? '<td></td>' : ''}
   </tr>`;
-  const cols = canEdit ? 7 : 6;
-  const span = cols - (canEdit ? 2 : 1);
-  const totalRow = (label, attr, v, strong = false) => `<tr class="prtotal${strong ? ' prtotal--grand' : ''}">
-    <td colspan="${span}" class="num">${esc(label)}</td><td class="num" ${attr}>${esc(sarFmt(v))}</td>${canEdit ? '<td></td>' : ''}</tr>`;
+  const cols = anyEdit ? 10 : 9;
+  const span = 7;
+  const tail = cols - span - 1;
+  const totalRow = (label, attr, v, strong = false, extra = '') => `<tr class="prtotal${strong ? ' prtotal--grand' : ''}">
+    <td colspan="${span}" class="num">${esc(label)}</td><td class="num" ${attr}>${v === null ? '—' : esc(sarFmt(v))}</td><td colspan="${tail}" class="muted small" ${extra}></td></tr>`;
+  const profit = costedSales - costSum;
+  const overall = costedSales > 0 ? (profit / costedSales) * 100 : null;
+  const coverage = nCosted < items.length ? ` · ${t.prCostedOf.replace('{n}', nCosted).replace('{m}', items.length)}` : '';
 
   return `
 <section class="card">
@@ -2443,16 +2486,22 @@ export function pricingSection(lang, ctx) {
   <div class="tblwrap"><table class="tbl tbl--tight tbl--proc tbl--pricing">
     <thead><tr>
       <th>${esc(t.prItem)}</th><th>${esc(t.prDesc)}</th><th class="num">${esc(t.prQty)}</th><th>${esc(t.prUnit)}</th>
-      <th class="num">${esc(t.prUnitPrice)}</th><th class="num">${esc(t.prLine)}</th>${canEdit ? '<th></th>' : ''}
+      <th class="num">${esc(t.prCost)}</th><th class="num">${esc(t.prUnitPrice)}</th>
+      <th class="num" title="${esc(t.prMarginHint)}">${esc(t.prMargin)}</th><th class="num">${esc(t.prLine)}</th>
+      <th>${esc(t.prWho)}</th>${anyEdit ? '<th></th>' : ''}
     </tr></thead>
     <tbody>
-      ${items.length ? items.map(canEdit ? editRow : viewRow).join('')
+      ${items.length ? items.map(it => (rowEdit(it) ? editRow(it) : viewRow(it))).join('')
         : `<tr><td class="tbl__empty" colspan="${cols}">${esc(t.prNone)}</td></tr>`}
     </tbody>
     ${items.length ? `<tfoot>
       ${totalRow(t.prSub, 'data-pr-sub', sub)}
       ${totalRow(t.prVat, 'data-pr-vat', sub * VAT_RATE)}
       ${totalRow(t.prTotal, 'data-pr-total', sub * (1 + VAT_RATE), true)}
+      ${totalRow(t.prCostTotal, 'data-pr-cost', costed ? costSum : null)}
+      <tr class="prtotal"><td colspan="${span}" class="num">${esc(t.prProfit)}</td>
+        <td class="num" data-pr-profit>${costed ? esc(sarFmt(profit)) : '—'}</td>
+        <td colspan="${tail}" class="small ${overall !== null && overall < 0 ? 'bad' : 'muted'}" data-pr-margin-all>${overall !== null ? `${esc(t.prMargin)} ${overall.toFixed(1)}%${esc(coverage)}` : ''}</td></tr>
     </tfoot>` : ''}
   </table></div>
   ${canEdit ? `<div class="actions"><button type="button" class="btn btn--sm" data-pr-add>${esc(t.prAdd)}</button></div>
@@ -2465,9 +2514,24 @@ export function pricingSection(lang, ctx) {
       <button class="link" data-file="${esc(f.id)}">${esc(f.title || f.filename)}</button>
       <span class="muted small">${f.size_bytes ? `${Math.max(1, Math.round(f.size_bytes / 1024))} KB` : ''}${f.uploader?.full_name ? ` · ${esc(t.uploadedBy.replace('{who}', f.uploader.full_name))}` : ''}</span>
     </li>`).join('')}</ul></div>` : ''}
-  ${canEdit ? '' : `<p class="note">${esc(t.prReadOnly)}</p>`}
+  ${canEdit ? '' : `<p class="note">${esc(anyEdit ? t.prAssignedOnly : t.prReadOnly)}</p>`}
 </section>`;
 }
+
+/* Gross margin, the share of the selling price that is profit:
+   (price − cost) ÷ price. Blank until both numbers are there. */
+export const marginOf = (cost, price) => {
+  const c = Number(cost), p = Number(price);
+  if (cost === null || cost === undefined || cost === '' || !Number.isFinite(c)) return '';
+  if (price === null || price === undefined || price === '' || !Number.isFinite(p) || p <= 0) return '';
+  return (Math.round(((p - c) / p) * 1000) / 10).toString();
+};
+/* The price that gives a margin on a cost: cost ÷ (1 − margin). */
+export const priceFor = (cost, marginPct) => {
+  const c = Number(cost), m = Number(marginPct);
+  if (!Number.isFinite(c) || !Number.isFinite(m) || m >= 100) return null;
+  return Math.round((c / (1 - m / 100)) * 100) / 100;
+};
 
 /* ========================================================================
    Design: the 3D and 2D teams upload their work here, one group per team.
@@ -2575,6 +2639,28 @@ export function tasksSection(lang, ctx) {
   </form>` : ''}
   ${tasks.length ? `<ul class="tasklist">${tasks.slice(0, 200).map(x => taskRow(lang, x)).join('')}</ul>`
     : `<p class="note">${esc(t.tkNone)}</p>`}
+</section>`;
+}
+
+/* Pricing lines assigned to me, on any project: shown under My tasks. */
+export function myPricingCard(lang, ctx) {
+  const t = DSTR[lang];
+  const rows = (ctx.myPricing || []).filter(r => !['delivered', 'archived', 'lost'].includes(r.project?.status));
+  if (!rows.length) return '';
+  return `
+<section class="card">
+  <div class="card__head"><h2>${esc(t.myPricing)}</h2><span class="muted small">${rows.length}</span></div>
+  <ul class="tasklist">${rows.map(r => `
+    <li class="taskrow">
+      <div class="taskrow__b">
+        <span class="taskrow__n">${esc(r.name || '—')}</span>
+        ${r.description ? `<span class="taskrow__d">${esc(r.description)}</span>` : ''}
+        <span class="taskrow__m">
+          ${r.project ? `<button class="link" data-act="go" data-route="#/p/${esc(r.project.id)}">${esc(r.project.name)}</button> · ` : ''}
+          ${esc(t.prCost)}: <b>${r.cost_sar != null ? esc(sarFmt(r.cost_sar)) : '—'}</b> · ${esc(t.prUnitPrice)}: <b>${r.unit_price_sar != null ? esc(sarFmt(r.unit_price_sar)) : '—'}</b>
+        </span>
+      </div>
+    </li>`).join('')}</ul>
 </section>`;
 }
 
