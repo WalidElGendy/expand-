@@ -367,6 +367,7 @@ export const DSTR = {
     prWho: 'Assigned to', prNobody: 'Unassigned', prCostTotal: 'Total cost', prProfit: 'Profit (before VAT)',
     prAssignedOnly: 'You can fill in the lines assigned to you. The pricing team manages the rest.',
     prCostedOf: 'on {n} of {m} lines with a cost',
+    prExport: 'Export to Excel', prExported: 'Exported',
     myPricing: 'Pricing to fill in', myPricingSub: 'Pricing lines assigned to you.',
     prSub: 'Subtotal', prVat: 'VAT 15%', prTotal: 'Total incl. VAT', prBadNumber: 'Quantity and price must be numbers of zero or more.',
     prSheet: 'Pricing sheet', prSheetHint: 'Excel, PDF or Word — the full priced breakdown.', prUpload: 'Upload', prSheets: 'Pricing sheets',
@@ -688,6 +689,7 @@ export const DSTR = {
     prWho: 'المسؤول', prNobody: 'غير مسند', prCostTotal: 'إجمالي التكلفة', prProfit: 'الربح (قبل الضريبة)',
     prAssignedOnly: 'يمكنك تعبئة البنود المسندة إليك. فريق التسعير يدير البقية.',
     prCostedOf: 'على {n} من {m} بنود لها تكلفة',
+    prExport: 'تصدير إلى Excel', prExported: 'تاريخ التصدير',
     myPricing: 'تسعير مطلوب منك', myPricingSub: 'بنود التسعير المسندة إليك.',
     prSub: 'المجموع', prVat: 'ضريبة القيمة المضافة 15%', prTotal: 'الإجمالي شامل الضريبة', prBadNumber: 'الكمية والسعر يجب أن تكون أرقاماً صفراً أو أكثر.',
     prSheet: 'ملف التسعير', prSheetHint: 'Excel أو PDF أو Word — التفصيل الكامل للأسعار.', prUpload: 'رفع', prSheets: 'ملفات التسعير',
@@ -2482,7 +2484,8 @@ export function pricingSection(lang, ctx) {
 
   return `
 <section class="card">
-  <div class="card__head"><h2>${esc(t.prHead)}</h2><span class="muted small">${items.length}</span></div>
+  <div class="card__head"><h2>${esc(t.prHead)}</h2><span class="muted small">${items.length}</span>
+    ${items.length ? `<button type="button" class="btn btn--sm" style="margin-inline-start:auto" data-pr-xlsx>${esc(t.prExport)}</button>` : ''}</div>
   <div class="tblwrap"><table class="tbl tbl--tight tbl--proc tbl--pricing">
     <thead><tr>
       <th>${esc(t.prItem)}</th><th>${esc(t.prDesc)}</th><th class="num">${esc(t.prQty)}</th><th>${esc(t.prUnit)}</th>
@@ -2517,6 +2520,66 @@ export function pricingSection(lang, ctx) {
   ${canEdit ? '' : `<p class="note">${esc(anyEdit ? t.prAssignedOnly : t.prReadOnly)}</p>`}
 </section>`;
 }
+
+/* The pricing table as a spreadsheet: same columns, live formulas for the
+   line totals, margins and totals, so the file still adds up after someone
+   edits it in Excel. Pure, so it can be tested; controller.js downloads it. */
+export function pricingSheet(lang, ctx) {
+  const t = DSTR[lang];
+  const p = ctx.project || {};
+  const items = ctx.pricingItems || [];
+  const who = (id) => (ctx.people || []).find(x => x.id === id)?.full_name || '';
+  const n = (v) => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) ? null : Number(v));
+  const first = 5, last = first + items.length - 1;
+  const merges = ['A1:J1', 'A2:J2'];
+  const rows = [
+    [{ v: `${t.prHead} — ${p.name || ''}`, s: 'title' }],
+    [{ v: [p.client ? `${t.client}: ${p.client}` : '', `${t.prExported} ${fmt(new Date().toISOString().slice(0, 10), lang)}`,
+           db.state.me?.full_name ? t.uploadedBy.replace('{who}', db.state.me.full_name) : ''].filter(Boolean).join(' · '), s: 'meta' }],
+    [],
+    ['#', t.prItem, t.prDesc, t.prQty, t.prUnit, t.prCost, t.prUnitPrice, t.prMargin, t.prLine, t.prWho].map(v => ({ v, s: 'head' })),
+  ];
+  items.forEach((it, i) => {
+    const r = first + i, q = n(it.qty) ?? 0, c = n(it.cost_sar), u = n(it.unit_price_sar);
+    const m = c !== null && u ? (u - c) / u : '';
+    rows.push([
+      { v: i + 1, s: 'num' }, { v: it.name || '' }, { v: it.description || '' },
+      { v: q, s: 'num' }, { v: it.unit || '' },
+      c === null ? { v: null, s: 'money' } : { v: c, s: 'money' },
+      u === null ? { v: null, s: 'money' } : { v: u, s: 'money' },
+      { f: `IF(AND(F${r}<>"",G${r}>0),(G${r}-F${r})/G${r},"")`, v: m, s: 'pct' },
+      { f: `D${r}*G${r}`, v: q * (u ?? 0), s: 'money' },
+      { v: who(it.assignee_id) },
+    ]);
+  });
+  if (items.length) {
+    const sub = items.reduce((a, it) => a + (n(it.qty) ?? 0) * (n(it.unit_price_sar) ?? 0), 0);
+    const costed = items.filter(it => n(it.cost_sar) !== null);
+    const cost = costed.reduce((a, it) => a + (n(it.qty) ?? 0) * n(it.cost_sar), 0);
+    const cSales = costed.reduce((a, it) => a + (n(it.qty) ?? 0) * (n(it.unit_price_sar) ?? 0), 0);
+    const R = (col) => `${col}${first}:${col}${last}`;
+    const salesCosted = `SUMPRODUCT((${R('F')}<>"")*${R('D')}*${R('G')})`;
+    const at = rows.length + 2;              // a blank row, then the totals
+    // The label sits in F:H merged, so it has room in either direction.
+    const tot = (label, cell, bold = false) => [null, null, null, null, null,
+      { v: label, s: bold ? 'labelBold' : 'label' }, null, null, cell];
+    rows.push([]);
+    rows.push(tot(t.prSub, { f: `SUM(${R('I')})`, v: sub, s: 'money' }));
+    rows.push(tot(t.prVat, { f: `I${at}*${VAT_RATE}`, v: sub * VAT_RATE, s: 'money' }));
+    rows.push(tot(t.prTotal, { f: `I${at}+I${at + 1}`, v: sub * (1 + VAT_RATE), s: 'moneyBold' }, true));
+    rows.push(tot(t.prCostTotal, { f: `SUMPRODUCT(${R('D')},${R('F')})`, v: cost, s: 'money' }));
+    rows.push(tot(t.prProfit, { f: `${salesCosted}-I${at + 3}`, v: cSales - cost, s: 'moneyBold' }, true));
+    rows.push(tot(t.prMargin, { f: `IF(${salesCosted}>0,I${at + 4}/${salesCosted},"")`, v: cSales > 0 ? (cSales - cost) / cSales : '', s: 'pctBold' }, true));
+    for (let r = at; r <= at + 5; r++) merges.push(`F${r}:H${r}`);
+  }
+  return {
+    name: t.prHead, rtl: lang === 'ar', freezeRow: 4,
+    colWidths: [5, 26, 46, 8, 9, 15, 15, 11, 16, 22],
+    merges,
+    rows,
+  };
+}
+export const pricingFileName = (p) => `${DSTR.en.prHead} - ${String(p?.name || 'project').replace(/[\\/:*?"<>|]+/g, '-').trim()}.xlsx`;
 
 /* Gross margin, the share of the selling price that is profit:
    (price − cost) ÷ price. Blank until both numbers are there. */
