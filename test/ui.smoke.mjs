@@ -1025,6 +1025,16 @@ for (const lang of ['en', 'ar']) {
     'the person a pricing line is assigned to cannot fill in its cost and margin');
   check(prAs.includes('data-field="assignee_id" disabled') && !prAs.includes('data-pr-del'), 'an assignee can reassign or delete a pricing line');
   check(prAs.includes('SAR 60.00'), 'the profit total is missing');
+
+  // Excel export: a real .xlsx (a ZIP) whose sheet keeps the live formulas.
+  const XL = await import('../web/xlsx.js');
+  const sh = D.pricingSheet('en', { project: { name: 'Booth' }, pricingItems: prItems, people: prPeople });
+  const flat = sh.rows.flat().filter(Boolean);
+  check(flat.some(c => c.f === 'D5*G5') && flat.some(c => c.f && c.f.startsWith('SUM(I5:I5)')), 'the pricing export has no line or subtotal formulas');
+  check(flat.some(c => c.v === 'Badr'), 'the pricing export does not name who each line is assigned to');
+  const bytes = XL.buildXlsx(sh);
+  check(bytes[0] === 0x50 && bytes[1] === 0x4B && bytes.length > 1500, 'the pricing export is not a valid .xlsx (ZIP) file');
+  check(D.pricingFileName({ name: 'A/B: C' }) === 'Pricing - A-B- C.xlsx', 'the export file name is not safe');
   dbmod.state.me = was;
 }
 
