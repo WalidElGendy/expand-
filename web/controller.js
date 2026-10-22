@@ -12,6 +12,7 @@ import * as V from './dash.js';
 import * as HC from './hrctl.js';
 import * as TC from './tenderctl.js';
 import * as MG from './mgmt.js';
+import * as XL from './xlsx.js';
 
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -605,6 +606,20 @@ export function wireApp(lang) {
       await prSave(inp.dataset.pr, { [field]: value });
     };
   });
+  /* Export the pricing table to Excel. Blur first so a cell still being typed
+     in is saved (and in ctx) before the file is built. */
+  const prX = $('[data-pr-xlsx]');
+  if (prX) prX.onclick = async () => {
+    if (document.activeElement?.matches?.('[data-pr]')) { document.activeElement.blur(); await new Promise(r => setTimeout(r, 250)); }
+    try {
+      const bytes = XL.buildXlsx(V.pricingSheet(lang, ctx), { title: `${V.DSTR[lang].prHead} — ${ctx.project?.name || ''}`, author: db.state.me?.full_name || 'expand' });
+      const url = URL.createObjectURL(new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+      const a = document.createElement('a');
+      a.href = url; a.download = V.pricingFileName(ctx.project);
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+    } catch (e) { fail(e); }
+  };
   const prAdd = $('[data-pr-add]');
   if (prAdd) prAdd.onclick = async () => {
     prAdd.disabled = true;
