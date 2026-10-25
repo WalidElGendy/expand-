@@ -109,6 +109,7 @@ export const sarFmt = (v) => `SAR ${(Number(v) || 0).toLocaleString('en-US', { m
 
 export const DSTR = {
   en: {
+    dueSave: 'Save due date', dueHint: 'Can be changed at any time. Every change is recorded in the project history.',
     contractValue: 'Contract value (SAR)', cvSave: 'Save value', cvInvalid: 'Enter a number of riyals, or leave it empty.',
     cvHint: 'What the client pays. Feeds the Sales dashboard.',
     signIn: 'Sign in', signOut: 'Sign out', email: 'Email', password: 'Password',
@@ -448,6 +449,7 @@ export const DSTR = {
     hrNoAccess: 'This screen is for HR, and for supervisors about their own team.',
   },
   ar: {
+    dueSave: 'حفظ تاريخ التسليم', dueHint: 'يمكن تغييره في أي وقت، وكل تغيير يُسجَّل في سجل المشروع.',
     contractValue: 'قيمة العقد (ر.س)', cvSave: 'حفظ القيمة', cvInvalid: 'أدخل مبلغاً بالريال أو اتركه فارغاً.',
     cvHint: 'ما يدفعه العميل. تُستخدم في لوحة المبيعات.',
     signIn: 'تسجيل الدخول', signOut: 'تسجيل الخروج', email: 'البريد الإلكتروني', password: 'كلمة المرور',
@@ -2234,6 +2236,13 @@ export function projectView(lang, ctx) {
     ${p.lead ? fact(t.fromLead,
       `<button class="link" data-act="go" data-route="#/l/${esc(p.lead.id)}">${esc(p.lead.name)}${p.lead.company ? ` · ${esc(p.lead.company)}` : ''}</button>`) : ''}
   </div>
+
+  ${canPlan() ? `<form id="dueForm" class="inlineform" style="border-bottom:0;padding-top:0">
+    <div class="fields" style="grid-template-columns:minmax(0, 320px)">
+      <label class="f"><span>${esc(t.due)}</span><input id="dueValue" type="date" min="2020-01-01" max="2099-12-31" value="${esc(p.due_on || '')}" /></label>
+    </div>
+    <p class="note">${esc(t.dueHint)}</p>
+    <div class="actions"><button type="submit" class="btn btn--sm">${esc(t.dueSave)}</button></div></form>` : ''}
 
   ${canPlan() ? `<form id="cvForm" class="inlineform" style="border-bottom:0;padding-top:0">
     <div class="fields" style="grid-template-columns:minmax(0, 320px)">
