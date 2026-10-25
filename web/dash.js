@@ -59,6 +59,12 @@ export const canDesign = (team, me = db.state.me) => {
   return team ? me.department_id === team : ['2d', '3d'].includes(me.department_id);
 };
 
+/* Who may delete a design file of a team: like canDesign, except that a
+   2D or 3D person only manages their own team's files. Mirrors
+   can_manage_design() in the database. */
+export const canManageDesign = (team, me = db.state.me) =>
+  canDesign(team, me) && (!['2d', '3d'].includes(me?.department_id) || me.department_id === team);
+
 /* Tasks on a project. Any active colleague can add one and assign it to
    anyone; the assignee, the person who added it, planners and leads can
    tick it off or edit it; the person who added it and planners can remove
@@ -377,6 +383,7 @@ export const DSTR = {
     desHint2d: 'Technical drawings — PDF, DWG, DXF, images, up to 200 MB per file. Uploading marks the 2D stage done and sends the project to pricing.',
     desUpload: 'Upload design', desNone: 'No designs uploaded yet.', desNoStage: 'No stage on this project',
     desReadOnly: 'Only the 2D and 3D teams, planners and managers can upload designs.',
+    desDel: 'Delete design', desDelConfirm: 'Delete "{name}"? This cannot be undone. If it is the last design for this team, the stage goes back to In progress.',
     procSt: { pending: 'Pending', in_process: 'In process', done: 'Done', not_available: 'Not available', expensive: 'Expensive' },
     prodHead: 'Production', prodSchedule: 'Production schedule',
     prodScheduleHint: 'Phases, dates, who does what — free text.',
@@ -699,6 +706,7 @@ export const DSTR = {
     desHint2d: 'الرسومات الفنية — PDF أو DWG أو DXF أو صور، حتى 200 ميجابايت للملف. الرفع يجعل مرحلة 2D مكتملة وينقل المشروع إلى التسعير.',
     desUpload: 'رفع التصميم', desNone: 'لا توجد تصاميم مرفوعة بعد.', desNoStage: 'لا توجد هذه المرحلة في المشروع',
     desReadOnly: 'رفع التصاميم متاح لفريقي 2D و3D والمخططين والمدراء فقط.',
+    desDel: 'حذف التصميم', desDelConfirm: 'حذف "{name}"؟ لا يمكن التراجع. إذا كان آخر تصميم لهذا الفريق تعود المرحلة إلى قيد التنفيذ.',
     procSt: { pending: 'قيد الانتظار', in_process: 'قيد التنفيذ', done: 'تم', not_available: 'غير متوفر', expensive: 'مكلف' },
     prodHead: 'الإنتاج', prodSchedule: 'جدول الإنتاج',
     prodScheduleHint: 'المراحل والتواريخ ومن يقوم بماذا — نص حر.',
@@ -2630,7 +2638,8 @@ export function designSection(lang, ctx) {
     ${mine.length ? `<ul class="filelist">${mine.map(f => `
       <li class="filerow">
         <button class="link" data-file="${esc(f.id)}">${esc(f.title || f.filename)}</button>
-        <span class="muted small">${f.size_bytes ? `${Math.max(1, Math.round(f.size_bytes / 1024))} KB · ` : ''}${esc(sinceText(f.created_at, lang, t))}${f.uploader?.full_name ? ` · ${esc(t.uploadedBy.replace('{who}', f.uploader.full_name))}` : ''}</span>
+        <span class="muted small">${f.size_bytes ? `${esc(fileSize(Number(f.size_bytes)))} · ` : ''}${esc(sinceText(f.created_at, lang, t))}${f.uploader?.full_name ? ` · ${esc(t.uploadedBy.replace('{who}', f.uploader.full_name))}` : ''}</span>
+        ${canManageDesign(team) ? `<button type="button" class="x" style="margin-inline-start:auto" data-des-del="${esc(f.id)}" title="${esc(t.desDel)}" aria-label="${esc(t.desDel)}">✕</button>` : ''}
       </li>`).join('')}</ul>` : `<p class="note">${esc(t.desNone)}</p>`}
   </div>`;
   };
