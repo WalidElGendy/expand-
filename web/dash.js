@@ -950,7 +950,10 @@ const kpi = (n, label, { sub = '', bad = false, colour = '', date = false } = {}
    already in the past. A forward-looking chart would have been empty and
    would have read as "nothing due" rather than "nothing captured".        */
 
-function monthKey(d) { return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`; }
+function monthKey(d) { return `${String(d.getUTCFullYear()).padStart(4, '0')}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`; }
+/* A date someone actually meant: a typo like year 0006 or 2126 is real data
+   in the table but has no place on a monthly chart. */
+const plausibleDay = (iso) => /^(20[0-9]{2})-/.test(String(iso || ''));
 
 /* ===================================================================== volume
 
@@ -1175,7 +1178,7 @@ export function managerMonthChart(lang, projects, months) {
 }
 
 export function deadlineChart(lang, projects) {
-  const dated = projects.filter(p => p.due_on);
+  const dated = projects.filter(p => p.due_on && plausibleDay(p.due_on));
   if (dated.length < 2) return '';
 
   const counts = new Map();
@@ -1196,6 +1199,7 @@ export function deadlineChart(lang, projects) {
     if (months.length > 24) break;
   }
   const series = months.slice(-14).map(k => ({ k, n: counts.get(k) || 0 }));
+  if (!series.length) return '';
   const max = Math.max(...series.map(s => s.n), 1);
 
   /* A viewBox close to the width the card actually gets, so the SVG is not
@@ -2760,7 +2764,7 @@ export function newProjectView(lang, ctx) {
       <label class="f"><span>${esc(t.size)}</span>
         <select id="pSize">${sizeOptionsHtml(lang, 'M')}</select></label>
       <label class="f"><span>${esc(t.start)}</span><input id="pStart" type="date" value="${today()}" /></label>
-      <label class="f"><span>${esc(t.deadline)}</span><input id="pDeadline" type="date" /></label>
+      <label class="f"><span>${esc(t.deadline)}</span><input id="pDeadline" type="date" min="2020-01-01" max="2099-12-31" /></label>
       <label class="f f--wide"><span>${esc(t.description)}</span><textarea id="pDesc" rows="3"></textarea></label>
     </div>
 
