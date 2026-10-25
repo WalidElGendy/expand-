@@ -244,12 +244,29 @@ function render() {
      stranger sees a sign-in page and nothing else" is a rule that survives
      somebody later adding a real project to it, and "mostly private" is not
      a property anyone can check. */
-  const body =
-    r.name === 'signin'   ? signInView(S.lang, C.ctx.authMode, C.ctx.authMsg, C.ctx.authErr, C.ctx.authAddr)
-  : r.name === 'estimate' ? estimatorBody()
-  : C.appBody(S.lang, r.name, r.id);
+  /* One bad row (a project with a mistyped date, say) must not take the
+     whole screen down with it: show what went wrong in place of the body and
+     keep the sidebar and top bar working. */
+  let body;
+  try {
+    body =
+      r.name === 'signin'   ? signInView(S.lang, C.ctx.authMode, C.ctx.authMsg, C.ctx.authErr, C.ctx.authAddr)
+    : r.name === 'estimate' ? estimatorBody()
+    : C.appBody(S.lang, r.name, r.id);
+  } catch (e) {
+    console.error(e);
+    body = `<section class="card"><div class="card__head"><h2>${esc(S.lang === 'ar' ? 'تعذّر عرض هذه الصفحة' : 'This page could not be shown')}</h2></div>
+      <p class="note bad">${esc(String(e && e.message || e))}</p></section>`;
+  }
 
   $('#root').innerHTML = shell(r, body);
+  /* Dates: a four-digit year in a sane range, so a slip of the keyboard
+     (0006, 2126) is caught by the browser before it is saved. Fields that set
+     their own range keep it. */
+  document.querySelectorAll('input[type="date"]').forEach(i => {
+    if (!i.min) i.min = '1900-01-01';
+    if (!i.max) i.max = '2099-12-31';
+  });
   wire();
   if (r.name === 'signin') C.wireAuth(S.lang);
   if (APP.includes(r.name)) C.wireApp(S.lang);
