@@ -764,6 +764,18 @@ export function wireApp(lang) {
   $$('.kpi--link').forEach(k => k.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); location.hash = k.dataset.route; } });
 
   /* --- project: contract value --- */
+  /* Due date: planners can move it at any status; the change is written to
+     the history by the project_due_changed trigger. */
+  const dueF = $('#dueForm');
+  if (dueF) dueF.onsubmit = async (e) => {
+    e.preventDefault();
+    const v = $('#dueValue').value || null;
+    if (v === (ctx.project.due_on || null)) return;
+    const btn = dueF.querySelector('button');
+    btn.disabled = true;
+    try { await db.updateProject(ctx.project.id, { due_on: v }); await loadFor('project', ctx.project.id); rerender(); }
+    catch (err) { btn.disabled = false; fail(err); }
+  };
   const cv = $('#cvForm');
   if (cv) cv.onsubmit = async (e) => {
     e.preventDefault();
