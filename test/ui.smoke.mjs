@@ -1042,6 +1042,18 @@ for (const lang of ['en', 'ar']) {
   let chart = null;
   try { chart = D.deadlineChart('en', typo); } catch (e) { chart = 'THREW ' + e.message; }
   check(typeof chart === 'string' && !chart.startsWith('THREW'), 'a mistyped deadline crashes the deadline chart');
+
+  // Design delete: a 3D designer can delete 3D designs but not 2D ones; pricing cannot.
+  const dz = { ...proj(12, null, 'in_design'), project_stages: [
+    { id: 's2', department_id: '2d', status: 'done', sort: 2 }, { id: 's3', department_id: '3d', status: 'done', sort: 1 }] };
+  const dzFiles = [{ id: 'z3', filename: 'r.png', purpose: 'design', department_id: '3d', size_bytes: 130023424, created_at: '2026-10-25T08:00:00Z' },
+                   { id: 'z2', filename: 'p.pdf', purpose: 'design', department_id: '2d', created_at: '2026-10-25T08:00:00Z' }];
+  dbmod.state.me = { id: 'u9', role: 'member', department_id: '3d', is_active: true };
+  const d3 = D.projectView('en', { project: dz, projectFiles: dzFiles });
+  check(d3.includes('data-des-del="z3"') && !d3.includes('data-des-del="z2"'), 'a 3D designer cannot delete exactly their team\'s designs');
+  check(d3.includes('124 MB'), 'a design file size is not shown in MB');
+  dbmod.state.me = { id: 'u8', role: 'member', department_id: 'pricing', is_active: true };
+  check(!D.projectView('en', { project: dz, projectFiles: dzFiles }).includes('data-des-del'), 'someone outside design can delete a design');
   dbmod.state.me = was;
 }
 
