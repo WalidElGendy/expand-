@@ -1054,6 +1054,13 @@ for (const lang of ['en', 'ar']) {
   check(d3.includes('124 MB'), 'a design file size is not shown in MB');
   dbmod.state.me = { id: 'u8', role: 'member', department_id: 'pricing', is_active: true };
   check(!D.projectView('en', { project: dz, projectFiles: dzFiles }).includes('data-des-del'), 'someone outside design can delete a design');
+
+  // Due date: a planner can change it on any project, a non-planner cannot.
+  dbmod.state.me = was;
+  const dd = D.projectView('en', { project: { ...proj(13, '2026-10-20', 'submitted') } });
+  check(dd.includes('id="dueForm"') && dd.includes('value="2026-10-20"'), 'a planner cannot amend the due date of a submitted project');
+  dbmod.state.me = { id: 'u8', role: 'member', department_id: 'pricing', is_active: true };
+  check(!D.projectView('en', { project: { ...proj(13, '2026-10-20', 'submitted') } }).includes('id="dueForm"'), 'a non-planner is offered to change the due date');
   dbmod.state.me = was;
 }
 
