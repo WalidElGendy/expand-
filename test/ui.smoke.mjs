@@ -1035,6 +1035,13 @@ for (const lang of ['en', 'ar']) {
   const bytes = XL.buildXlsx(sh);
   check(bytes[0] === 0x50 && bytes[1] === 0x4B && bytes.length > 1500, 'the pricing export is not a valid .xlsx (ZIP) file');
   check(D.pricingFileName({ name: 'A/B: C' }) === 'Pricing - A-B- C.xlsx', 'the export file name is not safe');
+
+  // A mistyped deadline (year 0006 or 2126) must not take the Projects page down.
+  const typo = [{ id: 't1', name: 'A', due_on: '0006-10-25' }, { id: 't2', name: 'B', due_on: '2026-10-20' },
+                { id: 't3', name: 'C', due_on: '2026-11-01' }, { id: 't4', name: 'D', due_on: '2126-10-22' }];
+  let chart = null;
+  try { chart = D.deadlineChart('en', typo); } catch (e) { chart = 'THREW ' + e.message; }
+  check(typeof chart === 'string' && !chart.startsWith('THREW'), 'a mistyped deadline crashes the deadline chart');
   dbmod.state.me = was;
 }
 
