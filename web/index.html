@@ -1237,6 +1237,20 @@ select.btn--sm { height: 28px; padding: 0 6px; background: var(--s-2); border: 1
 .chk { display: flex; align-items: center; gap: 9px; flex: 1; min-width: min(240px, 100%); font-size: 13px; }
 .chk i { width: 9px; height: 9px; border-radius: 3px; flex: none; }
 .chk input { accent-color: var(--brand); width: 16px; height: 16px; }
+.whopick { position: relative; min-width: 220px; max-width: 340px; font-size: 12.5px; }
+.stagepick__row .whopick { margin-inline-start: auto; }
+.whopick > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; min-height: 32px;
+  padding: 5px 28px 5px 10px; border-radius: 7px; background: var(--bg); border: 1px solid var(--line2); position: relative; }
+[dir=rtl] .whopick > summary { padding: 5px 10px 5px 28px; }
+.whopick > summary::-webkit-details-marker { display: none; }
+.whopick > summary::after { content: ''; position: absolute; inset-inline-end: 10px; top: 50%; width: 6px; height: 6px;
+  border-right: 1.5px solid var(--ink3); border-bottom: 1.5px solid var(--ink3); transform: translateY(-70%) rotate(45deg); }
+.whopick[open] > summary { border-color: var(--brand); }
+.whopick__sum { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.whopick__list { display: grid; gap: 2px; margin-top: 4px; padding: 6px; border-radius: 8px; background: var(--s-2); border: 1px solid var(--line2); max-height: 240px; overflow: auto; }
+.whopick__opt { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 6px; cursor: pointer; }
+.whopick__opt:hover { background: var(--s-1); }
+.whopick__opt input { accent-color: var(--brand); width: 15px; height: 15px; }
 .stageWho { height: 32px; padding: 0 8px; border-radius: 7px; background: var(--bg); border: 1px solid var(--line2); font-size: 12.5px; }
 
 .pill {
