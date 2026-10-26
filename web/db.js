@@ -388,7 +388,8 @@ const PROJECT_COLS = `
   owner:owner_id ( id, full_name, department_id ),
   project_stages ( id, department_id, assignee_id, effort_days, planned_start,
                    planned_end, started_at, completed_at, status, sort,
-                   assignee:assignee_id ( id, full_name, department_id ) )`;
+                   assignee:assignee_id ( id, full_name, department_id ),
+                   members:stage_members ( profile_id, profile:profile_id ( id, full_name ) ) )`;
 
 /* 200 was under the real count (369), so the Projects header read "200 total"
    and the filters below it silently searched a truncated set — the worst
@@ -579,6 +580,26 @@ export const setStages = async (project_id, stages) => ok(await sb
   .upsert(stages.map((s, i) => ({ project_id, sort: i, ...s })),
           { onConflict: 'project_id,department_id' })
   .select());
+
+/* Several people per team stage. assignee_id stays the stage's main person
+   (the scheduler and workload count it); stage_members holds everyone, and a
+   trigger keeps the main person in that list. */
+export async function addStageMembers(rows) {
+  if (!rows.length) return [];
+  return ok(await sb.from('stage_members')
+    .upsert(rows.map(r => ({ ...r, created_by: state.me?.id })), { onConflict: 'stage_id,profile_id', ignoreDuplicates: true })
+    .select());
+}
+export async function setStageMembers(stage, ids) {
+  const cur = (stage.members || []).map(m => m.profile_id);
+  const add = ids.filter(i => !cur.includes(i)), del = cur.filter(i => !ids.includes(i));
+  const primary = ids.includes(stage.assignee_id) ? stage.assignee_id : (ids[0] || null);
+  if (primary !== (stage.assignee_id || null)) {
+    ok(await sb.from('project_stages').update({ assignee_id: primary }).eq('id', stage.id).select());
+  }
+  if (add.length) await addStageMembers(add.map(profile_id => ({ stage_id: stage.id, profile_id })));
+  if (del.length) ok(await sb.from('stage_members').delete().eq('stage_id', stage.id).in('profile_id', del).select());
+}
 
 export const removeStage = async (id) => ok(await sb
   .from('project_stages').delete().eq('id', id).select());
