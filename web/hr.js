@@ -432,8 +432,13 @@ ${todayCard(lang, ctx, T0, S)}`;
 
 function todayCard(lang, ctx, T0, S) {
   const t = T(lang);
-  const order = { absent: 0, expected: 1, in: 2, out: 3, sick: 4, leave: 5, off: 6 };
-  const rows = [...T0.rows].sort((a, b) => order[a.state] - order[b.state]);
+  /* Who is here first (earliest punch at the top), then who has not come in,
+     then sick / leave / day off. */
+  const order = { in: 0, out: 1, expected: 2, absent: 3, sick: 4, leave: 5, off: 6 };
+  const nameOf = (r) => String(r.person.full_name || r.person.email || '');
+  const rows = [...T0.rows].sort((a, b) => (order[a.state] ?? 9) - (order[b.state] ?? 9)
+    || String(a.att?.clock_in || '').localeCompare(String(b.att?.clock_in || ''))
+    || nameOf(a).localeCompare(nameOf(b)));
   return card(`${t.att.todayHead} · ${fmt(H.todayIn(S.timezone), lang)}`, tbl(
     `<th>${t.name}</th><th>${t.dept}</th><th>${t.status}</th><th class="num">${t.att.in}</th><th class="num">${t.att.out}</th><th class="num">${t.att.late}</th><th>${S.attendance_source === 'app' ? t.att.remote : t.att.source}</th>`,
     rows.map(r => `<tr>
