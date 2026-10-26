@@ -140,7 +140,11 @@ export async function loadFor(route, id) {
     const wantsProjects = route === 'projects' || route === 'highlights' ||
       route === 'estimate' ||
       (['home', 'new'].includes(route) && V.canPlan(me));
-    const isDesigner = !['pm', 'bd', 'content'].includes(me.department_id);
+    const isDesigner = !['pm', 'bd', 'content', 'tenders'].includes(me.department_id);
+    /* The Tenders team's home is the tenders board. */
+    if (route === 'home' && me.department_id === 'tenders' && !MG.isManagement(me)) {
+      jobs.push(TC.loadTenders('tenders', null, ctx));
+    }
 
     /* Home for admins and managers is the management dashboard: it also
        needs the company-wide tender rows and HR figures. */
@@ -200,6 +204,7 @@ export async function loadFor(route, id) {
     if (route === 'admin') {
       jobs.push(db.listPeople().then(p => { ctx.people = p; }));
       jobs.push(db.listInvitations().then(i => { ctx.invites = i; }).catch(() => { ctx.invites = []; }));
+      jobs.push(db.getTenderSettings().then(s => { ctx.tenderSettings = s || {}; }).catch(() => { ctx.tenderSettings = {}; }));
     }
     await Promise.all(jobs);
   } catch (e) {
@@ -1130,6 +1135,10 @@ export function wireApp(lang) {
     db.setPerson(s.dataset.p, { department_id: s.value || null }).catch(fail));
   $$('.pRole').forEach(s => s.onchange = () =>
     db.setPerson(s.dataset.p, { role: s.value }).catch(fail));
+  $$('.pTender').forEach(s => s.onchange = async () => {
+    try { ctx.tenderSettings = await db.setTenderRole(s.dataset.p, s.value); }
+    catch (e) { fail(e); }
+  });
 
   /* --- new project --- */
   const pf = $('#projForm');
@@ -1379,6 +1388,9 @@ function bodyFor(lang, route, id) {
   }
   if (route === 'tasks') return V.myTasksCard(lang, ctx) + V.myPricingCard(lang, ctx);
   const top = route === 'home' ? V.myTasksCard(lang, ctx, { compact: true }) : '';
+  if (route === 'home' && db.state.me?.department_id === 'tenders' && !MG.isManagement()) {
+    return top + TC.bodyTenders(lang, 'tenders', null, ctx);
+  }
   if (MG.isManagement()) return top + MG.mgmtView(lang, ctx);
   return top + V.homeView(lang, ctx);
 }
