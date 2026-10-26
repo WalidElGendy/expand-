@@ -251,6 +251,7 @@ export const DSTR = {
     perfPrivate: 'Only you and your supervisor can see this. It is enforced by the database, not by this screen.',
     perfQuarter: 'Quarter', perfUnrated: '\u2014',
     perfSupervisor: 'Supervisor', perfNoSupervisor: 'None',
+    tenderRole: 'Tender role', trNone: '—', trAnalyst: 'Analyst', trApprover: 'Approver', trViaDept: 'Analyst (Tenders team)',
     pipeline: 'Business pipeline', pipelineSub: 'every lead, by how far it has got',
     pipe: { new: 'New', contacted: 'Contacted', progress: 'In progress', closed: 'Won' },
     pipeLive: 'Live leads', pipeSpent: '{n} will not move again',
@@ -588,6 +589,7 @@ export const DSTR = {
     perfPrivate: 'أنت ومديرك فقط من يرى هذا. القاعدة مطبّقة في قاعدة البيانات وليست مجرد إخفاء في الشاشة.',
     perfQuarter: 'الربع', perfUnrated: '\u2014',
     perfSupervisor: 'المدير المباشر', perfNoSupervisor: 'لا يوجد',
+    tenderRole: 'دور المناقصات', trNone: '—', trAnalyst: 'محلل', trApprover: 'معتمد', trViaDept: 'محلل (فريق المناقصات)',
     pipeline: 'مسار الأعمال', pipelineSub: 'كل العملاء المحتملين حسب مرحلتهم',
     pipe: { new: 'جديد', contacted: 'تم التواصل', progress: 'قيد التقدم', closed: 'تم الفوز' },
     pipeLive: 'عملاء نشطون', pipeSpent: '{n} لن يتحرك مجدداً',
@@ -3882,7 +3884,7 @@ export function adminView(lang, ctx) {
     <table class="tbl">
       <thead><tr>
         <th>${esc(t.name)}</th><th>${esc(t.status)}</th><th>${esc(t.department)}</th>
-        <th>${esc(t.role)}</th><th>${esc(t.perfSupervisor)}</th><th>${esc(t.lastSeen)}</th><th class="num"></th>
+        <th>${esc(t.role)}</th><th>${esc(t.tenderRole)}</th><th>${esc(t.perfSupervisor)}</th><th>${esc(t.lastSeen)}</th><th class="num"></th>
       </tr></thead>
       <tbody>
         ${sorted.map(p => {
@@ -3904,6 +3906,16 @@ export function adminView(lang, ctx) {
             </select></td>
             <td><select class="pRole btn--sm" data-p="${esc(p.id)}">
               ${['member', 'lead', 'manager', 'admin'].map(r => `<option value="${r}"${r === p.role ? ' selected' : ''}>${esc(t.roles[r] || r)}</option>`).join('')}
+            </select></td>
+            <!-- Tender role: analyst or approver on the tenders board. People in
+                 the Tenders department are analysts without being listed. -->
+            <td><select class="pTender btn--sm" data-p="${esc(p.id)}">
+              ${(() => {
+                const ts = ctx.tenderSettings || {};
+                const cur = (ts.approvers || []).includes(p.id) ? 'approver' : (ts.analysts || []).includes(p.id) ? 'analyst' : '';
+                return [['', p.department_id === 'tenders' ? t.trViaDept : t.trNone], ['analyst', t.trAnalyst], ['approver', t.trApprover]]
+                  .map(([v, l]) => `<option value="${v}"${v === cur ? ' selected' : ''}>${esc(l)}</option>`).join('');
+              })()}
             </select></td>
             <!-- Who reviews this person. Explicit rather than derived from
                  department, and admin-only: the database guard rejects the
