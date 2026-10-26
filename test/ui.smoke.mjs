@@ -1069,6 +1069,17 @@ for (const lang of ['en', 'ar']) {
   const adm = D.adminView('en', { people: tp, invites: [], tenderSettings: { approvers: ['a2'], analysts: [] } });
   check(adm.includes('class="pTender btn--sm" data-p="a1"') && adm.includes(D.DSTR.en.trViaDept), 'the Tenders team does not show as analysts on People');
   check(/data-p="a2"[\s\S]*?value="approver" selected/.test(adm), 'an approver is not shown as Approver on People');
+
+  // Several people per team stage: the new-project form offers ticks, the
+  // project page lists everyone, and a member's queue includes the stage.
+  const team = [{ id: 'd1', full_name: 'Dina', department_id: '2d', is_active: true }, { id: 'd2', full_name: 'Omar', department_id: '2d', is_active: true }];
+  const np = D.newProjectView('en', { people: team });
+  check(np.includes('id="who-new-2d-d1"') && np.includes('id="who-new-2d-d2"'), 'the new-project form cannot pick several people for a team');
+  const ms = { ...proj(14, null, 'in_design'), project_stages: [{ id: 'm1', department_id: '2d', assignee_id: 'd1', status: 'pending', sort: 1,
+    assignee: { full_name: 'Dina' }, members: [{ profile_id: 'd1', profile: { full_name: 'Dina' } }, { profile_id: 'd2', profile: { full_name: 'Omar' } }] }] };
+  check(D.projectView('en', { project: ms, people: team }).includes('Dina, Omar'), 'a stage does not show all its people');
+  dbmod.state.me = { id: 'd2', role: 'member', department_id: '2d', is_active: true };
+  check(D.queueView('en', { stages: [{ ...ms.project_stages[0], project_name: 'P' }] }).includes('P'), 'a second person on a stage does not see it in their queue');
   dbmod.state.me = was;
 }
 
