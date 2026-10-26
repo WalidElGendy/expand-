@@ -324,6 +324,17 @@ export const dept = (id) => state.departments.find(d => d.id === id) || null;
 
 /* ---------------------------------------------------------------- people */
 
+/* Tender roles: who analyses tenders and who approves them. Read by anyone;
+   set_tender_role() is admin-only. Members of the Tenders department are
+   analysts automatically (tender_analyst() in the database). */
+export const getTenderSettings = async () => ok(await sb
+  .from('tender_settings').select('analysts, approvers').eq('id', 1).maybeSingle());
+export async function setTenderRole(profileId, role) {
+  const { data, error } = await sb.rpc('set_tender_role', { p_profile: profileId, p_role: role || null });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
 export const listPeople = async () => ok(await sb
   .from('profiles')
   .select('id, full_name, email, department_id, supervisor_id, role, is_active, asana_gid, user_id, last_seen_at, avatar_path')
