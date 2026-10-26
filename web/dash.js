@@ -65,6 +65,37 @@ export const canDesign = (team, me = db.state.me) => {
 export const canManageDesign = (team, me = db.state.me) =>
   canDesign(team, me) && (!['2d', '3d'].includes(me?.department_id) || me.department_id === team);
 
+/* Everyone on a team stage: the members list, falling back to the single
+   assignee for rows that predate it. */
+export const stageMemberIds = (s) => {
+  const ids = (s.members || []).map(m => m.profile_id);
+  if (s.assignee_id && !ids.includes(s.assignee_id)) ids.unshift(s.assignee_id);
+  return ids;
+};
+export const stageMemberNames = (s) => {
+  const names = (s.members || []).map(m => m.profile?.full_name).filter(Boolean);
+  if (!names.length && s.assignee?.full_name) names.push(s.assignee.full_name);
+  return names;
+};
+/* Who can staff a stage: planners, and a team's own lead or manager.
+   Mirrors can_staff_stage() in the database. */
+export const canStaffStage = (s, me = db.state.me) => !!me && me.is_active !== false &&
+  (canPlan(me) || (me.department_id === s.department_id && ['lead', 'manager', 'admin'].includes(me.role)));
+
+/* Pick several people for one team: a dropdown with ticks. `key` keeps the
+   checkbox ids unique (and lets the new-project draft remember them). */
+export function whoPicker(lang, { key, dept, people, chosen = [], stageId = '' }) {
+  const t = DSTR[lang];
+  const names = people.filter(p => chosen.includes(p.id)).map(p => p.full_name || p.email);
+  return `<details class="whopick" data-who-dept="${esc(dept)}"${stageId ? ` data-who-stage="${esc(stageId)}"` : ''}>
+    <summary><span class="whopick__sum${names.length ? '' : ' muted'}">${esc(names.length ? names.join(', ') : t.unassigned)}</span></summary>
+    <div class="whopick__list">
+      ${people.length ? people.map(p => `<label class="whopick__opt"><input type="checkbox" class="whoCb" id="who-${esc(key)}-${esc(p.id)}" data-dept="${esc(dept)}" value="${esc(p.id)}"${chosen.includes(p.id) ? ' checked' : ''} /><span>${esc(p.full_name || p.email)}</span></label>`).join('')
+        : `<span class="muted small">${esc(t.whoNobody)}</span>`}
+    </div>
+  </details>`;
+}
+
 /* Tasks on a project. Any active colleague can add one and assign it to
    anyone; the assignee, the person who added it, planners and leads can
    tick it off or edit it; the person who added it and planners can remove
@@ -152,7 +183,7 @@ export const DSTR = {
     invite: 'Invite someone', role: 'Role', department: 'Department', active: 'Active',
     pending: 'Invited, not signed in yet', noLogin: 'No login yet',
     inviteNote: 'They will set their own password from the sign-in screen. You never see it.',
-    unassigned: 'Unassigned', overdue: 'overdue', workingDays: 'working days',
+    unassigned: 'Unassigned', overdue: 'overdue', workingDays: 'working days', whoNobody: 'Nobody in this team yet.',
     importedFrom: 'Imported from Asana', flagged: 'Imported with caveats',
     searchPlaceholder: 'Search this page…',
     homeSub: 'What is open, what is late, and what it costs',
@@ -493,7 +524,7 @@ export const DSTR = {
     invite: 'دعوة شخص', role: 'الصلاحية', department: 'القسم', active: 'مفعّل',
     pending: 'مدعو، لم يسجّل الدخول بعد', noLogin: 'لا يوجد حساب دخول',
     inviteNote: 'سيضع كلمة المرور بنفسه من شاشة الدخول. أنت لا تراها أبداً.',
-    unassigned: 'غير مسند', overdue: 'متأخرة', workingDays: 'أيام عمل',
+    unassigned: 'غير مسند', overdue: 'متأخرة', workingDays: 'أيام عمل', whoNobody: 'لا يوجد أحد في هذا الفريق بعد.',
     importedFrom: 'مستورد من أسانا', flagged: 'مستورد مع تحفظات',
     searchPlaceholder: 'ابحث في هذه الصفحة…',
     homeSub: 'ما هو مفتوح، وما هو متأخر، وكم يكلّف',
@@ -1636,7 +1667,7 @@ export function homeView(lang, ctx) {
 
 export function queueView(lang, ctx) {
   const t = DSTR[lang];
-  const mine = (ctx.stages || []).filter(s => s.assignee_id === db.state.me?.id && s.status !== 'done');
+  const mine = (ctx.stages || []).filter(s => stageMemberIds(s).includes(db.state.me?.id) && s.status !== 'done');
   mine.sort((a, b) => String(a.planned_end || '9999').localeCompare(String(b.planned_end || '9999')));
 
   return `
@@ -2280,7 +2311,10 @@ ${mayMove ? `
       <th class="num">${esc(t.due)}</th><th>${esc(t.status)}</th></tr></thead>
     <tbody>${stages.map(s => `<tr>
       <td><span class="pill" style="--c:${esc(db.dept(s.department_id)?.colour || '#555')}">${esc(deptName(s.department_id, lang))}</span></td>
-      <td class="small ${s.assignee ? '' : 'muted'}">${esc(s.assignee?.full_name || t.unassigned)}</td>
+      <td class="small ${stageMemberNames(s).length ? '' : 'muted'}">${canStaffStage(s)
+        ? whoPicker(lang, { key: `st-${s.id}`, dept: s.department_id, stageId: s.id, chosen: stageMemberIds(s),
+            people: (ctx.people || []).filter(p => p.is_active !== false && (p.department_id === s.department_id || stageMemberIds(s).includes(p.id))) })
+        : esc(stageMemberNames(s).join(', ') || t.unassigned)}</td>
       <!-- planned_end, not due_on: a stage has a plan, the project has a deadline -->
 
       <td class="num muted">${esc(fmt(s.planned_end, lang))}</td>
@@ -2798,11 +2832,7 @@ export function newProjectView(lang, ctx) {
             <span>${esc(lang === 'ar' ? d.name_ar : d.name_en)}</span>
             <span class="muted small">${d.base_days ? `${d.base_days} ${esc(t.workingDays)}` : esc(lang === 'ar' ? 'بلا رقم جهد' : 'no stated effort')}</span>
           </label>
-          <select class="stageWho" data-dept="${esc(d.id)}">
-            <option value="">${esc(t.unassigned)}</option>
-            ${people.filter(p => p.department_id === d.id)
-              .map(p => `<option value="${esc(p.id)}">${esc(p.full_name || p.email)}</option>`).join('')}
-          </select>
+          ${whoPicker(lang, { key: `new-${d.id}`, dept: d.id, people: people.filter(p => p.department_id === d.id && p.is_active !== false) })}
         </div>`).join('')}
     </div>
 
