@@ -1061,6 +1061,14 @@ for (const lang of ['en', 'ar']) {
   check(dd.includes('id="dueForm"') && dd.includes('value="2026-10-20"'), 'a planner cannot amend the due date of a submitted project');
   dbmod.state.me = { id: 'u8', role: 'member', department_id: 'pricing', is_active: true };
   check(!D.projectView('en', { project: { ...proj(13, '2026-10-20', 'submitted') } }).includes('id="dueForm"'), 'a non-planner is offered to change the due date');
+
+  // People: a Tender role column, showing who is an approver or analyst.
+  dbmod.state.me = was;
+  const tp = [{ id: 'a1', full_name: 'Ana', role: 'member', department_id: 'tenders', is_active: true, user_id: 'x1' },
+              { id: 'a2', full_name: 'Bo', role: 'manager', department_id: 'pm', is_active: true, user_id: 'x2' }];
+  const adm = D.adminView('en', { people: tp, invites: [], tenderSettings: { approvers: ['a2'], analysts: [] } });
+  check(adm.includes('class="pTender btn--sm" data-p="a1"') && adm.includes(D.DSTR.en.trViaDept), 'the Tenders team does not show as analysts on People');
+  check(/data-p="a2"[\s\S]*?value="approver" selected/.test(adm), 'an approver is not shown as Approver on People');
   dbmod.state.me = was;
 }
 
