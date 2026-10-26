@@ -655,6 +655,27 @@ export function wireApp(lang) {
     } catch (err) { fail(err); btn.disabled = false; btn.textContent = V.DSTR[lang].prUpload; }
   };
 
+  /* --- people pickers: keep the summary in step with the ticks; on the
+     project page, save a stage's people when its picker is closed --- */
+  $$('.whopick').forEach(d => {
+    const sum = d.querySelector('.whopick__sum');
+    const names = () => [...d.querySelectorAll('.whoCb:checked')].map(c => c.nextElementSibling?.textContent || '');
+    const paint = () => { const n = names(); sum.textContent = n.length ? n.join(', ') : V.DSTR[lang].unassigned; sum.classList.toggle('muted', !n.length); };
+    d.querySelectorAll('.whoCb').forEach(c => c.addEventListener('change', paint));
+    if (!d.dataset.whoStage) return;
+    const before = () => [...d.querySelectorAll('.whoCb:checked')].map(c => c.value).sort().join(',');
+    let start = before();
+    d.addEventListener('toggle', async () => {
+      if (d.open) { start = before(); return; }
+      const ids = [...d.querySelectorAll('.whoCb:checked')].map(c => c.value);
+      if (ids.slice().sort().join(',') === start) return;
+      const stage = (ctx.project?.project_stages || []).find(s => s.id === d.dataset.whoStage);
+      if (!stage) return;
+      try { await db.setStageMembers(stage, ids); await loadFor('project', ctx.project.id); rerender(); }
+      catch (err) { fail(err); }
+    });
+  });
+
   /* --- one project: add more documents --- */
   const docAddBtn = $('[data-doc-add]'), docAddForm = $('#docAddForm');
   if (docAddBtn && docAddForm) {
@@ -1147,7 +1168,8 @@ export function wireApp(lang) {
 
 function readProjectForm() {
   const stages = $$('.stageOn').filter(c => c.checked).map(c => c.value);
-  const who = Object.fromEntries($$('.stageWho').map(s => [s.dataset.dept, s.value || null]));
+  const who = {};
+  $$('#projForm .whoCb').forEach(c => { if (c.checked) (who[c.dataset.dept] ||= []).push(c.value); });
   return {
     name: $('#pName').value.trim(),
     client: $('#pClient').value.trim() || null,
@@ -1199,6 +1221,8 @@ function keepDraft(name, form) {
   };
   form.addEventListener('input', save);
   form.addEventListener('change', save);
+  // Restored ticks in a people picker: let its summary catch up.
+  if (restored) form.querySelectorAll('.whoCb:checked').forEach(c => c.dispatchEvent(new Event('change', { bubbles: true })));
   return restored;
 }
 
@@ -1249,12 +1273,14 @@ function wireNewProject(lang, form) {
       });
 
       if (f.stages.length) {
-        await db.setStages(project.id, f.stages.map(d => ({
+        const made = await db.setStages(project.id, f.stages.map(d => ({
           department_id: d,
-          assignee_id: f.who[d] || null,
+          assignee_id: (f.who[d] || [])[0] || null,
           effort_days: db.dept(d)?.base_days ?? null,
           status: 'pending',
         })));
+        // Everyone ticked for a team, not only the first (who is the main assignee).
+        await db.addStageMembers((made || []).flatMap(s => (f.who[s.department_id] || []).map(pid => ({ stage_id: s.id, profile_id: pid }))));
       }
 
       // Files last: a project with no RFP is recoverable, an RFP with no
