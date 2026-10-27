@@ -1323,6 +1323,19 @@ select.btn--sm { height: 28px; padding: 0 6px; background: var(--s-2); border: 1
 .cellinput.num { text-align: end; max-width: 110px; }
 
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+/* Etimad Insights */
+.etchip { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; padding: 2px 8px; border-radius: 999px; margin: 1px 4px 1px 0;
+  color: var(--ink2); background: color-mix(in srgb, var(--c) 14%, transparent); white-space: nowrap; }
+.etchip::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--c); }
+.etscore { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; font-size: 12px; font-weight: 700; color: var(--ink1);
+  background: radial-gradient(closest-side, var(--s-1) 76%, transparent 78% 100%),
+    conic-gradient(var(--brand) calc(var(--p) * 1%), var(--line) 0); }
+.kpi .etscore { width: 44px; height: 44px; font-size: 15px; }
+.etstar { color: var(--ink4); font-size: 15px; }
+.etstar.is-on { color: var(--warn); }
+.btn.etstar.is-on { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
+.etlist { margin: 0 0 6px; padding: 0 16px 0 34px; display: grid; gap: 5px; font-size: 13px; line-height: 1.55; }
+[dir="rtl"] .etlist { padding: 0 34px 0 16px; }
 </style>
 </head>
 <body>
