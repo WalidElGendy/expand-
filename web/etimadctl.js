@@ -40,6 +40,8 @@ export async function loadEtimad(route, id, ctx, { fresh = false } = {}) {
   if (route === 'etimadset') {
     settle('etSettings', E.getSettings(), null);
     settle('etUsage', E.listUsage());
+    settle('etTokens', E.analysisTokens());
+    settle('etBalances', E.balances(), null);
   }
   await Promise.all(jobs);
   if (route === 'etimadt' && ctx.etTender) ctx.etContacts = await safe(E.contactsFor(ctx.etTender), []);
