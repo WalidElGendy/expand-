@@ -29,6 +29,7 @@ export const fetchDetails = (id) => call('details', { id });
 export const analyze = (id) => call('analyze', { id });
 export const findContacts = (id, { domain = '', name = '' } = {}) => call('contacts', { id, domain, name });
 export const reveal = (contactId) => call('reveal', { id: contactId });
+export const balances = () => call('balances');
 
 export const getSettings = async () => ok(await sb.from('etimad_settings')
   .select('id, keywords, scopes, company_profile, last_sync_at, last_sync_note, updated_at').eq('id', 1).maybeSingle());
@@ -77,3 +78,5 @@ export const saveOutcome = async (row) => ok(await sb.from('tender_outcomes').up
 
 export const listUsage = async () => ok(await sb.from('etimad_usage').select('service, action, units, created_at')
   .gte('created_at', new Date(Date.now() - 31 * 86400e3).toISOString()).order('created_at', { ascending: false }).limit(2000));
+export const analysisTokens = async () => ok(await sb.from('etimad_analyses').select('model, input_tokens, output_tokens, created_at')
+  .gte('created_at', new Date(Date.now() - 31 * 86400e3).toISOString()).limit(5000));
