@@ -55,6 +55,10 @@ check(tools.length === 2, 'tools');
 const sc = M.searchCall(tools, 'معرض', 2);
 check(sc.capability.endsWith('search_tenders') && eq(sc.options, { keyword: 'معرض', page: 2, page_size: 30 }), `search options ${JSON.stringify(sc)}`);
 check(eq(M.searchCall([], 'جناح').options, { keyword: 'جناح' }), 'search without a catalogue');
+/* Firecrawl's real catalogue is a list of { name, max } — page_size above 24 is refused. */
+const real = [{ capability: 'public-procurement-tenders/search_tenders', options: [
+  { name: 'page', type: 'number', min: 1 }, { name: 'page_size', type: 'number', min: 1, max: 24 }, { name: 'query', type: 'string' }] }];
+check(eq(M.searchCall(real, 'معرض').options, { query: 'معرض', page_size: 24 }), `real catalogue options ${JSON.stringify(M.searchCall(real, 'معرض').options)}`);
 
 /* ------------------------------------------------------------ etimadlogic */
 
@@ -98,6 +102,9 @@ const ph = L.priceHistory({ ours, outcomes: outs, etimad: et, projects: [{ contr
 check(ph.winning.length === 3 && ph.winning.includes(90000) && ph.winning.includes(200000) && ph.winning.includes(300000), `winning prices ${ph.winning}`);
 check(ph.median !== null && ph.n >= 4, 'price history median');
 
+const cc = L.claudeCost([{ model: 'claude-sonnet-5-5-20260901', input_tokens: 100000, output_tokens: 10000 }, { input_tokens: null }]);
+check(cc.n === 1 && cc.usd === 0.3 && cc.input === 100000, `claude cost ${JSON.stringify(cc)}`);
+
 /* ------------------------------------------------------------- the screens */
 const dbmod = await import('../web/db.js');
 const V = await import('../web/etimad.js');
@@ -111,6 +118,11 @@ for (const lang of ['en', 'ar']) {
   check(V.etimadTenderView(lang, { ...vctx, etTender: et[0], etTenderAnalyses: [] }).includes('data-et-analyze disabled'), `${lang}: analysis offered without an Anthropic key`);
   check(V.etimadOursView(lang, vctx).includes('data-out-row="t1"'), `${lang}: our bids table is missing an applied tender`);
 }
+const setv = V.etimadSettingsView('en', { ...vctx, etStatus: { keys: { firecrawl: true, anthropic: true, lusha: true } },
+  etUsage: [{ service: 'lusha', units: 3 }], etTokens: [{ model: 'claude-sonnet-5-5', input_tokens: 50000, output_tokens: 5000 }],
+  etBalances: { firecrawl: { remaining: 900, plan: 1000 }, lusha: { total: 500, used: 20, remaining: 480, pricing: { revealEmail: { credits: 1 }, revealPhone: { credits: 5 } } } } });
+check(setv.includes('Lusha') && setv.includes('Claude') && setv.includes('$0.15') && setv.includes('480 of 500') && setv.includes('900 of 1,000'),
+  'usage card does not show all three services with their balances');
 check(!V.canSeeEtimad({ id: 'x', role: 'member', tender: {} }), 'a non-tender member can see Etimad Insights');
 check(V.friendly('en', new Error('missing_key:LUSHA_API_KEY')).message.includes('LUSHA_API_KEY'), 'missing key message');
 
