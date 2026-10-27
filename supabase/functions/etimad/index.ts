@@ -165,7 +165,7 @@ const ANALYSIS_TOOL = {
   input_schema: {
     type: 'object',
     properties: {
-      fit_score: { type: 'integer', minimum: 0, maximum: 100, description: 'How well the tender fits Expand and how likely we are to win it.' },
+      fit_score: { type: 'integer', description: '0 to 100: how well the tender fits Expand and how likely we are to win it.' },
       recommendation: { type: 'string', enum: ['apply', 'consider', 'skip'] },
       confidence: { type: 'string', enum: ['low', 'medium', 'high'] },
       agency_en: { type: 'string', description: 'The issuing agency\'s official English name.' },
@@ -193,6 +193,23 @@ const ANALYSIS_TOOL = {
       'reasons_for', 'reasons_against', 'risks', 'price', 'competitors', 'timeline', 'next_steps', 'questions_for_agency', 'rfp_read'],
   },
 };
+
+/* Structured outputs want every object closed (additionalProperties: false)
+   and every property listed as required, so the schema above is sealed here
+   rather than repeating that on every nested object. */
+function sealed(schema: unknown): unknown {
+  if (Array.isArray(schema)) return schema.map(sealed);
+  if (!schema || typeof schema !== 'object') return schema;
+  const o: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(schema as Record<string, unknown>)) o[k] = k === 'properties'
+    ? Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([pk, pv]) => [pk, sealed(pv)])) : sealed(v);
+  if (o.type === 'object' && o.properties) {
+    o.additionalProperties = false;
+    o.required = Object.keys(o.properties as Record<string, unknown>);
+  }
+  return o;
+}
+const ANALYSIS_SCHEMA = sealed(ANALYSIS_TOOL.input_schema);
 
 const DEFAULT_PROFILE = `Expand is a Saudi company that designs and builds exhibition stands and pavilions, runs events and conferences, delivers interior fit-out (including museums and galleries) and produces marketing and branding work (signage, activations, media). In-house teams: 3D design, 2D technical drawings, content, pricing and production.`;
 
@@ -263,7 +280,7 @@ ${slim(projects, 5000)}
 
 ${read.length ? `RFP DOCUMENTS ATTACHED ABOVE: ${read.join(', ')}` : 'NO RFP DOCUMENT WAS ATTACHED — say so, and base requirements on the Etimad details only.'}
 
-Analyse this tender for Expand and call record_analysis. Be concrete and honest:
+Analyse this tender for Expand and reply with the analysis as JSON in the required format. Be concrete and honest:
 - fit_score and recommendation weigh scope fit, our capacity signals, timeline, agency history, competition and price.
 - Price: suggest a bid range in SAR (low / target / high) grounded in the history above (winning prices, our prices, contract values of similar work). Etimad's document fee (documents_price) scales with the agency's estimated value; use it as a signal. If history is thin, say so in basis and widen the range.
 - Competitors: name companies that appear in our history or awards for similar work; do not invent names. Leave it empty if there is no evidence.
@@ -273,17 +290,23 @@ Analyse this tender for Expand and call record_analysis. Be concrete and honest:
     method: 'POST',
     headers: { 'x-api-key': k, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
     body: JSON.stringify({
-      model: MODEL, max_tokens: 8000,
+      /* Sonnet 5.5 refuses a forced tool_choice, so the analysis comes back
+         through structured outputs: the reply text is JSON matching the
+         schema. It thinks first by default, hence the larger budget. */
+      model: MODEL, max_tokens: 16000,
       system: 'You are a senior bid manager for Saudi government tenders in exhibitions, events, fit-out and marketing. You write precise, evidence-based bid/no-bid analyses.',
-      tools: [ANALYSIS_TOOL], tool_choice: { type: 'tool', name: 'record_analysis' },
+      output_config: { format: { type: 'json_schema', schema: ANALYSIS_SCHEMA } },
       messages: [{ role: 'user', content }],
     }),
   });
   const out = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(`claude: ${out?.error?.message || res.status}`);
-  const use = (out.content || []).find((c: { type: string }) => c.type === 'tool_use');
-  if (!use) throw new Error('claude: no analysis returned');
-  const result = use.input;
+  const text = (out.content || []).filter((c: { type: string }) => c.type === 'text').map((c: { text: string }) => c.text).join('');
+  if (out.stop_reason === 'max_tokens') throw new Error('claude: the analysis was cut off (too long) — try again');
+  if (out.stop_reason === 'refusal') throw new Error('claude: the model declined to analyse this tender');
+  let result: Record<string, any>;
+  try { result = JSON.parse(text); } catch { throw new Error('claude: the analysis was not valid JSON — try again'); }
+  result.fit_score = Math.max(0, Math.min(100, Math.round(Number(result.fit_score) || 0)));
   const row = {
     etimad_tender_id: id, result, model: out.model || MODEL, files: read,
     input_tokens: out.usage?.input_tokens ?? null, output_tokens: out.usage?.output_tokens ?? null, created_by: by,
@@ -362,6 +385,36 @@ async function reveal(admin: Admin, by: string, contactId: string) {
   return { ...c, ...patch };
 }
 
+/* -------------------------------------------------------------- balances */
+
+/* What is left on each paid account, straight from the provider. Anthropic
+   has no balance endpoint for an ordinary API key, so Claude's spend is
+   worked out on the page from the tokens each analysis recorded. */
+async function balances() {
+  const out: Record<string, unknown> = {};
+  const jobs: Promise<void>[] = [];
+  const fk = key('FIRECRAWL_API_KEY'), lk = key('LUSHA_API_KEY');
+  if (fk) jobs.push((async () => {
+    try {
+      const r = await fetch('https://api.firecrawl.dev/v2/team/credit-usage', { headers: { Authorization: `Bearer ${fk}` } });
+      const b = await r.json().catch(() => ({}));
+      out.firecrawl = r.ok && b?.data ? { remaining: b.data.remainingCredits ?? null, plan: b.data.planCredits ?? null, periodEnd: b.data.billingPeriodEnd ?? null }
+        : { error: b?.error || `HTTP ${r.status}` };
+    } catch (e) { out.firecrawl = { error: String((e as Error).message) }; }
+  })());
+  if (lk) jobs.push((async () => {
+    try {
+      const r = await fetch('https://api.lusha.com/v3/account/usage', { headers: { api_key: lk } });
+      const b = await r.json().catch(() => ({}));
+      out.lusha = r.ok && b?.credits ? { total: b.credits.total ?? null, used: b.credits.used ?? null, remaining: b.credits.remaining ?? null,
+        periodEnd: b.plan?.endDate ?? null, plan: b.plan?.category ?? null, pricing: b.pricing ?? null }
+        : { error: b?.message || `HTTP ${r.status}` };
+    } catch (e) { out.lusha = { error: String((e as Error).message) }; }
+  })());
+  await Promise.all(jobs);
+  return out;
+}
+
 /* ---------------------------------------------------------------- server */
 
 Deno.serve(async (req) => {
@@ -383,6 +436,7 @@ Deno.serve(async (req) => {
           tools: ((data?.tools as { tools?: unknown[] } | null)?.tools || []).length,
         });
       }
+      case 'balances': return json(await balances());
       case 'discover': return json({ tools: await discover(admin, me.id) });
       case 'sync': return json(await sync(admin, me.id, body));
       case 'details': return json({ tender: await details(admin, me.id, id) });
