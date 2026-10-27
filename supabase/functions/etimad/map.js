@@ -240,7 +240,8 @@ export function searchCall(tools, keyword, page = 1) {
   if (pg && page > 1) options[pg] = page;
   const sz = find(/^(page_size|pagesize|limit|size|per_page)$/i);
   if (sz) {
-    const mx = Number(props[sz]?.maximum) || 50;
+    // JSON Schema says `maximum`; Firecrawl's catalogue says `max`.
+    const mx = Number(props[sz]?.maximum ?? props[sz]?.max) || 24;
     options[sz] = Math.min(mx, 50);
   }
   return { capability: t.capability, options };
