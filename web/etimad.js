@@ -544,7 +544,9 @@ function usageCard(lang, ctx) {
   const account = (b, total) => {
     if (!b) return '';
     if (b.error) return line(fill(x.accountErr, { e: b.error }));
-    const left = b.remaining == null ? '' : total ? fill(x.left, { r: n0(b.remaining), t: n0(total) }) : fill(x.leftNoTotal, { r: n0(b.remaining) });
+    /* Firecrawl's remaining can include top-up credits beyond the plan, so
+       "5,825 of 5,000" would read as a mistake; show the plain balance then. */
+    const left = b.remaining == null ? '' : total && Number(b.remaining) <= Number(total) ? fill(x.left, { r: n0(b.remaining), t: n0(total) }) : fill(x.leftNoTotal, { r: n0(b.remaining) });
     return line([left, b.periodEnd ? fill(x.renews, { d: fmt(String(b.periodEnd).slice(0, 10), lang) }) : ''].filter(Boolean).join(' · '));
   };
   const tile = (name, connected, main, rest) => fact(name, connected
