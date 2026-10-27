@@ -214,3 +214,24 @@ export function priceHistory({ ours = [], outcomes = [], etimad = [], projects =
 
 /** Text in the reader's language from an {en, ar} pair (or a plain string). */
 export const bi = (v, lang) => (v && typeof v === 'object' ? (v[lang] || v.en || v.ar || '') : (v || ''));
+
+/* Claude list prices in USD per million tokens [input, output]. The model id
+   that comes back can carry a date suffix, so it is matched by prefix. */
+export const CLAUDE_PRICE = { 'claude-sonnet-5-5': [2, 10] };
+const priceFor = (model) => {
+  const k = Object.keys(CLAUDE_PRICE).find(p => String(model || '').startsWith(p));
+  return k ? CLAUDE_PRICE[k] : CLAUDE_PRICE['claude-sonnet-5-5'];
+};
+
+/** Tokens and an estimated cost from the analyses' recorded usage. */
+export function claudeCost(rows = []) {
+  let input = 0, output = 0, usd = 0, n = 0, rate = CLAUDE_PRICE['claude-sonnet-5-5'];
+  for (const r of rows) {
+    const i = Number(r.input_tokens) || 0, o = Number(r.output_tokens) || 0;
+    if (!i && !o) continue;
+    rate = priceFor(r.model);
+    input += i; output += o; n++;
+    usd += (i * rate[0] + o * rate[1]) / 1e6;
+  }
+  return { input, output, usd: Math.round(usd * 100) / 100, n, rate };
+}
