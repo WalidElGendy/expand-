@@ -67,7 +67,10 @@ export const ESTR = {
     set: { words: 'Search words', wordsHint: 'One per line. Each word is one Etimad search per sync (Firecrawl credits).', profile: 'Our company, for the AI',
       profileHint: 'What we do, our strengths, typical project sizes, certifications, past clients. The analysis judges fit against this.',
       save: 'Save settings', saved: 'Saved.', api: 'Connections', model: 'AI model', tools: 'Etimad tools known', discover: 'Read Etimad catalogue',
-      usage: 'Usage, last 30 days', credits: '{n} credits', tokens: '{n} tokens', calls: '{n} calls', onlyApprover: 'Only an approver or admin can change these.' },
+      usage: 'Usage, last 30 days', credits: '{n} credits', tokens: '{n} tokens', calls: '{n} calls',
+      used30: '{n} credits used here', analyses: '{n} analyses', left: '{r} of {t} credits left on the account', leftNoTotal: '{r} credits left on the account',
+      renews: 'renews {d}', notConnected: 'Not connected', claudeEst: 'Estimated at ${i} / ${o} per million input / output tokens',
+      claudeBill: 'Exact billing is in the Anthropic console', lushaPrice: 'Email {e} · phone {p} credits', accountErr: 'Account balance unavailable: {e}', onlyApprover: 'Only an approver or admin can change these.' },
     denied: 'Etimad Insights is open to tender analysts, approvers and admins.',
     err: { missing_key: 'The {k} secret is not set yet — add it in Supabase (Edge Functions → Secrets).', needs_agency: 'Add the agency’s English name or website domain first.',
       not_allowed: 'Only tender staff can use Etimad Insights.' },
@@ -122,7 +125,10 @@ export const ESTR = {
     set: { words: 'كلمات البحث', wordsHint: 'كلمة في كل سطر. كل كلمة بحث واحد في اعتماد لكل مزامنة (رصيد Firecrawl).', profile: 'شركتنا، للذكاء الاصطناعي',
       profileHint: 'ما نقدمه ونقاط قوتنا وأحجام مشاريعنا والشهادات والعملاء السابقون. يقيس التحليل الملاءمة على هذا.',
       save: 'حفظ الإعدادات', saved: 'تم الحفظ.', api: 'الاتصالات', model: 'نموذج الذكاء الاصطناعي', tools: 'أدوات اعتماد المعروفة', discover: 'قراءة دليل اعتماد',
-      usage: 'الاستهلاك آخر 30 يوماً', credits: '{n} رصيد', tokens: '{n} وحدة', calls: '{n} طلب', onlyApprover: 'التعديل لصاحب القرار أو المدير فقط.' },
+      usage: 'الاستهلاك آخر 30 يوماً', credits: '{n} رصيد', tokens: '{n} وحدة', calls: '{n} طلب',
+      used30: 'استُهلك {n} رصيد من هنا', analyses: '{n} تحليل', left: 'متبقٍ {r} من {t} رصيد في الحساب', leftNoTotal: 'متبقٍ {r} رصيد في الحساب',
+      renews: 'يتجدد {d}', notConnected: 'غير متصل', claudeEst: 'تقدير بسعر ${i} / ${o} لكل مليون وحدة إدخال / إخراج',
+      claudeBill: 'الفاتورة الدقيقة في لوحة Anthropic', lushaPrice: 'البريد {e} · الجوال {p} رصيد', accountErr: 'تعذّر جلب رصيد الحساب: {e}', onlyApprover: 'التعديل لصاحب القرار أو المدير فقط.' },
     denied: 'تحليلات اعتماد متاحة لمحللي المناقصات وأصحاب القرار والمدراء.',
     err: { missing_key: 'السر {k} غير مضاف بعد — أضفه في Supabase (Edge Functions ← Secrets).', needs_agency: 'أضف اسم الجهة بالإنجليزية أو نطاق موقعها أولاً.',
       not_allowed: 'تحليلات اعتماد لفريق المناقصات فقط.' },
@@ -504,9 +510,7 @@ export function etimadSettingsView(lang, ctx) {
   const s = ctx.etSettings || {};
   const st = ctx.etStatus || {};
   const canEdit = db.state.me?.role === 'admin' || role().approver;
-  const use = new Map();
-  for (const u of ctx.etUsage || []) { const e = use.get(u.service) || { calls: 0, units: 0 }; e.calls++; e.units += Number(u.units) || 0; use.set(u.service, e); }
-  const unit = (svc, n) => fill(svc === 'claude' ? x.tokens : x.credits, { n: Math.round(n).toLocaleString('en-US') });
+  const usage = usageCard(lang, ctx);
   return `
 ${tabs(lang, 'settings', ctx)}
 ${setupCard(lang, ctx, true)}
@@ -515,8 +519,7 @@ ${card(x.api, `<div class="factgrid">
   ${fact(t.lastSync.replace(' {d}', ''), st.last_sync_at ? stamp(st.last_sync_at, lang) : esc(t.never))}
   </div>${st.last_sync_note ? `<p class="small muted" style="padding:0 16px">${esc(st.last_sync_note)}</p>` : ''}
   <div style="padding:0 16px 14px"><button class="btn btn--sm" data-et-discover${st.keys && !st.keys.firecrawl ? ' disabled' : ''}>${esc(x.discover)}</button></div>`)}
-${card(x.usage, use.size ? `<div class="factgrid">${['firecrawl', 'claude', 'lusha'].filter(k => use.has(k)).map(k =>
-  fact(k[0].toUpperCase() + k.slice(1), `${esc(unit(k, use.get(k).units))}<span class="block small muted">${esc(fill(x.calls, { n: use.get(k).calls }))}</span>`)).join('')}</div>` : empty('—'))}
+${usage}
 <section class="card"><div class="card__head"><h2>${esc(t.tabs.settings)}</h2></div>
   <form class="inlineform" data-et-settings style="border-bottom:0">
     <div class="fields">
@@ -525,6 +528,37 @@ ${card(x.usage, use.size ? `<div class="factgrid">${['firecrawl', 'claude', 'lus
     </div>
     <div class="actions">${canEdit ? `<button class="btn btn--primary btn--sm">${esc(x.save)}</button>` : `<span class="small muted">${esc(x.onlyApprover)}</span>`}</div>
   </form></section>`;
+}
+
+/** Each paid service: what this page used in the last 30 days, and what is
+    left on the account where the provider says (Firecrawl, Lusha). Claude has
+    no balance API, so its spend is estimated from the recorded tokens. */
+function usageCard(lang, ctx) {
+  const t = T(lang), x = t.set;
+  const keys = ctx.etStatus?.keys || {};
+  const bal = ctx.etBalances || {};
+  const n0 = (n) => Math.round(Number(n) || 0).toLocaleString('en-US');
+  const use = new Map();
+  for (const u of ctx.etUsage || []) { const e = use.get(u.service) || { calls: 0, units: 0 }; e.calls++; e.units += Number(u.units) || 0; use.set(u.service, e); }
+  const line = (txt, cls = 'small muted') => txt ? `<span class="block ${cls}">${esc(txt)}</span>` : '';
+  const account = (b, total) => {
+    if (!b) return '';
+    if (b.error) return line(fill(x.accountErr, { e: b.error }));
+    const left = b.remaining == null ? '' : total ? fill(x.left, { r: n0(b.remaining), t: n0(total) }) : fill(x.leftNoTotal, { r: n0(b.remaining) });
+    return line([left, b.periodEnd ? fill(x.renews, { d: fmt(String(b.periodEnd).slice(0, 10), lang) }) : ''].filter(Boolean).join(' · '));
+  };
+  const tile = (name, connected, main, rest) => fact(name, connected
+    ? `<span class="etuse"><b class="etuse__n">${main}</b>${rest}</span>` : `<span class="muted">${esc(x.notConnected)}</span>`);
+  const fc = use.get('firecrawl') || { calls: 0, units: 0 };
+  const lu = use.get('lusha') || { calls: 0, units: 0 };
+  const cl = L.claudeCost(ctx.etTokens || []);
+  const lp = bal.lusha?.pricing || {};
+  const price = (k) => lp[k]?.credits;
+  return card(x.usage, `<div class="factgrid">
+    ${tile('Firecrawl', keys.firecrawl, esc(fill(x.credits, { n: n0(fc.units) })), `${line(fill(x.calls, { n: fc.calls }))}${account(bal.firecrawl, bal.firecrawl?.plan)}`)}
+    ${tile('Claude', keys.anthropic, esc('$' + cl.usd.toFixed(2)), `${line(`${fill(x.analyses, { n: cl.n })} · ${fill(x.tokens, { n: n0(cl.input + cl.output) })}`)}${line(fill(x.claudeEst, { i: cl.rate[0], o: cl.rate[1] }))}${line(x.claudeBill)}`)}
+    ${tile('Lusha', keys.lusha, esc(fill(x.credits, { n: n0(lu.units) })), `${line(fill(x.calls, { n: lu.calls }))}${account(bal.lusha, bal.lusha?.total)}${price('revealEmail') != null || price('revealPhone') != null ? line(fill(x.lushaPrice, { e: price('revealEmail') ?? '—', p: price('revealPhone') ?? '—' })) : ''}`)}
+  </div>`);
 }
 
 /** An error sentence a person can act on. */
