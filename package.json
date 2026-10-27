@@ -6,7 +6,7 @@
   "description": "Expand CRM — capacity-aware delivery scheduling for the proposal pipeline.",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "test": "node test/scheduler.test.mjs && node test/asana.test.mjs && node test/hr.test.mjs && node test/fp.test.mjs && node test/tenders.test.mjs && node test/mgmt.test.mjs",
+    "test": "node test/scheduler.test.mjs && node test/asana.test.mjs && node test/hr.test.mjs && node test/fp.test.mjs && node test/tenders.test.mjs && node test/mgmt.test.mjs && node test/etimad.test.mjs",
     "dev": "node scripts/build.mjs && node -e \"console.log('open public/index.html')\"",
     "test:ui": "node test/ui.smoke.mjs"
   },
