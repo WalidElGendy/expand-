@@ -128,6 +128,13 @@ export const HSTR = {
     dataUpdate: 'What should change?',
     confirmDel: 'Delete this?', confirmReject: 'Reject this request?', confirmPaid: 'Mark this payroll as paid? Advance balances will be reduced.',
     confirmApproveRun: 'Approve this payroll? Employees will see their payslips.',
+    delEmp: 'Delete employee record',
+    delEmpConfirm: 'Delete the HR record of {n}?\n\nThis removes their employment and private details, documents, attendance, leave, requests, salary, goals and letters. It cannot be undone.\n\nIf they were added through a hiring request, the request goes back to Approved so you can mark them as hired again.',
+    delEmpDone: 'Deleted {n}. You can add them again with a new hiring request.',
+    delEmpKept: 'Deleted the HR record of {n}. Their profile stays in People because {why}.',
+    delEmpWhy: { has_login: 'they have signed in to the app', linked_to_work: 'their name is on projects, tasks or leads' },
+    delEmpErr: { has_payroll: 'They have been paid in an approved payroll, so their record cannot be deleted. Set their status to Left instead.',
+      cannot_delete_self: 'You cannot delete your own record.' },
   },
   ar: {
     myHr: 'ملفي الوظيفي', tabs: { dash: 'لوحة التحكم', people: 'الموظفون', attendance: 'الحضور', requests: 'الطلبات',
@@ -245,6 +252,13 @@ export const HSTR = {
     dataUpdate: 'ما الذي يجب تعديله؟',
     confirmDel: 'حذف؟', confirmReject: 'رفض هذا الطلب؟', confirmPaid: 'تأكيد صرف المسير؟ سيتم خصم أقساط السلف.',
     confirmApproveRun: 'اعتماد المسير؟ سيتمكن الموظفون من رؤية كشوفهم.',
+    delEmp: 'حذف سجل الموظف',
+    delEmpConfirm: 'حذف سجل {n} من الموارد البشرية؟\n\nسيتم حذف بيانات العمل والبيانات الخاصة والمستندات والحضور والإجازات والطلبات والرواتب والأهداف والخطابات. لا يمكن التراجع.\n\nإن أُضيف عبر طلب توظيف، يعود الطلب إلى «معتمد» لتتمكن من تعيينه مرة أخرى.',
+    delEmpDone: 'تم حذف {n}. يمكنك إضافته مرة أخرى بطلب توظيف جديد.',
+    delEmpKept: 'تم حذف سجل {n} من الموارد البشرية. يبقى ملفه في صفحة الأشخاص لأن {why}.',
+    delEmpWhy: { has_login: 'لديه دخول إلى التطبيق', linked_to_work: 'اسمه مرتبط بمشاريع أو مهام أو عملاء محتملين' },
+    delEmpErr: { has_payroll: 'صُرف له راتب في مسير معتمد، لذا لا يمكن حذف سجله. غيّر حالته إلى «غادر» بدلاً من ذلك.',
+      cannot_delete_self: 'لا يمكنك حذف سجلك.' },
   },
 };
 
@@ -571,6 +585,7 @@ export function hrPeopleView(lang, ctx) {
   const leaves = ctx.hrLeaves || [];
   return `
 ${hrTabs(lang, 'people')}
+${ctx.hrNotice ? `<p class="note" style="margin:0 0 12px">${esc(ctx.hrNotice)}</p>` : ''}
 <section class="card">
   <div class="card__head"><h2>${esc(t.tabs.people)}</h2><span class="muted small">${rows.length}</span>
     <span style="margin-inline-start:auto;display:flex;gap:8px">
@@ -633,6 +648,7 @@ export function hrEmpView(lang, ctx) {
     <div class="fact"><span class="fact__l">${esc(t.balance)}</span><span class="fact__v">${ls.balance === null ? '—' : num(ls.balance, 1)}</span></div>
     <div class="fact"><span class="fact__l">${esc(DSTR[lang].email)}</span><span class="fact__v">${esc(p.email || '—')}</span></div>
   </div>
+  ${hr && p.id !== me?.id ? `<div style="padding:0 16px 14px;display:flex;justify-content:flex-end"><button class="btn btn--danger btn--sm" data-hr-delemp="${esc(p.id)}">${esc(t.delEmp)}</button></div>` : ''}
 </section>
 <nav class="hrtabs hrtabs--sub">${tabs.map(k => `<button class="hrtab${k === tab ? ' is-on' : ''}" data-emp-tab="${k}">${esc(t.empTabs[k])}</button>`).join('')}</nav>`;
 
