@@ -1330,7 +1330,7 @@ function wireHR(lang) {
       const row = await db.createHiring({
         full_name: val('#hName'),
         email: orNull('#hEmail') ? val('#hEmail').toLowerCase() : null,
-        phone: orNull('#hPhone'), national_id: orNull('#hNatId'),
+        phone: orNull('#hPhone'), national_id: orNull('#hNatId'), contract_no: orNull('#hContract'),
         joining_date: orNull('#hJoin'), position: orNull('#hPos'),
         department_id: orNull('#hDept'), job_description: orNull('#hJob'),
         needed_tools: orNull('#hTools'), needs_laptop: !!$('#hLaptop')?.checked,
