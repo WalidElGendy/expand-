@@ -31,6 +31,14 @@ export const saveEmployee = async (id, patch) => ok(await sb.from('hr_employees'
 export const listPrivate = async () => ok(await sb.from('hr_employee_private')
   .select('profile_id, id_expiry, passport_expiry'));
 export const getPrivate = async (id) => ok(await sb.from('hr_employee_private').select('*').eq('profile_id', id).maybeSingle());
+/** Delete someone's whole HR file (and their profile, when they never signed
+    in and are not on any work), then the files it pointed at. */
+export async function deleteEmployee(id) {
+  const r = await rpc('hr_delete_employee', { p_id: id });
+  const paths = (r?.paths || []).filter(Boolean);
+  if (paths.length) await sb.storage.from(HR_BUCKET).remove(paths).catch(() => {});
+  return r;
+}
 export const savePrivate = async (id, patch) => ok(await sb.from('hr_employee_private')
   .upsert({ profile_id: id, ...patch, updated_by: me(), updated_at: new Date().toISOString() }, { onConflict: 'profile_id' })
   .select().single());
