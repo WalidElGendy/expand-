@@ -306,8 +306,8 @@ export function wireHR2(lang, { ctx, rerender, fail, reload }) {
       const emps = new Map((ctx.hrEmployees || []).map(e => [e.profile_id, e]));
       const rows = V.rosterOf(ctx, { includeLeft: true }).map(p => { const e = emps.get(p.id) || {};
         return [p.full_name || '', p.email || '', p.department_id || '', e.position || '', e.employment_status || '', e.joining_date || '',
-          e.contract_type || '', e.contract_end || '', e.nationality || '', e.phone || '']; });
-      return download('employees.csv', H.toCSV([[t.name, 'Email', t.dept, t.position, t.status, t.joined, t.f.contract_type, t.contractEnd, t.f.nationality, t.f.phone], ...rows]));
+          e.contract_no || '', e.contract_type || '', e.contract_end || '', e.nationality || '', e.phone || '']; });
+      return download('employees.csv', H.toCSV([[t.name, 'Email', t.dept, t.position, t.status, t.joined, t.f.contract_no, t.f.contract_type, t.contractEnd, t.f.nationality, t.f.phone], ...rows]));
     }
   });
 
