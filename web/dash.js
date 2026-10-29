@@ -444,7 +444,7 @@ export const DSTR = {
     hrHireTitle: 'New hiring request', hrBack: 'HR',
     hrHireLead: 'Once approved and marked as hired, this creates the employee record. The app login is a separate invitation from People.',
     hrEmail: 'Work email (optional)', hrEmailHint: 'If they already have a profile, the record attaches to it.',
-    hrPhone: 'Mobile number', hrNatId: 'National ID / Iqama number',
+    hrPhone: 'Mobile number', hrNatId: 'National ID / Iqama number', hrContractNo: 'Contract number',
     hrIdCopy: 'Copy of the ID', hrIdCopyHint: 'Photo or PDF — stored privately, HR only',
     hrJobDesc: 'Job description', hrTools: 'Tools and software needed', hrToolsHint: 'Software licences, accounts, access…',
     hrLaptop: 'Needs a laptop', hrEquip: 'Other equipment', hrEquipHint: 'Monitor, phone, desk, uniform…',
@@ -768,7 +768,7 @@ export const DSTR = {
     hrHireTitle: 'طلب توظيف جديد', hrBack: 'الموارد البشرية',
     hrHireLead: 'بعد الاعتماد وتحديده كـ«تم التعيين» يُنشأ سجل الموظف. دعوة الدخول إلى التطبيق منفصلة من صفحة الأشخاص.',
     hrEmail: 'بريد العمل (اختياري)', hrEmailHint: 'إن كان له ملف مسبقاً يُربط السجل به.',
-    hrPhone: 'رقم الجوال', hrNatId: 'رقم الهوية / الإقامة',
+    hrPhone: 'رقم الجوال', hrNatId: 'رقم الهوية / الإقامة', hrContractNo: 'رقم العقد',
     hrIdCopy: 'صورة الهوية', hrIdCopyHint: 'صورة أو PDF — تُحفظ بسرية، للموارد البشرية فقط',
     hrJobDesc: 'الوصف الوظيفي', hrTools: 'الأدوات والبرامج المطلوبة', hrToolsHint: 'تراخيص برامج، حسابات، صلاحيات…',
     hrLaptop: 'يحتاج جهاز لابتوب', hrEquip: 'تجهيزات أخرى', hrEquipHint: 'شاشة، جوال، مكتب، زي…',
@@ -4101,6 +4101,7 @@ ${hrCrumb(lang)}
       <label class="f"><span>${esc(t.hrEmail)}</span><input id="hEmail" type="email" maxlength="200" autocomplete="off" title="${esc(t.hrEmailHint)}" /></label>
       <label class="f"><span>${esc(t.hrJoining)}</span><input id="hJoin" type="date" /></label>
       <label class="f"><span>${esc(t.hrPosition)}</span><input id="hPos" maxlength="200" /></label>
+      <label class="f"><span>${esc(t.hrContractNo)}</span><input id="hContract" maxlength="60" autocomplete="off" /></label>
       <label class="f"><span>${esc(t.hrDept)}</span>
         <select id="hDept"><option value="">${esc(t.hrPickDept)}</option>
           ${depts.map(d => `<option value="${esc(d.id)}">${esc(lang === 'ar' ? d.name_ar : d.name_en)}</option>`).join('')}
@@ -4147,6 +4148,7 @@ ${hrCrumb(lang)}
     ${hrFact(t.hrPhone, v(r.phone))}
     ${hrFact(t.hrEmail, v(r.email))}
     ${hrFact(t.hrNatId, v(r.national_id))}
+    ${hrFact(t.hrContractNo, v(r.contract_no))}
     ${hrFact(t.hrLaptop, r.needs_laptop ? '✓' : '—')}
     ${hrFact(t.hrEquip, v(r.equipment))}
     ${hrFact(t.hrRequestedBy, esc(personName(people, r.requested_by)))}
