@@ -34,7 +34,7 @@ export const HSTR = {
     f: { phone: 'Mobile', nationality: 'Nationality', is_saudi: 'Saudi national', gender: 'Gender', male: 'Male', female: 'Female',
       birth_date: 'Date of birth', marital_status: 'Marital status', address: 'Address', emergency_name: 'Emergency contact',
       emergency_phone: 'Emergency phone', position: 'Position', grade: 'Grade', joining_date: 'Joining date',
-      employment_status: 'Employment status', contract_type: 'Contract type', contract_start: 'Contract start',
+      employment_status: 'Employment status', contract_no: 'Contract number', contract_type: 'Contract type', contract_start: 'Contract start',
       contract_end: 'Contract end', probation_end: 'Probation ends', work_location: 'Work location',
       gosi_scheme: 'GOSI scheme', annual_leave_override: 'Annual leave days (override)', job_description: 'Job description',
       end_date: 'Last working day', end_reason: 'Reason for leaving', device_no: 'Fingerprint no.', national_id: 'ID / Iqama no.', id_expiry: 'ID / Iqama expiry',
@@ -151,7 +151,7 @@ export const HSTR = {
     f: { phone: 'الجوال', nationality: 'الجنسية', is_saudi: 'سعودي الجنسية', gender: 'الجنس', male: 'ذكر', female: 'أنثى',
       birth_date: 'تاريخ الميلاد', marital_status: 'الحالة الاجتماعية', address: 'العنوان', emergency_name: 'جهة اتصال للطوارئ',
       emergency_phone: 'هاتف الطوارئ', position: 'المسمى الوظيفي', grade: 'الدرجة', joining_date: 'تاريخ المباشرة',
-      employment_status: 'الحالة الوظيفية', contract_type: 'نوع العقد', contract_start: 'بداية العقد',
+      employment_status: 'الحالة الوظيفية', contract_no: 'رقم العقد', contract_type: 'نوع العقد', contract_start: 'بداية العقد',
       contract_end: 'نهاية العقد', probation_end: 'نهاية التجربة', work_location: 'مقر العمل',
       gosi_scheme: 'نظام التأمينات', annual_leave_override: 'أيام الإجازة السنوية (تعديل)', job_description: 'الوصف الوظيفي',
       end_date: 'آخر يوم عمل', end_reason: 'سبب ترك العمل', device_no: 'رقم البصمة', national_id: 'رقم الهوية / الإقامة', id_expiry: 'انتهاء الهوية / الإقامة',
@@ -672,7 +672,7 @@ function empProfile(lang, ctx, p, e, hr) {
     <div class="fields">
       ${text('position')}${text('grade')}${date('joining_date')}
       ${sel('employment_status', ['probation', 'active', 'on_leave', 'terminated'].map(s => [s, DSTR[lang].hrEmpSt[s]]))}
-      ${sel('contract_type', Object.entries(t.ct))}${date('contract_start')}${date('contract_end')}${date('probation_end')}
+      ${text('contract_no')}${sel('contract_type', Object.entries(t.ct))}${date('contract_start')}${date('contract_end')}${date('probation_end')}
       ${text('work_location')}${text('device_no')}
       ${fld(f.gosi_scheme, `<select data-ef="gosi_scheme"${dis}>${opt('', t.gs.auto, v('gosi_scheme'))}${['saudi_legacy', 'saudi_new', 'non_saudi', 'exempt'].map(s => opt(s, t.gs[s], v('gosi_scheme'))).join('')}</select>`)}
       ${fld(f.annual_leave_override, `<input type="number" min="0" max="365" step="0.5" data-ef="annual_leave_override" value="${esc(v('annual_leave_override'))}"${dis} />`)}
