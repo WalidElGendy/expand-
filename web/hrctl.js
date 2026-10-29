@@ -231,6 +231,25 @@ export function wireHR2(lang, { ctx, rerender, fail, reload }) {
     try { await fn(); await done(); } catch (err) { busy(btn, false); fail(err); }
   };
 
+  /* --- delete an employee's HR record (a duplicate, or entered by mistake) --- */
+  if (route !== 'hrsec' || id !== 'people') ctx.hrNotice = null;
+  $$('[data-hr-delemp]').forEach(b => b.onclick = async () => {
+    const p = (ctx.people || []).find(x => x.id === b.dataset.hrDelemp);
+    const n = p?.full_name || p?.email || '';
+    if (!confirm(t.delEmpConfirm.replace('{n}', n))) return;
+    busy(b, true);
+    try {
+      const r = await D.deleteEmployee(b.dataset.hrDelemp);
+      ctx.hrNotice = r?.profile_deleted ? t.delEmpDone.replace('{n}', n)
+        : t.delEmpKept.replace('{n}', n).replace('{why}', t.delEmpWhy[r?.kept_reason] || t.delEmpWhy.has_login);
+      location.hash = '#/hr/people';
+    } catch (err) {
+      busy(b, false);
+      const k = Object.keys(t.delEmpErr).find(x => String(err?.message || err).includes(x));
+      fail(k ? new Error(t.delEmpErr[k]) : err);
+    }
+  });
+
   /* --- profile photo: your own on My HR, anyone's for HR on their page --- */
   $$('[data-ava-file]').forEach(inp => inp.onchange = async () => {
     const f = inp.files?.[0];
