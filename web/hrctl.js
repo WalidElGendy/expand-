@@ -128,6 +128,9 @@ export async function loadHR(route, id, ctx) {
 
 export function bodyHR(lang, route, id, ctx) {
   if (route === 'me') return V.meView(lang, ctx);
+  /* HR is for admins and the HR department only; everyone else has My HR. */
+  if (!isHR(db.state.me)) return `<section class="card"><div class="card__head"><h2>${lang === 'ar' ? 'الموارد البشرية متاحة لفريق الموارد البشرية فقط' : 'HR is open to the HR team only'}</h2></div>
+    <p class="note">${lang === 'ar' ? 'بياناتك وطلباتك والموافقات المطلوبة منك في «ملفي الوظيفي».' : 'Your own file, requests and the approvals waiting for you are on My HR.'}</p></section>`;
   if (route === 'hr') return V.hrDashView(lang, ctx);
   if (route === 'hremp') return V.hrEmpView(lang, ctx);
   if (route === 'hrrun') return V.hrRunView(lang, ctx);
