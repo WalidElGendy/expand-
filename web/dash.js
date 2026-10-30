@@ -60,10 +60,11 @@ export const canDesign = (team, me = db.state.me) => {
 };
 
 /* Who may delete a design file of a team: like canDesign, except that a
-   2D or 3D person only manages their own team's files. Mirrors
+   2D or 3D person only manages their own team's files (admins manage all). Mirrors
    can_manage_design() in the database. */
 export const canManageDesign = (team, me = db.state.me) =>
-  canDesign(team, me) && (!['2d', '3d'].includes(me?.department_id) || me.department_id === team);
+  (!!me && me.is_active !== false && me.role === 'admin') ||
+  (canDesign(team, me) && (!['2d', '3d'].includes(me?.department_id) || me.department_id === team));
 
 /* Everyone on a team stage: the members list, falling back to the single
    assignee for rows that predate it. */
