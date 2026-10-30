@@ -71,7 +71,7 @@ export const ESTR = {
       used30: '{n} credits used here', analyses: '{n} analyses', left: '{r} of {t} credits left on the account', leftNoTotal: '{r} credits left on the account',
       renews: 'renews {d}', notConnected: 'Not connected', claudeEst: 'Estimated at ${i} / ${o} per million input / output tokens',
       claudeBill: 'Exact billing is in the Anthropic console', lushaPrice: 'Email {e} · phone {p} credits', accountErr: 'Account balance unavailable: {e}', onlyApprover: 'Only an approver or admin can change these.' },
-    denied: 'Etimad Insights is open to tender analysts, approvers and admins.',
+    denied: 'Etimad Insights is open to the Tenders team and admins.',
     err: { missing_key: 'The {k} secret is not set yet — add it in Supabase (Edge Functions → Secrets).', needs_agency: 'Add the agency’s English name or website domain first.',
       not_allowed: 'Only tender staff can use Etimad Insights.' },
   },
@@ -129,7 +129,7 @@ export const ESTR = {
       used30: 'استُهلك {n} رصيد من هنا', analyses: '{n} تحليل', left: 'متبقٍ {r} من {t} رصيد في الحساب', leftNoTotal: 'متبقٍ {r} رصيد في الحساب',
       renews: 'يتجدد {d}', notConnected: 'غير متصل', claudeEst: 'تقدير بسعر ${i} / ${o} لكل مليون وحدة إدخال / إخراج',
       claudeBill: 'الفاتورة الدقيقة في لوحة Anthropic', lushaPrice: 'البريد {e} · الجوال {p} رصيد', accountErr: 'تعذّر جلب رصيد الحساب: {e}', onlyApprover: 'التعديل لصاحب القرار أو المدير فقط.' },
-    denied: 'تحليلات اعتماد متاحة لمحللي المناقصات وأصحاب القرار والمدراء.',
+    denied: 'تحليلات اعتماد متاحة لفريق المناقصات والمدراء.',
     err: { missing_key: 'السر {k} غير مضاف بعد — أضفه في Supabase (Edge Functions ← Secrets).', needs_agency: 'أضف اسم الجهة بالإنجليزية أو نطاق موقعها أولاً.',
       not_allowed: 'تحليلات اعتماد لفريق المناقصات فقط.' },
   },
@@ -137,7 +137,8 @@ export const ESTR = {
 
 const T = (lang) => ESTR[lang];
 const role = () => db.state.me?.tender || {};
-export const canSeeEtimad = (me = db.state.me) => !!(me && (me.role === 'admin' || me.tender?.approver || me.tender?.analyst));
+/* The Tenders department and admins only — mirrored by etimad_access() in the database. */
+export const canSeeEtimad = (me = db.state.me) => !!(me && (me.role === 'admin' || me.department_id === 'tenders'));
 
 /* ---------------------------------------------------------------- helpers */
 const REC_C = { apply: 'var(--ok)', consider: 'var(--warn)', skip: 'var(--critical)' };
