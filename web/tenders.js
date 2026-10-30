@@ -130,7 +130,8 @@ export const TSTR = {
 
 const T = (lang) => TSTR[lang];
 const role = () => db.state.me?.tender || {};
-export const canSeeTenders = (me = db.state.me) => !!(me && (me.tender?.approver || me.tender?.analyst || me.tender?.assigned));
+/* Tenders are open to every active user; deciding stays with the approvers. */
+export const canSeeTenders = (me = db.state.me) => !!me;
 
 /* ---------------------------------------------------------------- helpers */
 const ST_C = { draft: 'var(--ink3)', review: 'var(--warn)', approved: 'var(--ok)', rejected: 'var(--critical)' };
