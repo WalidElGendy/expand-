@@ -388,16 +388,13 @@ function appNav() {
   /* Everyone gets Projects. What the company is building is not privileged
      information here — the read policy already lets any active user see it,
      and a designer who cannot find the project their stage belongs to is
-     being kept from context rather than from data. Only the people who can
-     actually create one see "New project"; a link that 403s is worse than
-     no link. */
+     being kept from context rather than from data. The whole Work section
+     is open to every position: anyone can start a project (the database lets
+     them create it and its stages; editing others' stays with planners) and
+     work tenders — only deciding on a tender stays with the approvers. */
   items.push({ group: 'work', route: '#/projects', icon: 'board', label: () => d.projects });
-  if (canPlan(me)) {
-    items.push({ group: 'work', route: '#/new', icon: 'plus', label: () => d.newProject });
-  }
+  items.push({ group: 'work', route: '#/new', icon: 'plus', label: () => d.newProject });
   items.push({ group: 'work', route: '#/leads', icon: 'users', label: () => d.leads });
-  /* Tenders: the analysts, the approver (Operations Director) and any PM
-     who has been handed one. RLS gives everyone else an empty list anyway. */
   if (canSeeTenders(me)) items.push({ group: 'work', route: '#/tenders', icon: 'gavel', label: () => TSTR[S.lang].nav });
   items.push({ group: 'work', route: '#/docs',  icon: 'doc',   label: () => d.documents });
   /* Business highlights is a management screen — it names people and says how
@@ -409,17 +406,15 @@ function appNav() {
   }
   items.push({ group: 'insight', route: '#/pipeline', icon: 'board', label: () => d.pipeline });
   items.push({ group: 'insight', route: '#/estimate', icon: 'spark', label: () => d.openEstimator });
-  /* Etimad Insights: public tenders, their analysis and our bid record —
-     the tender team's market view, so the same people who see Tenders. */
+  /* Etimad Insights: the Tenders department and admins only (the database
+     and the etimad function enforce the same rule). */
   if (canSeeEtimad(me)) items.push({ group: 'insight', route: '#/etimad', icon: 'radar', label: () => ESTR[S.lang].nav });
   items.push({ group: 'workspace', route: '#/me', icon: 'me', label: () => HSTR[S.lang].myHr });
   items.push({ group: 'workspace', route: '#/performance', icon: 'chart', label: () => d.perf });
   if (me.role === 'admin') items.push({ group: 'workspace', route: '#/admin', icon: 'team', label: () => d.people });
-  /* HR is the workforce dashboard for admins and the HR department. Anyone
-     else who has people reporting to them gets the same screen scoped to
-     their own team — RLS decides what it contains, the label just says so. */
+  /* People is for admins, HR for admins and the HR department — nobody else,
+     managers included (their approvals stay on My HR). */
   if (isHR(me)) items.push({ group: 'workspace', route: '#/hr', icon: 'brief', label: () => d.hrNav });
-  else if (me.has_reports) items.push({ group: 'workspace', route: '#/hr', icon: 'brief', label: () => d.hrTeamNav });
   return items;
 }
 
