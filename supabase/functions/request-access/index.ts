@@ -16,10 +16,12 @@
    Who may get a link:
      · an address with an invitation row — an admin has authorised it, and
        they arrive active with the role that row names;
-     · an address already on the roster (the people imported from Asana) —
-       they arrive INACTIVE and show up under "Waiting for approval", which
-       is the existing sign-up-then-get-approved path, unchanged;
-     · nobody else. A stranger gets the same friendly reply and no email.
+     · an @expandexpo.com address already on the roster (the people imported
+       from Asana) — they arrive INACTIVE and show up under "Waiting for
+       approval", which is the existing sign-up-then-get-approved path;
+     · nobody else. A stranger, or an outside address (gmail…) that is on the
+       roster but was never invited, gets the same friendly reply and no
+       email. auth_email_gate on auth.users enforces the same rule.
 
    The reply is deliberately identical in all three cases. Saying "no such
    person" would turn this box into a way to test whether an address works
@@ -34,6 +36,8 @@ import { send, inviteMail, resetMail } from '../_shared/mail.ts';
 // One code every two minutes per address. Enough that a mistyped click does
 // not fire twice, and low enough that this cannot be used to bomb an inbox.
 const COOLDOWN_MS = 120_000;
+// Company addresses may ask; any other address needs an admin's invitation.
+const COMPANY = '@expandexpo.com';
 const fresh = (iso: string | null) =>
   !!iso && Date.now() - new Date(iso).getTime() < COOLDOWN_MS;
 
@@ -73,6 +77,10 @@ Deno.serve(async (req) => {
     };
 
     if (!inv && !person) return same();
+    if (!inv && !email.endsWith(COMPANY)) {
+      await record('outside @expandexpo.com and not invited — use Invite someone or Send code first');
+      return same();
+    }
     if (fresh(inv?.last_link_at ?? null) || fresh(person?.link_sent_at ?? null)) return same();
 
     const full_name = inv?.full_name || person?.full_name || null;
