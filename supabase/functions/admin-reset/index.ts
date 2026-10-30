@@ -49,6 +49,20 @@ Deno.serve(async (req) => {
     const redirectTo = typeof body.redirectTo === 'string' && body.redirectTo.startsWith('http')
       ? body.redirectTo : `${APP}/#/reset`;
 
+    /* Outside addresses (gmail…) can only have an account once an admin has
+       invited them (auth_email_gate). An admin pressing this button for
+       someone on the roster is that invitation, so it is recorded first. */
+    if (!person.user_id && !String(person.email).toLowerCase().endsWith('@expandexpo.com')) {
+      const { data: inv } = await admin.from('invitations').select('email').ilike('email', person.email).maybeSingle();
+      if (!inv) {
+        const { error: invErr } = await admin.from('invitations').insert({
+          email: String(person.email).trim().toLowerCase(), full_name: person.full_name,
+          department_id: person.department_id, role: person.role || 'member', invited_by: me.id,
+        });
+        if (invErr) return json({ emailed: false, email: person.email, reason: invErr.message }, 200);
+      }
+    }
+
     /* An account already exists → a sign-in code. No account → the code that
        makes one. Asking for magiclink on a non-existent user fails, and
        asking for an invite on an existing one fails, so the branch is
