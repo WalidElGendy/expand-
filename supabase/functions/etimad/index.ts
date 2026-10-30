@@ -26,10 +26,10 @@ const key = (n: string) => (Deno.env.get(n) || '').trim();
 
 type Admin = ReturnType<typeof adminClient>;
 
-async function isTenderStaff(admin: Admin, me: { id: string; role: string }) {
-  if (me.role === 'admin') return true;
-  const { data } = await admin.from('tender_settings').select('approvers, analysts').eq('id', 1).maybeSingle();
-  return !!data && ([...(data.approvers || []), ...(data.analysts || [])] as string[]).includes(me.id);
+/* The Tenders department and admins — the same rule as etimad_access() in
+   the database. */
+async function isTenderStaff(_admin: Admin, me: { id: string; role: string; department_id: string | null }) {
+  return me.role === 'admin' || me.department_id === 'tenders';
 }
 
 async function usage(admin: Admin, service: string, action: string, units: number | null, note: string | null, by: string) {
