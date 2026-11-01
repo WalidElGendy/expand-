@@ -10,6 +10,7 @@ import * as H from './hrlogic.js';
 import { isHR, quarterOf, leaveSummary, DSTR } from './dash.js';
 import * as IM from './hrimport.js';
 import { readSpreadsheet } from './xlsxread.js';
+import * as XL from './xlsx.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -348,6 +349,21 @@ export function wireHR2(lang, { ctx, rerender, fail, reload }) {
           e.contract_no || '', e.contract_type || '', e.contract_end || '', e.nationality || '', e.phone || '']; });
       return download('employees.csv', H.toCSV([[t.name, 'Email', t.dept, t.position, t.status, t.joined, t.f.contract_no, t.f.contract_type, t.contractEnd, t.f.nationality, t.f.phone], ...rows]));
     }
+  });
+
+  /* --- People → Export Excel: every field, private file and salary, in the
+         column names the importer reads back --- */
+  $$('[data-hr-xlsx]').forEach(b => b.onclick = async () => {
+    busy(b, true);
+    try {
+      const [privs, salaries] = await Promise.all([D.listPrivateFull(), D.listSalaries()]);
+      const today = H.todayIn(S.timezone);
+      const sheet = IM.exportSheet(lang, { people: ctx.people || [], emps: ctx.hrEmployees || [], privs, salaries,
+        departments: db.state.departments || [], today });
+      const bytes = XL.buildXlsx(sheet, { title: sheet.name, author: db.state.me?.full_name || 'expand' });
+      download(IM.exportFileName(today), bytes, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    } catch (err) { fail(err); }
+    busy(b, false);
   });
 
   /* --- self-service: clock --- */
