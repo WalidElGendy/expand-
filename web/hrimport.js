@@ -216,7 +216,7 @@ function oneOf(v, table) {
 }
 const GENDER = [['male', ['male', 'm', 'man', 'ذكر']], ['female', ['female', 'f', 'woman', 'انثي', 'انثى', 'أنثى']]];
 const STATUS = [
-  ['terminated', ['terminated', 'inactive', 'left', 'resigned', 'ended', 'exited', 'end of service', 'not active', 'منتهي', 'منتهيه', 'مستقيل', 'مستقيله', 'مفصول', 'ترك العمل', 'غير نشط', 'غير فعال', 'منتهي الخدمه']],
+  ['terminated', ['terminated', 'inactive', 'left', 'غادر', 'resigned', 'ended', 'exited', 'end of service', 'not active', 'منتهي', 'منتهيه', 'مستقيل', 'مستقيله', 'مفصول', 'ترك العمل', 'غير نشط', 'غير فعال', 'منتهي الخدمه']],
   ['on_leave', ['on leave', 'leave', 'vacation', 'في اجازه', 'اجازه']],
   ['probation', ['probation', 'on probation', 'under probation', 'تحت التجربه', 'فتره التجربه', 'تجربه']],
   ['active', ['active', 'working', 'employed', 'current', 'نشط', 'فعال', 'على راس العمل', 'علي راس العمل', 'على رأس العمل', 'يعمل']],
@@ -388,7 +388,9 @@ export function planImport({ files, people = [], emps = [], privs = [], salaries
     const note = (key, from, to, label = null) => changes.push({ key, from: from ?? null, to, label });
     for (const [k, v] of Object.entries(acc.vals)) {
       const f = FIELD[k];
-      if (f.table === 'emp' && !same(e[k], v)) { emp[k] = v; note(k, e[k], v); }
+      // No HR file yet: the status the People screen already shows is not a change.
+      const cur = k === 'employment_status' && !e.employment_status ? (p.is_active ? 'active' : 'probation') : e[k];
+      if (f.table === 'emp' && !same(cur, v)) { emp[k] = v; note(k, e[k], v); }
       if (f.table === 'priv' && !same(pv[k], v)) { priv[k] = v; note(k, pv[k], v); }
       if (k === 'department_id') {
         const d = findDept(v);
@@ -424,11 +426,87 @@ export function planImport({ files, people = [], emps = [], privs = [], salaries
     fields: out.reduce((n, x) => n + x.changes.length, 0) };
 }
 
+/* ---------------------------------------------------------------- export */
+
+/* The Excel export uses column names this importer reads, so a sheet can go
+   out, be corrected in Excel and come back in without remapping anything. */
+const XCOLS = [
+  ['full_name', 'Employee Name', 'اسم الموظف', 30], ['email', 'Email', 'البريد الإلكتروني', 30],
+  ['department_id', 'Department', 'القسم', 22], ['supervisor_id', 'Line Manager', 'المدير المباشر', 24],
+  ['position', 'Job Title', 'المسمى الوظيفي', 24], ['employment_status', 'Employment Status', 'الحالة الوظيفية', 16],
+  ['joining_date', 'Joining Date', 'تاريخ الالتحاق', 14], ['phone', 'Mobile Number', 'رقم الجوال', 15],
+  ['nationality', 'Nationality', 'الجنسية', 14], ['gender', 'Gender', 'الجنس', 10], ['birth_date', 'Date of Birth', 'تاريخ الميلاد', 14],
+  ['marital_status', 'Marital Status', 'الحالة الاجتماعية', 14], ['national_id', 'ID Number', 'رقم الهوية', 14],
+  ['id_expiry', 'ID Expiry Date', 'تاريخ انتهاء الهوية', 14], ['passport_no', 'Passport Number', 'رقم الجواز', 15],
+  ['passport_expiry', 'Passport Expiry Date', 'تاريخ انتهاء الجواز', 14], ['contract_no', 'Contract Number', 'رقم العقد', 15],
+  ['contract_type', 'Contract Type', 'نوع العقد', 15], ['contract_start', 'Contract Start Date', 'تاريخ بداية العقد', 14],
+  ['contract_end', 'Contract End Date', 'تاريخ نهاية العقد', 14], ['probation_end', 'Probation End Date', 'تاريخ انتهاء فترة التجربة', 14],
+  ['grade', 'Grade', 'الدرجة', 10], ['work_location', 'Work Location', 'موقع العمل', 16], ['device_no', 'Fingerprint Number', 'رقم البصمة', 12],
+  ['address', 'Address', 'العنوان', 28], ['emergency_name', 'Emergency Contact Name', 'اسم جهة الطوارئ', 22],
+  ['emergency_phone', 'Emergency Contact Number', 'رقم الطوارئ', 15], ['iban', 'IBAN', 'رقم الآيبان', 28], ['bank_name', 'Bank Name', 'اسم البنك', 16],
+  ['basic', 'Basic Salary', 'الراتب الأساسي', 13], ['housing', 'Housing Allowance', 'بدل السكن', 13],
+  ['transport', 'Transportation Allowance', 'بدل النقل', 13], ['other_allowances', 'Other Allowances', 'بدلات أخرى', 13],
+  ['_gross', 'Total Salary', 'إجمالي الراتب', 14], ['end_date', 'Last Working Day', 'تاريخ ترك العمل', 14],
+  ['end_reason', 'Termination Reason', 'سبب ترك العمل', 22],
+];
+export const EXPORT_COLUMNS = XCOLS;
+const XVAL = {
+  en: { status: { probation: 'Probation', active: 'Active', on_leave: 'On leave', terminated: 'Terminated' },
+    gender: { male: 'Male', female: 'Female' },
+    contract: { unlimited: 'Unlimited', fixed: 'Fixed term', part_time: 'Part time', temporary: 'Temporary' } },
+  ar: { status: { probation: 'تحت التجربة', active: 'على رأس العمل', on_leave: 'في إجازة', terminated: 'منتهي الخدمة' },
+    gender: { male: 'ذكر', female: 'أنثى' },
+    contract: { unlimited: 'غير محدد المدة', fixed: 'محدد المدة', part_time: 'دوام جزئي', temporary: 'مؤقت' } },
+};
+
+/** The roster as one Excel sheet for xlsx.js: every HR field, the private
+    file and the current salary, in the language of the screen. */
+export function exportSheet(lang, { people = [], emps = [], privs = [], salaries = [], departments = [], today }) {
+  const L = lang === 'ar' ? 'ar' : 'en';
+  const V = XVAL[L];
+  const empOf = new Map(emps.map(e => [e.profile_id, e]));
+  const privOf = new Map(privs.map(p => [p.profile_id, p]));
+  const nameOf = new Map(people.map(p => [p.id, p.full_name || p.email || '']));
+  const deptOf = new Map(departments.map(d => [d.id, L === 'ar' ? d.name_ar : d.name_en]));
+  const roster = people.filter(p => p.is_active || empOf.has(p.id))
+    .sort((a, b) => String(a.full_name || a.email).localeCompare(String(b.full_name || b.email)));
+  const col = (k) => XCOLS.findIndex(c => c[0] === k);
+  const letter = (i) => { let s = ''; i += 1; while (i > 0) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; };
+  const gross = ['basic', 'housing', 'transport', 'other_allowances'].map(col);
+  const rows = roster.map((p, ri) => {
+    const e = empOf.get(p.id) || {};
+    const pv = privOf.get(p.id) || {};
+    const sal = H.salaryOn(salaries, p.id, today)
+      || salaries.filter(s => s.employee_id === p.id).sort((a, b) => String(b.effective_from).localeCompare(String(a.effective_from)))[0] || null;
+    return XCOLS.map(([k]) => {
+      let v = null;
+      if (k === 'full_name') v = p.full_name || '';
+      else if (k === 'email') v = p.email || '';
+      else if (k === 'department_id') v = deptOf.get(p.department_id) || p.department_id || '';
+      else if (k === 'supervisor_id') v = p.supervisor_id ? nameOf.get(p.supervisor_id) || '' : '';
+      else if (k === 'employment_status') v = V.status[e.employment_status || (p.is_active ? 'active' : 'probation')] || '';
+      else if (k === 'gender') v = V.gender[e.gender] || '';
+      else if (k === 'contract_type') v = V.contract[e.contract_type] || '';
+      else if (['basic', 'housing', 'transport', 'other_allowances'].includes(k)) v = sal ? { v: Number(sal[k] || 0), s: 'money' } : null;
+      else if (k === '_gross') v = sal ? { f: gross.map(i => `${letter(i)}${ri + 2}`).join('+'), v: H.grossOf(sal), s: 'money' } : null;
+      else if (FIELD[k]?.table === 'priv') v = pv[k] ?? '';
+      else v = e[k] ?? '';
+      return v === '' ? null : v;
+    });
+  });
+  return {
+    name: L === 'ar' ? 'الموظفون' : 'Employees', rtl: L === 'ar', freezeRow: 1,
+    colWidths: XCOLS.map(c => c[3]),
+    rows: [XCOLS.map(c => ({ v: L === 'ar' ? c[2] : c[1], s: 'head' })), ...rows],
+  };
+}
+export const exportFileName = (today) => `employees-${today}.xlsx`;
+
 /* ----------------------------------------------------------------- strings */
 
 export const ISTR = {
   en: {
-    title: 'Import employees from Excel', open: 'Import from Excel', back: 'Back to People',
+    title: 'Import employees from Excel', open: 'Import from Excel', back: 'Back to People', exportX: 'Export Excel',
     intro: 'Upload one or more reports exported from your HR or payroll system (Jisr, ZenHR, Mudad, Qiwa or any spreadsheet) — .xlsx, .xls or .csv. Columns are recognised by their names in English or Arabic, and each row is matched to someone already in Expand by email, ID / Iqama number, contract number or name.',
     rules: 'Nothing is saved until you press Save. The Excel wins over what is in Expand, but an empty cell never erases anything. Rows that match nobody in Expand are skipped — add new people with New hire first. When several reports fill the same field, the one uploaded last wins.',
     pick: 'Choose files', reading: 'Reading…', clear: 'Start over', remove: 'Remove',
@@ -458,7 +536,7 @@ export const ISTR = {
     groups: { key: 'Matching', prof: 'Organisation', emp: 'Employment', priv: 'Private', sal: 'Salary' },
   },
   ar: {
-    title: 'استيراد الموظفين من Excel', open: 'استيراد من Excel', back: 'العودة إلى الموظفين',
+    title: 'استيراد الموظفين من Excel', open: 'استيراد من Excel', back: 'العودة إلى الموظفين', exportX: 'تصدير Excel',
     intro: 'ارفع تقريراً أو أكثر من نظام الموارد البشرية أو الرواتب (جسر، ZenHR، مدد، قوى أو أي جدول) بصيغة .xlsx أو .xls أو .csv. نتعرّف على الأعمدة من أسمائها بالعربية أو الإنجليزية، ونطابق كل صف بموظف موجود في Expand عبر البريد أو رقم الهوية/الإقامة أو رقم العقد أو الاسم.',
     rules: 'لا يُحفظ شيء قبل الضغط على «حفظ». قيم Excel تُقدَّم على ما في Expand، لكن الخلية الفارغة لا تمسح شيئاً. الصفوف التي لا تطابق أحداً في Expand تُتجاوز — أضف الموظفين الجدد عبر «تعيين جديد» أولاً. إذا ملأ أكثر من تقرير الحقل نفسه فالأخير رفعاً هو المعتمد.',
     pick: 'اختر الملفات', reading: 'جارٍ القراءة…', clear: 'البدء من جديد', remove: 'إزالة',
