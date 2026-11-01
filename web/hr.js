@@ -9,6 +9,7 @@ import * as db from './db.js';
 import * as H from './hrlogic.js';
 import { esc, fmt, kpi, deptName, isHR, formScore, KPI_ROWS, leaveSummary, dropField,
          hrEmpPill, hrReqPill, DSTR, fileSize, avatarCard, avaHtml } from './dash.js';
+import { ISTR } from './hrimport.js';
 
 /* ------------------------------------------------------------------ words */
 export const HSTR = {
@@ -590,6 +591,7 @@ ${ctx.hrNotice ? `<p class="note" style="margin:0 0 12px">${esc(ctx.hrNotice)}</
   <div class="card__head"><h2>${esc(t.tabs.people)}</h2><span class="muted small">${rows.length}</span>
     <span style="margin-inline-start:auto;display:flex;gap:8px">
       <button class="btn btn--sm" data-hr-csv="people">${esc(t.exportCsv)}</button>
+      ${go('#/hr/import', ISTR[lang].open, 'btn btn--sm')}
       ${go('#/hr/new', t.newHire, 'btn btn--primary btn--sm')}</span></div>
   <div class="filterbar">
     <label class="f f--sm"><span>${esc(t.search)}</span><input data-peoplef="peopleQ" value="${esc(ctx.peopleQ || '')}" /></label>
