@@ -39,6 +39,13 @@ export async function deleteEmployee(id) {
   if (paths.length) await sb.storage.from(HR_BUCKET).remove(paths).catch(() => {});
   return r;
 }
+/** Everyone's private file, for the Excel import's matching and preview (HR only, by RLS). */
+export const listPrivateFull = async () => ok(await sb.from('hr_employee_private')
+  .select('profile_id, national_id, id_expiry, passport_no, passport_expiry, iban, bank_name'));
+/** Department and manager, set by HR (profiles are otherwise admin-only). */
+export const setOrg = (id, { department_id, supervisor_id } = {}) => rpc('hr_set_org', {
+  p_id: id, p_department: department_id ?? null, p_supervisor: supervisor_id ?? null,
+  p_set_department: department_id !== undefined, p_set_supervisor: supervisor_id !== undefined });
 export const savePrivate = async (id, patch) => ok(await sb.from('hr_employee_private')
   .upsert({ profile_id: id, ...patch, updated_by: me(), updated_at: new Date().toISOString() }, { onConflict: 'profile_id' })
   .select().single());
@@ -126,6 +133,9 @@ export const listSalaries = async (employee_id = null) => {
   return ok(await q);
 };
 export const addSalary = async (row) => ok(await sb.from('hr_salaries').insert({ ...row, created_by: me() }).select().single());
+/** A salary row for a date, replacing one already on that date (the import). */
+export const upsertSalary = async (row) => ok(await sb.from('hr_salaries')
+  .upsert({ ...row, created_by: me() }, { onConflict: 'employee_id,effective_from' }).select().single());
 export const deleteSalary = async (id) => ok(await sb.from('hr_salaries').delete().eq('id', id).select());
 export const listAdvances = async (employee_id = null) => {
   let q = sb.from('hr_advances').select('*').order('created_at', { ascending: false });
