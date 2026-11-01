@@ -128,5 +128,28 @@ for (const lang of ['en', 'ar']) {
   check(html.includes(lang === 'en' ? 'Save ' : 'حفظ ') && html.includes('Stranger Person'), `${lang}: save button and skipped list`);
 }
 
+/* ------------------------------------------------- export → import again */
+const XW = await import('../web/xlsx.js');
+const depts = [{ id: 'pm', name_en: 'Project management', name_ar: 'إدارة المشاريع' }, { id: 'bd', name_en: 'Business development', name_ar: 'تطوير الأعمال' }];
+const rPeople = [
+  { id: 'w', full_name: 'Walid ElGendy', email: 'walid@expandexpo.com', department_id: 'bd', is_active: true },
+  { id: 's', full_name: 'Sara Ali', email: 'sara@expandexpo.com', department_id: 'pm', supervisor_id: 'w', is_active: true },
+];
+const rEmps = [{ profile_id: 's', phone: '0501234567', joining_date: '2024-02-01', position: 'PM', employment_status: 'active', gender: 'female',
+  nationality: 'Saudi', is_saudi: true, contract_type: 'fixed', contract_end: '2027-01-31', contract_no: '000123', device_no: '17' }];
+const rPrivs = [{ profile_id: 's', national_id: '1098765432', iban: 'SA0380000000608010167519', bank_name: 'Rajhi', id_expiry: '2028-01-31' }];
+const rSal = [{ employee_id: 's', effective_from: '2024-02-01', basic: 10000, housing: 2500, transport: 500, other_allowances: 0 }];
+for (const lang of ['en', 'ar']) {
+  const sheet = IM.exportSheet(lang, { people: rPeople, emps: rEmps, privs: rPrivs, salaries: rSal, departments: depts, today: '2026-11-01' });
+  check(sheet.rows.length === 3 && sheet.rtl === (lang === 'ar'), `${lang}: export rows`);
+  const back = await X.readXlsx(XW.buildXlsx(sheet));
+  const f = IM.setupFile('export.xlsx', back);
+  const want = IM.EXPORT_COLUMNS.map(c => (c[0] === '_gross' ? null : c[0]));
+  check(eq(f.map, want), `${lang}: every exported column maps back — ${JSON.stringify(f.map.map((m, i) => (m === want[i] ? null : [IM.EXPORT_COLUMNS[i][1], m])).filter(Boolean))}`);
+  const again = IM.planImport({ files: [f], people: rPeople, emps: rEmps, privs: rPrivs, salaries: rSal, departments: depts, today: '2026-11-01' });
+  check(again.people.length === 0 && again.skipped.length === 0 && again.warnings.length === 0,
+    `${lang}: re-importing the export changes nothing — ${JSON.stringify(again.people.map(p => p.changes))} ${JSON.stringify(again.warnings)}`);
+}
+
 if (failed) { console.log(`\nFAIL (${failed})`); process.exit(1); }
 console.log('hrimport: all checks passed');
