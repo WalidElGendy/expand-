@@ -591,6 +591,7 @@ ${ctx.hrNotice ? `<p class="note" style="margin:0 0 12px">${esc(ctx.hrNotice)}</
   <div class="card__head"><h2>${esc(t.tabs.people)}</h2><span class="muted small">${rows.length}</span>
     <span style="margin-inline-start:auto;display:flex;gap:8px">
       <button class="btn btn--sm" data-hr-csv="people">${esc(t.exportCsv)}</button>
+      <button class="btn btn--sm" data-hr-xlsx>${esc(ISTR[lang].exportX)}</button>
       ${go('#/hr/import', ISTR[lang].open, 'btn btn--sm')}
       ${go('#/hr/new', t.newHire, 'btn btn--primary btn--sm')}</span></div>
   <div class="filterbar">
