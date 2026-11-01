@@ -110,7 +110,9 @@ const dbmod = await import('../web/db.js');
 const V = await import('../web/etimad.js');
 dbmod.state.departments = [];
 dbmod.state.me = { id: 'u1', role: 'member', department_id: 'tenders', is_active: true, tender: { analyst: true } };
-const vctx = { etTenders: et, etAnalyses: [], tenders: ours, etOutcomes: outs, etStatus: { keys: { firecrawl: true, anthropic: false, lusha: false } } };
+/* The screens compare with the real date, so the open tender stays in the future. */
+const vet = et.map(x => (x.id === 'a' ? { ...x, last_offer_at: '2099-10-30T23:59:00+03:00' } : x));
+const vctx = { etTenders: vet, etAnalyses: [], tenders: ours, etOutcomes: outs, etStatus: { keys: { firecrawl: true, anthropic: false, lusha: false } } };
 for (const lang of ['en', 'ar']) {
   const ov = V.etimadOverviewView(lang, vctx);
   check(ov.includes('LUSHA_API_KEY') && ov.includes('data-et-sync'), `${lang}: overview lacks the setup card or the sync button`);
