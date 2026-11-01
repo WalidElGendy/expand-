@@ -8,6 +8,8 @@ import * as D from './hrdb.js';
 import * as V from './hr.js';
 import * as H from './hrlogic.js';
 import { isHR, quarterOf, leaveSummary, DSTR } from './dash.js';
+import * as IM from './hrimport.js';
+import { readSpreadsheet } from './xlsxread.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -82,6 +84,10 @@ export async function loadHR(route, id, ctx) {
     if (id === 'letters') settle('hrLetters', D.listLetters());
     if (id === 'settings' && hr) settle('hrSyncRuns', D.listSyncRuns(10));
     if (id === 'hiring') settle('hiring', db.listHiring());
+    if (id === 'import' && hr) {
+      settle('hrPrivFull', D.listPrivateFull());
+      settle('hrSalaries', D.listSalaries());
+    }
   }
 
   if (route === 'hremp' && id) {
@@ -135,6 +141,14 @@ export function bodyHR(lang, route, id, ctx) {
   if (route === 'hremp') return V.hrEmpView(lang, ctx);
   if (route === 'hrrun') return V.hrRunView(lang, ctx);
   if (route === 'hrletter') return V.hrLetterView(lang, ctx);
+  if (route === 'hrsec' && id === 'import') {
+    const imp = ctx.imp || (ctx.imp = { files: [] });
+    imp.plan = imp.files.length ? IM.planImport({
+      files: imp.files, people: ctx.people || [], emps: ctx.hrEmployees || [], privs: ctx.hrPrivFull || [],
+      salaries: ctx.hrSalaries || [], departments: db.state.departments || [],
+      today: H.todayIn(H.settingsOf(ctx.hrSettings).timezone) }) : null;
+    return IM.hrImportView(lang, { ...ctx, departments: db.state.departments || [] }, V.hrTabs(lang, 'people'));
+  }
   if (route === 'hrsec') {
     const f = { people: V.hrPeopleView, attendance: V.hrAttendanceView, requests: V.hrRequestsView, payroll: V.hrPayrollView,
       performance: V.hrPerformanceView, letters: V.hrLettersView, hiring: V.hrHiringView, settings: V.hrSettingsView }[id];
@@ -252,6 +266,9 @@ export function wireHR2(lang, { ctx, rerender, fail, reload }) {
       fail(k ? new Error(t.delEmpErr[k]) : err);
     }
   });
+
+  /* --- HR → People → Import from Excel --- */
+  if (route === 'hrsec' && id === 'import') wireImport(lang, { ctx, rerender, fail });
 
   /* --- profile photo: your own on My HR, anyone's for HR on their page --- */
   $$('[data-ava-file]').forEach(inp => inp.onchange = async () => {
@@ -647,4 +664,82 @@ export function wireHR2(lang, { ctx, rerender, fail, reload }) {
   const holForm = $('#holForm');
   if (holForm) holForm.onsubmit = run(holForm.querySelector('button[type=submit]'), () => D.addHoliday(val('#hoDay'), val('#hoName')));
   $$('[data-hol-del]').forEach(b => b.onclick = run(b, () => D.deleteHoliday(b.dataset.holDel)));
+}
+
+/* ------------------------------------------------------- import from Excel */
+
+function wireImport(lang, { ctx, rerender, fail }) {
+  const t = IM.ISTR[lang];
+  const imp = ctx.imp || (ctx.imp = { files: [] });
+  const fileAt = (el, key) => imp.files[Number(el.dataset[key])];
+
+  $$('[data-imp-files]').forEach(inp => inp.onchange = async () => {
+    const list = [...(inp.files || [])];
+    if (!list.length) return;
+    imp.reading = true; imp.error = null; rerender();
+    const errs = [];
+    for (const f of list) {
+      try {
+        const sheets = await readSpreadsheet(f);
+        imp.files.push(IM.setupFile(f.name, sheets));
+      } catch (e) {
+        const m = String(e?.message || e);
+        errs.push(m === 'xls_unavailable' ? t.xlsErr : m === 'xlsx_unsupported_browser' ? t.browserErr
+          : t.readErr.replace('{n}', f.name).replace('{e}', m));
+      }
+    }
+    imp.reading = false; imp.error = errs.join(' ') || null; imp.skip = {};
+    rerender();
+  });
+  $$('[data-imp-sheet]').forEach(sel => sel.onchange = () => {
+    const f = fileAt(sel, 'impSheet');
+    f.sheetIdx = Number(sel.value) || 0;
+    f.headerRow = Math.max(0, IM.detectHeader(f.sheets[f.sheetIdx]?.rows || []));
+    IM.remap(f); rerender();
+  });
+  $$('[data-imp-head]').forEach(inp => inp.onchange = () => {
+    const f = fileAt(inp, 'impHead');
+    const n = (f.sheets[f.sheetIdx]?.rows || []).length;
+    f.headerRow = Math.min(Math.max(0, (Number(inp.value) || 1) - 1), Math.max(0, n - 1));
+    IM.remap(f); rerender();
+  });
+  $$('[data-imp-col]').forEach(sel => sel.onchange = () => {
+    const f = fileAt(sel, 'impFile');
+    f.map[Number(sel.dataset.impCol)] = sel.value || null;
+    rerender();
+  });
+  $$('[data-imp-remove]').forEach(b => b.onclick = () => { imp.files.splice(Number(b.dataset.impRemove), 1); rerender(); });
+  $$('[data-imp-clear]').forEach(b => b.onclick = () => { ctx.imp = { files: [] }; rerender(); });
+  $$('[data-imp-skip]').forEach(cb => cb.onchange = () => {
+    imp.skip = imp.skip || {};
+    imp.skip[cb.dataset.impSkip] = !cb.checked;
+    rerender();
+  });
+  $$('[data-imp-apply]').forEach(b => b.onclick = async () => {
+    const plan = imp.plan;
+    if (!plan) return;
+    const chosen = plan.people.filter(p => !(imp.skip || {})[p.id]);
+    const failed = [];
+    let fields = 0;
+    b.disabled = true;
+    for (let i = 0; i < chosen.length; i++) {
+      const p = chosen[i];
+      b.textContent = t.saving.replace('{i}', i + 1).replace('{n}', chosen.length);
+      try {
+        if (Object.keys(p.emp).length) await D.saveEmployee(p.id, p.emp);
+        if (Object.keys(p.priv).length) await D.savePrivate(p.id, p.priv);
+        if (Object.keys(p.prof).length) await D.setOrg(p.id, p.prof);
+        if (p.salary) await D.upsertSalary({ employee_id: p.id, ...p.salary });
+        fields += p.changes.length;
+      } catch (e) {
+        console.error('import', p.name, e);
+        failed.push(p.name);
+      }
+    }
+    ctx.hrNotice = t.done.replace('{p}', chosen.length - failed.length).replace('{f}', fields)
+      + (failed.length ? t.doneErr.replace('{e}', failed.length).replace('{names}', failed.join(', ')) : '');
+    if (failed.length === chosen.length && chosen.length) { b.disabled = false; fail(new Error(ctx.hrNotice)); return; }
+    ctx.imp = { files: [] };
+    location.hash = '#/hr/people';
+  });
 }
