@@ -212,6 +212,11 @@ html[dir="rtl"] .navbtn.is-on { background: linear-gradient(270deg, var(--midnig
 .taskrow__d { color: var(--ink2); font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .taskrow__m { color: var(--ink3, var(--ink2)); font-size: 12px; }
 .taskrow__m b { color: var(--ink2); font-weight: 600; }
+/* Work timeline: completed tasks by month. */
+.wtl__mo { list-style: none; padding: 12px 0 4px; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--ink3, var(--ink2)); border-bottom: 1px solid var(--line); }
+.wtl__d { flex: none; width: 92px; font-size: 12px; color: var(--ink2); padding-top: 2px; font-variant-numeric: tabular-nums; }
+.wtl__x summary { cursor: pointer; font-size: 12px; color: var(--link); }
+.wtl__x[open] summary { margin-bottom: 4px; }
 .taskrow--done .taskrow__n { text-decoration: line-through; color: var(--ink3, var(--ink2)); font-weight: 500; }
 .taskrow .x { flex: none; }
 .desgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 12px; padding: 0 16px 14px; }
