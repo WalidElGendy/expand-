@@ -624,6 +624,16 @@ export const listMyTasks = async () => ok(await sb
   .order('due_on', { ascending: true, nullsFirst: false })
   .limit(200));
 
+/** One person's completed tasks, newest first: their work timeline, including
+    history archived from other tools (tasks without a project). */
+export const listTaskHistory = async (assignee_id, limit = 500) => ok(await sb
+  .from('tasks')
+  .select('id, name, notes, due_on, completed, completed_at, section_name, created_at, assignee_id, project:project_id ( id, name )')
+  .eq('assignee_id', assignee_id)
+  .eq('completed', true)
+  .order('completed_at', { ascending: false, nullsFirst: false })
+  .limit(limit));
+
 export const listProjectTasks = async (project_id) => ok(await sb
   .from('tasks')
   .select('id, name, notes, due_on, completed, section_name, created_at, assignee_id, created_by, asana_gid, assignee:assignee_id ( id, full_name ), creator:created_by ( id, full_name )')
