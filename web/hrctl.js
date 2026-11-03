@@ -101,6 +101,7 @@ export async function loadHR(route, id, ctx) {
     settle('empGoals', D.listGoals(id));
     settle('empReviews', db.listAllReviews({ subject_id: id }));
     settle('empNotes', db.listOneOnOnes({ employee_id: id }));
+    settle('empTasks', db.listTaskHistory(id));
     if (hr) {
       settle('empPriv', D.getPrivate(id), null);
       settle('empSalaries', D.listSalaries(id));
