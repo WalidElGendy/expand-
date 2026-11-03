@@ -114,6 +114,7 @@ export async function loadFor(route, id) {
     }
     if (route === 'tasks') {
       jobs.push(db.listMyPricingItems().then(x => { ctx.myPricing = x; }).catch(() => { ctx.myPricing = []; }));
+      jobs.push(db.listTaskHistory(db.state.me?.id).then(x => { ctx.myHistory = x; }).catch(() => { ctx.myHistory = []; }));
     }
 
     /* One lead. Same reasoning as the project page: fetched by id so a deep
@@ -1416,7 +1417,7 @@ function bodyFor(lang, route, id) {
       ? V.highlightsView(lang, ctx)
       : V.homeView(lang, ctx);
   }
-  if (route === 'tasks') return V.myTasksCard(lang, ctx) + V.myPricingCard(lang, ctx);
+  if (route === 'tasks') return V.myTasksCard(lang, ctx) + V.myPricingCard(lang, ctx) + V.workTimelineCard(lang, ctx.myHistory || []);
   const top = route === 'home' ? V.myTasksCard(lang, ctx, { compact: true }) : '';
   if (route === 'home' && db.state.me?.department_id === 'tenders' && !MG.isManagement()) {
     return top + TC.bodyTenders(lang, 'tenders', null, ctx);
