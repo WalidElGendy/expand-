@@ -2823,10 +2823,10 @@ export function workTimelineCard(lang, tasks = [], { title = null } = {}) {
     <li class="taskrow">
       <span class="wtl__d">${esc(fmt(d, lang))}</span>
       <div class="taskrow__b">
-        <span class="taskrow__n">${esc(x.name)}</span>
-        ${notes ? (long ? `<details class="wtl__x"><summary>${esc(t.tkDetails)}</summary><span class="taskrow__d">${esc(notes)}</span></details>`
-          : `<span class="taskrow__d">${esc(notes)}</span>`) : ''}
-        <span class="taskrow__m">${x.project ? `<button class="link" data-act="go" data-route="#/p/${esc(x.project.id)}">${esc(x.project.name)}</button>` : ''}${x.project && x.section_name ? ' · ' : ''}${x.section_name ? esc(x.section_name) : ''}</span>
+        <span class="taskrow__n" dir="auto">${esc(x.name)}</span>
+        ${notes ? (long ? `<details class="wtl__x"><summary>${esc(t.tkDetails)}</summary><span class="taskrow__d" dir="auto">${esc(notes)}</span></details>`
+          : `<span class="taskrow__d" dir="auto">${esc(notes)}</span>`) : ''}
+        <span class="taskrow__m" dir="auto">${x.project ? `<button class="link" data-act="go" data-route="#/p/${esc(x.project.id)}">${esc(x.project.name)}</button>` : ''}${x.project && x.section_name ? ' · ' : ''}${x.section_name ? esc(x.section_name) : ''}</span>
       </div>
     </li>`;
   }).join('');
