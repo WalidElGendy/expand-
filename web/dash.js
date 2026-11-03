@@ -391,6 +391,7 @@ export const DSTR = {
     tkDel: 'Remove task', tkDelConfirm: 'Remove this task?', tkNoOne: 'Unassigned',
     myTasks: 'My tasks', myTasksSub: 'Tasks assigned to you on any project.', myTasksNone: 'Nothing assigned to you right now.',
     myTasksAll: 'See all my tasks', tkProject: 'Project',
+    tkHistory: 'Work timeline', tkHistoryNone: 'No completed tasks yet.', tkDetails: 'Details',
     stagesHead: 'Teams and stages', noStages: 'No stages on this project yet.',
     moveTo: 'Move to', statusNote: 'Why (optional)', movedBy: '{who} moved it to {to}',
     createdOn: 'Created', updatedOn: 'Last change', noDescription: 'No description was written.',
@@ -716,6 +717,7 @@ export const DSTR = {
     tkDel: 'حذف المهمة', tkDelConfirm: 'حذف هذه المهمة؟', tkNoOne: 'غير مسندة',
     myTasks: 'مهامي', myTasksSub: 'المهام المسندة إليك في كل المشاريع.', myTasksNone: 'لا توجد مهام مسندة إليك حالياً.',
     myTasksAll: 'عرض كل مهامي', tkProject: 'المشروع',
+    tkHistory: 'سجل المهام', tkHistoryNone: 'لا توجد مهام منجزة بعد.', tkDetails: 'التفاصيل',
     stagesHead: 'الفرق والمراحل', noStages: 'لا توجد مراحل على هذا المشروع بعد.',
     moveTo: 'انقل إلى', statusNote: 'السبب (اختياري)', movedBy: '{who} نقله إلى {to}',
     createdOn: 'أُنشئ', updatedOn: 'آخر تغيير', noDescription: 'لم يُكتب وصف.',
@@ -2798,6 +2800,40 @@ export function myTasksCard(lang, ctx, { compact = false } = {}) {
     ${compact && tasks.length > shown.length ? `<button class="link" style="margin-inline-start:auto" data-act="go" data-route="#/tasks">${esc(t.myTasksAll)}</button>` : ''}</div>
   ${shown.length ? `<ul class="tasklist">${shown.map(x => taskRow(lang, x, { showProject: true })).join('')}</ul>`
     : `<p class="note">${esc(t.myTasksNone)}</p>`}
+</section>`;
+}
+
+/* A person's work timeline: their completed tasks, newest first, by month —
+   project tasks and the history archived from earlier tools alike. Shown under
+   My tasks for yourself and on the employee's HR page. */
+export function workTimelineCard(lang, tasks = [], { title = null } = {}) {
+  const t = DSTR[lang];
+  const day = (x) => String(x.completed_at || x.due_on || x.created_at || '').slice(0, 10);
+  const rows = tasks.slice().sort((a, b) => day(b).localeCompare(day(a)));
+  const month = (iso) => (iso ? new Intl.DateTimeFormat(lang === 'ar' ? 'ar-SA-u-ca-gregory-nu-latn' : 'en-GB',
+    { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${iso.slice(0, 7)}-01T00:00:00Z`)) : '—');
+  let last = null;
+  const items = rows.map(x => {
+    const d = day(x), m = d.slice(0, 7);
+    const head = m !== last ? `<li class="wtl__mo">${esc(month(d))}</li>` : '';
+    last = m;
+    const notes = x.notes || '';
+    const long = notes.length > 220 || notes.split('\n').length > 4;
+    return `${head}
+    <li class="taskrow">
+      <span class="wtl__d">${esc(fmt(d, lang))}</span>
+      <div class="taskrow__b">
+        <span class="taskrow__n">${esc(x.name)}</span>
+        ${notes ? (long ? `<details class="wtl__x"><summary>${esc(t.tkDetails)}</summary><span class="taskrow__d">${esc(notes)}</span></details>`
+          : `<span class="taskrow__d">${esc(notes)}</span>`) : ''}
+        <span class="taskrow__m">${x.project ? `<button class="link" data-act="go" data-route="#/p/${esc(x.project.id)}">${esc(x.project.name)}</button>` : ''}${x.project && x.section_name ? ' · ' : ''}${x.section_name ? esc(x.section_name) : ''}</span>
+      </div>
+    </li>`;
+  }).join('');
+  return `
+<section class="card">
+  <div class="card__head"><h2>${esc(title || t.tkHistory)}</h2><span class="muted small">${rows.length}</span></div>
+  ${rows.length ? `<ul class="tasklist">${items}</ul>` : `<p class="note">${esc(t.tkHistoryNone)}</p>`}
 </section>`;
 }
 
