@@ -8,7 +8,7 @@
 import * as db from './db.js';
 import * as H from './hrlogic.js';
 import { esc, fmt, kpi, deptName, isHR, formScore, KPI_ROWS, leaveSummary, dropField,
-         hrEmpPill, hrReqPill, DSTR, fileSize, avatarCard, avaHtml } from './dash.js';
+         hrEmpPill, hrReqPill, DSTR, fileSize, avatarCard, avaHtml, workTimelineCard } from './dash.js';
 import { ISTR } from './hrimport.js';
 
 /* ------------------------------------------------------------------ words */
@@ -30,7 +30,7 @@ export const HSTR = {
     balance: 'Annual balance', today: 'Today', search: 'Search', all: 'All', exportCsv: 'Export CSV', newHire: '+ New hiring request',
     st: { in: 'In', out: 'Left', absent: 'Absent', leave: 'On leave', sick: 'Sick', off: 'Off', expected: 'Not in yet' },
     empTabs: { profile: 'Profile', documents: 'Documents', leave: 'Leave', attendance: 'Attendance', salary: 'Salary',
-      performance: 'Performance', requests: 'Requests' },
+      performance: 'Performance', requests: 'Requests', tasks: 'Work timeline' },
     personal: 'Personal', job: 'Job & contract', identity: 'Identity & bank (HR only)',
     f: { phone: 'Mobile', nationality: 'Nationality', is_saudi: 'Saudi national', gender: 'Gender', male: 'Male', female: 'Female',
       birth_date: 'Date of birth', marital_status: 'Marital status', address: 'Address', emergency_name: 'Emergency contact',
@@ -154,7 +154,7 @@ export const HSTR = {
     balance: 'الرصيد السنوي', today: 'اليوم', search: 'بحث', all: 'الكل', exportCsv: 'تصدير CSV', newHire: '+ طلب توظيف جديد',
     st: { in: 'حاضر', out: 'انصرف', absent: 'غائب', leave: 'إجازة', sick: 'مريض', off: 'عطلة', expected: 'لم يحضر بعد' },
     empTabs: { profile: 'الملف', documents: 'الوثائق', leave: 'الإجازات', attendance: 'الحضور', salary: 'الراتب',
-      performance: 'الأداء', requests: 'الطلبات' },
+      performance: 'الأداء', requests: 'الطلبات', tasks: 'سجل المهام' },
     personal: 'البيانات الشخصية', job: 'الوظيفة والعقد', identity: 'الهوية والبنك (للموارد البشرية فقط)',
     f: { phone: 'الجوال', nationality: 'الجنسية', is_saudi: 'سعودي الجنسية', gender: 'الجنس', male: 'ذكر', female: 'أنثى',
       birth_date: 'تاريخ الميلاد', marital_status: 'الحالة الاجتماعية', address: 'العنوان', emergency_name: 'جهة اتصال للطوارئ',
@@ -633,7 +633,7 @@ export function hrEmpView(lang, ctx) {
   const e = ctx.hrEmp || {};
   const S = H.settingsOf(ctx.hrSettings);
   const today = H.todayIn(S.timezone);
-  const tabs = ['profile', 'documents', 'leave', 'attendance', ...(hr ? ['salary'] : []), 'performance', 'requests'];
+  const tabs = ['profile', 'documents', 'leave', 'attendance', ...(hr ? ['salary'] : []), 'performance', 'tasks', 'requests'];
   const tab = tabs.includes(ctx.empTab) ? ctx.empTab : 'profile';
   const status = e.employment_status || (p.is_active ? 'active' : 'probation');
   const ls = leaveSummary(e, ctx.empLeaves || [], today);
@@ -662,6 +662,7 @@ export function hrEmpView(lang, ctx) {
     attendance: () => empAttendance(lang, ctx, p, e, hr, S),
     salary: () => empSalary(lang, ctx, p, e),
     performance: () => empPerformance(lang, ctx, p),
+    tasks: () => workTimelineCard(lang, ctx.empTasks || []),
     requests: () => card(t.empTabs.requests, reqTable(lang, ctx, ctx.empRequests || [], { actions: true, showEmployee: false })),
   }[tab] || (() => '');
   return `${hrTabs(lang, 'people')}${head}${body()}`;
