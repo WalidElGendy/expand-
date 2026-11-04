@@ -16,7 +16,7 @@ export const LSTR = {
     none: 'No recommendations yet. Press Refresh insights to rank organisations from the tender data.',
     scoped: '{n} tenders in our scopes', open: '{n} open', next: 'next {d}', fit: 'fit {n}', bids: 'our bids {n}', won: 'won {n}', archived: '{n} past analyses',
     pitch: 'Pitch', pull: 'Pull contacts', pulling: 'Searching Lusha…', dismiss: 'Dismiss',
-    added: '{n} in Leads', notFound: 'Not in Lusha', noRoles: 'No marketing, events or procurement people in Lusha', noDetails: 'No contact details available',
+    added: '{n} in Leads', notFound: 'Not in Lusha', noRoles: 'No marketing, events or procurement people in Lusha', noDetails: 'No contact details available', otherOrg: 'Lusha only found namesakes at other organisations',
     pulled: '{a} added to Leads ({f} found in Lusha, {c} credits).', pulledNone: 'Nobody added — {why}.',
     needsAgency: 'This organisation has no English name or website yet — refresh insights first.',
     sc: { events: 'Events', stands: 'Exhibitions', fitout: 'Fit-out', marketing: 'Marketing' },
@@ -29,7 +29,7 @@ export const LSTR = {
     none: 'لا توجد توصيات بعد. اضغط «تحديث التوصيات» لترتيب الجهات من بيانات المنافسات.',
     scoped: '{n} منافسة ضمن نطاقاتنا', open: '{n} مفتوحة', next: 'الأقرب {d}', fit: 'الملاءمة {n}', bids: 'عروضنا {n}', won: 'فزنا {n}', archived: '{n} تحليل سابق',
     pitch: 'زاوية العرض', pull: 'جلب جهات الاتصال', pulling: 'جارٍ البحث في Lusha…', dismiss: 'إخفاء',
-    added: '{n} في العملاء المحتملين', notFound: 'غير موجودة في Lusha', noRoles: 'لا يوجد في Lusha مسؤولو تسويق أو فعاليات أو مشتريات', noDetails: 'لا تتوفر بيانات تواصل',
+    added: '{n} في العملاء المحتملين', notFound: 'غير موجودة في Lusha', noRoles: 'لا يوجد في Lusha مسؤولو تسويق أو فعاليات أو مشتريات', noDetails: 'لا تتوفر بيانات تواصل', otherOrg: 'وجد Lusha أشخاصاً في جهات أخرى بالاسم نفسه فقط',
     pulled: 'أُضيف {a} إلى العملاء المحتملين ({f} وُجدوا في Lusha، {c} رصيد).', pulledNone: 'لم يُضف أحد — {why}.',
     needsAgency: 'لا يوجد اسم إنجليزي أو موقع لهذه الجهة بعد — حدّث التوصيات أولاً.',
     sc: { events: 'فعاليات', stands: 'معارض وأجنحة', fitout: 'تجهيز داخلي', marketing: 'تسويق' },
@@ -40,7 +40,7 @@ export const LSTR = {
 
 const fill = (s, o) => String(s).replace(/\{(\w+)\}/g, (_, k) => (o[k] ?? ''));
 export const whyNot = (t, note) => (note === 'no_people' ? t.notFound : note === 'no_roles' ? t.noRoles
-  : note === 'no contact details' ? t.noDetails : note || '');
+  : note === 'no contact details' ? t.noDetails : note === 'other_org' ? t.otherOrg : note || '');
 
 /** The panel above the Leads table. `canAct`: may pull and dismiss. */
 export function leadIntelCard(lang, ctx, { canAct = false } = {}) {
