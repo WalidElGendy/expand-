@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>expand — know the delivery date before you promise it</title>
+<title>expand hub — know the delivery date before you promise it</title>
 <meta name="description" content="Capacity-aware delivery scheduling for Expand's proposal pipeline. Reads what each designer is already committed to and answers when." />
 <meta name="theme-color" content="#000000" />
 <meta name="expand-build" content="__BUILD_ID__" />
@@ -24,6 +24,8 @@
 <!-- Brand Arabic face, per guideline 5.6–5.8. Latin falls back to Arial,
      which the guideline names as the system font when Helvetica Now is absent. -->
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- The "hub" in the wordmark: an italic display serif against the bold sans. -->
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@1&display=swap" rel="stylesheet">
 <style>
 /* ==========================================================================
    expand — delivery estimator
@@ -257,6 +259,22 @@ html[dir="rtl"] .head::after { transform: scaleX(-1); }
 .brand { display: flex; align-items: center; gap: 12px; }
 .wordmark {
   font-size: 19px; font-weight: 700; letter-spacing: -.03em; color: var(--ink1);
+  display: inline-flex; align-items: baseline; gap: 5px; white-space: nowrap;
+}
+/* "expand hub": bold sans + an italic serif in the brand purples, lifted on a
+   soft glow so it reads as a mark rather than a second word. */
+.wordmark__hub {
+  font-family: "Instrument Serif", Georgia, "Times New Roman", serif;
+  font-style: italic; font-weight: 400; font-size: 25px; line-height: 1; letter-spacing: 0;
+  padding-inline-end: 3px;   /* room for the italic overhang */
+  background: linear-gradient(100deg, var(--biloba) 0%, var(--brand) 55%, #c86bf0 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--brand) 45%, transparent));
+  position: relative; top: 1px;
+}
+:root[data-theme="light"] .wordmark__hub {
+  background-image: linear-gradient(100deg, var(--brand) 0%, var(--midnight) 100%);
+  filter: none;
 }
 .sep { width: 1px; height: 26px; background: var(--line2); }
 .h1 { font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
