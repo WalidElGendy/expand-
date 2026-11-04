@@ -1047,6 +1047,9 @@ select.btn--sm { height: 28px; padding: 0 6px; background: var(--s-2); border: 1
 .tbl tbody tr { transition: background .1s; }
 .tbl tbody tr:hover td { background: var(--s-2); }
 .tbl td .link { font-size: 13px; font-weight: 500; }
+/* Leads table: the owner and note actions stay on one line, centred in the row. */
+.lead__own, .lead__note { white-space: nowrap; vertical-align: middle; }
+.lead__pick { white-space: nowrap; min-width: 76px; justify-content: center; }
 .tbl__empty { padding: 28px 16px; color: var(--ink3); text-align: center; }
 .tbl .stagecell { display: flex; gap: 5px; flex-wrap: wrap; }
 
