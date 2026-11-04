@@ -14,6 +14,7 @@ import * as TC from './tenderctl.js';
 import * as EC from './etimadctl.js';
 import * as MG from './mgmt.js';
 import * as XL from './xlsx.js';
+import * as LI from './leadintel.js';
 
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -172,6 +173,7 @@ export async function loadFor(route, id) {
     // missing tile would not have told.
     if (route === 'leads' || route === 'pipeline' || me.department_id === 'bd' || wantsProjects) {
       jobs.push(db.listLeads().then(l => { ctx.leads = l; }).catch(() => { ctx.leads = []; }));
+      if (route === 'leads') jobs.push(db.listLeadIntel().then(x => { ctx.leadIntel = x; }).catch(() => { ctx.leadIntel = []; }));
       jobs.push(db.listPeople().then(p => { ctx.people = p; }));
     }
     if (route === 'docs' || me.department_id === 'content') {
@@ -860,6 +862,40 @@ export function wireApp(lang) {
     } catch (e) { fail(e); }
   });
 
+  /* --- leads: recommendations from the tender insights --- */
+  const LT = LI.LSTR[lang] || LI.LSTR.en;
+  $$('[data-li-all]').forEach(b => b.onclick = () => { ctx.liAll = !ctx.liAll; rerender(); });
+  $$('[data-li-dismiss]').forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    try { await db.dismissLeadIntel(b.dataset.liDismiss); ctx.leadIntel = (ctx.leadIntel || []).filter(o => o.id !== b.dataset.liDismiss); rerender(); }
+    catch (e) { b.disabled = false; fail(e); }
+  });
+  $$('[data-li-pull]').forEach(b => b.onclick = async () => {
+    const id = b.dataset.liPull;
+    ctx.liBusy = { ...(ctx.liBusy || {}), [id]: true }; ctx.liNotice = null; rerender();
+    try {
+      const r = await db.leadIntel('pull', { id, max: 2 });
+      const n = (r.added || []).length;
+      ctx.liNotice = n ? LT.pulled.replace('{a}', n).replace('{f}', r.found).replace('{c}', r.credits ?? 0)
+        : LT.pulledNone.replace('{why}', LI.whyNot(LT, r.note || (r.skipped || [])[0]));
+    } catch (e) { ctx.liNotice = /needs_agency/.test(e.message) ? LT.needsAgency : e.message; }
+    ctx.liBusy = { ...(ctx.liBusy || {}), [id]: false };
+    await loadFor(ctx.route, ctx.routeId); rerender();
+  });
+  $$('[data-li-refresh]').forEach(b => b.onclick = async () => {
+    ctx.liRefreshing = LT.refreshing; ctx.liNotice = null; rerender();
+    try {
+      const r = await db.leadIntel('refresh');
+      const ids = r.need_enrich || [];
+      for (let i = 0; i < ids.length; i += 12) {
+        ctx.liRefreshing = LT.explaining.replace('{i}', Math.min(i + 12, ids.length)).replace('{n}', ids.length); rerender();
+        await db.leadIntel('enrich', { ids: ids.slice(i, i + 12) });
+      }
+    } catch (e) { ctx.liNotice = e.message; }
+    ctx.liRefreshing = null;
+    await loadFor(ctx.route, ctx.routeId); rerender();
+  });
+
   /* --- leads: pick one up (list row or the lead's own page) --- */
   $$('[data-pickup]').forEach(b => b.onclick = async () => {
     b.disabled = true;
@@ -1400,7 +1436,7 @@ function bodyFor(lang, route, id) {
   if (route === 'projects') return V.pmView(lang, ctx);
   if (route === 'project')  return V.projectView(lang, ctx);
   if (route === 'lead')     return V.leadView(lang, ctx);
-  if (route === 'leads') return V.leadsView(lang, ctx);
+  if (route === 'leads') return LI.leadIntelCard(lang, ctx, { canAct: V.canSell() }) + V.leadsView(lang, ctx);
   if (route === 'pipeline') return V.pipelineView(lang, ctx);
   if (route === 'performance') return V.performanceView(lang, ctx);
   if (route === 'docs')  return V.docsView(lang, ctx);
