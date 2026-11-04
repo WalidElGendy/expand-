@@ -656,6 +656,7 @@ export const setTaskDone = async (id, completed) => ok(await sb
 const LEAD_COLS = `
   id, name, company, title, website, email, phone, status, source,
   next_follow_up_on, value_sar, notes, created_at, updated_at, owner_id,
+  intel_id, linkedin,
   owner:owner_id ( id, full_name )`;
 
 export const listLeads = async ({ limit = 1000 } = {}) => ok(await sb
@@ -691,6 +692,16 @@ export const findProjects = async (term, limit = 12) => ok(await sb
 
 export const linkProposal   = (project_id, lead_id) => updateProject(project_id, { lead_id });
 export const unlinkProposal = (project_id)          => updateProject(project_id, { lead_id: null });
+
+/* --------------------------------------------- leads from tender insights */
+
+/** The ranked organisations (lead_intel), best first. */
+export const listLeadIntel = async () => ok(await sb.from('lead_intel')
+  .select('id, rank, score, agency, name_en, domain, sector, signals, top_tenders, insight_en, insight_ar, angle_en, angle_ar, leads_added, contacts_found, lusha_note, lusha_checked_at, dismissed')
+  .not('rank', 'is', null).eq('dismissed', false).order('rank').limit(200));
+export const dismissLeadIntel = async (id) => ok(await sb.from('lead_intel').update({ dismissed: true }).eq('id', id).select('id'));
+/** lead-intel function: status · refresh · enrich {ids} · pull {id, max}. */
+export const leadIntel = (action, args = {}) => callFn('lead-intel', { action, ...args });
 
 export const createLead = async (l) => ok(await sb
   .from('leads')
