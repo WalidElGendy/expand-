@@ -53,6 +53,20 @@ check(picked.map(p => p._role).join() === 'marketing,events' || new Set(picked.m
 check(picked.every(p => p._reveal.length), 'reveal only the fields Lusha has');
 check(R.pickContacts([{ id: 'z', jobTitle: { title: 'Events lead' } }], 2).length === 1, 'falls back to people without data when nobody has any');
 
+/* ------------------------------------------- is it really that body */
+const T = (email, phone, matchedBy, orgDomain = null, sector = 'government') => R.trustContact({ email, phone, matchedBy, orgDomain, sector });
+check(T('a@ncp.gov.sa', null, 'domain', 'ncp.gov.sa'), 'own domain');
+check(T('o@mngha.med.sa', null, 'domain', 'ngha.med.sa'), 'Saudi email under a domain match');
+check(T(null, null, 'domain', 'iu.edu.sa'), 'LinkedIn-only person found under the domain');
+check(!T('dareen@mot.gov.il', null, 'domain', 'mot.gov.sa'), 'foreign email under a domain match');
+check(!T('linda@sport-hasharon.co.il', null, 'name', 'sport.gov.sa'), 'namesake abroad');
+check(!T('ismail.ceviz@egm.gov.tr', null, 'name'), 'Turkish police for Saudi Public Security');
+check(!T(null, '+971 54 474 5593', 'name'), 'UAE phone only, found by name');
+check(!T('i.alshammari@joufcem.com.sa', null, 'name', 'amanataljouf.gov.sa', 'municipality'), 'a company for a municipality');
+check(T('smarzooq@kfca.sa', null, 'name'), 'Saudi email found by name');
+check(T(null, '+966 50 547 1999', 'name'), 'Saudi phone found by name');
+check(T('x@sar.com.sa', null, 'name', null, 'semi_government'), '.com.sa fine for a company');
+
 /* ------------------------------------------------------------ panel */
 const ctx = { leadIntel: [
   { id: 'o1', rank: 1, agency: 'جامعة أ', name_en: 'Uni A', sector: 'education', signals: { scoped: 3, open: 1, nextDeadline: '2099-01-01', scopes: ['events'] }, insight_en: 'Why <now>', angle_en: 'Pitch it', leads_added: 2 },
@@ -60,6 +74,9 @@ const ctx = { leadIntel: [
   { id: 'o3', rank: 3, agency: 'gone', dismissed: true },
 ] };
 const en = leadIntelCard('en', ctx, { canAct: true });
+ctx.leadIntel.push({ id: 'o4', rank: 4, agency: 'x', signals: {}, lusha_note: 'other_org' });
+check(leadIntelCard('en', ctx, { canAct: true }).includes('namesakes'), 'other-organisation note');
+ctx.leadIntel.pop();
 check(en.includes('Recommended by tender insights') && en.includes('2 in Leads') && en.includes('Not in Lusha'), 'panel shows states');
 check(en.includes('Why &lt;now&gt;') && !en.includes('<now>'), 'insight escaped');
 check(!en.includes('gone'), 'dismissed hidden');
