@@ -3606,7 +3606,7 @@ export function leadsView(lang, ctx) {
           <td><button class="link" data-act="go" data-route="#/l/${esc(l.id)}">${esc(l.name)}</button>
             ${l.email ? `<span class="muted small block">${esc(l.email)}</span>` : ''}</td>
           ${anyTitle ? `<td class="small ${l.title ? '' : 'muted'}">${esc(l.title || '—')}</td>` : ''}
-          <td class="small ${co ? '' : 'muted'}">${esc(co || '—')}</td>
+          <td class="small ${co ? '' : 'muted'}">${esc(co || '—')}${l.intel_id ? `<span class="li__tag li__tag--sc" style="margin-inline-start:6px">${esc(lang === 'ar' ? 'من تحليل المنافسات' : 'Tender insight')}</span>` : ''}</td>
           <td>
             <select class="leadStatus btn--sm" data-lead="${esc(l.id)}">
               ${opts.map(s => `<option value="${s}"${s === l.status ? ' selected' : ''}>${esc(t.st[s] || String(s).replace(/_/g, ' '))}</option>`).join('')}
@@ -3668,7 +3668,8 @@ export function leadView(lang, ctx) {
     ${fact(t.jobTitle, esc(l.title || '—'), l.title ? '' : 'muted')}
     ${fact(t.email, l.email ? `<a class="link" href="mailto:${esc(l.email)}">${esc(l.email)}</a>` : '—', l.email ? '' : 'muted')}
     ${fact(t.phone, l.phone ? `<a class="link" href="tel:${esc(String(l.phone).split(',')[0].replace(/\s/g, ''))}">${esc(l.phone)}</a>` : '—', l.phone ? '' : 'muted')}
-    ${fact(t.website, l.website ? `<a class="link" href="${esc(l.website)}" target="_blank" rel="noopener">${esc(co || l.website)} ↗</a>` : '—', l.website ? '' : 'muted')}
+    ${fact(t.website, l.website ? `<a class="link" href="${esc(/^https?:\/\//i.test(l.website) ? l.website : `https://${l.website}`)}" target="_blank" rel="noopener">${esc(co || l.website)} ↗</a>` : '—', l.website ? '' : 'muted')}
+    ${l.linkedin ? fact('LinkedIn', `<a class="link" href="${esc(l.linkedin)}" target="_blank" rel="noopener">${esc(lang === 'ar' ? 'الملف الشخصي' : 'Profile')} ↗</a>`) : ''}
     ${fact(t.owner, esc(l.owner?.full_name || t.unassigned), l.owner ? '' : 'muted')}
     ${fact(t.followUp, `${esc(fmt(l.next_follow_up_on, lang))}${late ? ` <span class="bad small">${late} ${esc(t.overdue)}</span>` : ''}`)}
     ${fact(t.createdOn, esc(fmt((l.created_at || '').slice(0, 10), lang)))}
