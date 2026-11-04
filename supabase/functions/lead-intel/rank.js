@@ -189,3 +189,21 @@ export function pickContacts(results, max = 2) {
   for (const c of cands) if (picked.length < max && !picked.includes(c)) picked.push(c);
   return picked.map(c => ({ ...c.r, _role: c.role, _reveal: c.data }));
 }
+
+/** Is a revealed contact really at this organisation? Lusha sometimes matches
+    a Saudi body by name to a namesake abroad ("Ministry of Sport" → a club in
+    Israel, "General Security" → the Turkish police) or to a local company
+    ("Al-Jouf Municipality" → Jouf Cement).
+    · Any email must be Saudi (.sa) or on the organisation's own domain.
+    · Found by name (no domain, or the domain found nobody): an email or a
+      +966 phone is required, and a government body's email cannot be .com.sa. */
+export function trustContact({ email, phone, matchedBy, orgDomain, sector }) {
+  const d = String(email || '').split('@')[1]?.toLowerCase() || '';
+  const own = orgDomain && (d === orgDomain || d.endsWith('.' + orgDomain));
+  if (d && !own && !d.endsWith('.sa')) return false;
+  if (matchedBy === 'domain') return true;
+  const ksaPhone = /^\+?966/.test(String(phone || '').replace(/[\s()-]/g, ''));
+  if (!d && !ksaPhone) return false;
+  if (d && !own && d.endsWith('.com.sa') && !['private', 'semi_government'].includes(sector)) return false;
+  return true;
+}
