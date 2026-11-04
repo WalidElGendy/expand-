@@ -3613,10 +3613,10 @@ export function leadsView(lang, ctx) {
             </select>
           </td>
           <td class="num ${late ? 'bad' : 'muted'}">${esc(fmt(l.next_follow_up_on, lang))}</td>
-          <td class="small">${l.owner?.full_name ? esc(l.owner.full_name)
-            : mayPick ? `<button class="btn btn--sm" data-pickup="${esc(l.id)}">${esc(t.pickUp)}</button>`
+          <td class="small lead__own">${l.owner?.full_name ? esc(l.owner.full_name)
+            : mayPick ? `<button class="btn btn--sm lead__pick" data-pickup="${esc(l.id)}">${esc(t.pickUp)}</button>`
             : `<span class="muted">${esc(t.unassigned)}</span>`}</td>
-          <td class="num"><button class="link small" data-note="${esc(l.id)}">${esc(t.logNote)}</button></td>
+          <td class="num lead__note"><button class="link small" data-note="${esc(l.id)}">${esc(t.logNote)}</button></td>
         </tr>`;
       }).join('')
       : `<tr><td class="tbl__empty" colspan="7">${esc(t.noLeadMatch)}</td></tr>`}
