@@ -1348,6 +1348,21 @@ select.btn--sm { height: 28px; padding: 0 6px; background: var(--s-2); border: 1
 .impcol__s { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .impcol select { width: 100%; }
 .impchg { margin: 0; padding-inline-start: 16px; display: grid; gap: 2px; }
+/* Leads → recommended by tender insights */
+.li { list-style: none; margin: 0; padding: 0 16px 8px; display: grid; gap: 0; }
+.li__row { display: grid; grid-template-columns: 30px 1fr auto; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); align-items: start; }
+.li__rank { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; background: color-mix(in srgb, var(--brand) 18%, transparent); color: var(--ink1); }
+.li__b { min-width: 0; display: grid; gap: 4px; }
+.li__h { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 8px; }
+.li__tag { font-size: 11px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line); color: var(--ink2); white-space: nowrap; }
+.li__tag--sc { border-color: color-mix(in srgb, var(--brand) 45%, transparent); }
+.li__sig { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--ink2); }
+.li__sig span { white-space: nowrap; }
+.li__why, .li__pitch { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ink1); }
+.li__pitch { color: var(--ink2); }
+.li__act { display: grid; justify-items: end; gap: 6px; min-width: 120px; }
+.li__ok { font-size: 12px; font-weight: 600; color: var(--ok); }
+@media (max-width: 720px) { .li__row { grid-template-columns: 26px 1fr; } .li__act { grid-column: 2; justify-items: start; } }
 .etlist { margin: 0 0 6px; padding: 0 16px 0 34px; display: grid; gap: 5px; font-size: 13px; line-height: 1.55; }
 [dir="rtl"] .etlist { padding: 0 34px 0 16px; }
 .etuse { display: grid; gap: 3px; min-width: 0; }
