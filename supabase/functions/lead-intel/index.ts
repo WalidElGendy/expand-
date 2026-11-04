@@ -21,7 +21,7 @@
    ========================================================================== */
 
 import { CORS, json, adminClient, whoIsAsking } from '../_shared/http.ts';
-import { rankOrgs, pickContacts, ALL_TITLES } from './rank.js';
+import { rankOrgs, pickContacts, trustContact, ALL_TITLES } from './rank.js';
 
 const MODEL = Deno.env.get('ANTHROPIC_MODEL') || 'claude-sonnet-5-5';
 const key = (n: string) => (Deno.env.get(n) || '').trim();
@@ -179,8 +179,10 @@ async function pull(admin: Admin, by: string, id: string, max: number) {
   let res = await search(true);
   let charged = Number(res?.billing?.creditsCharged) || 0;
   let found = list(res?.results);
+  let matchedBy = o.domain ? 'domain' : 'name';
   // A domain with nobody under it: try the English name once.
   if (!found.length && o.domain && o.name_en) {
+    matchedBy = 'name';
     res = await lusha('contacts/prospecting', { pagination: { page: 0, size: 40 },
       filters: { companies: { include: { names: [o.name_en] } }, contacts: { include: { jobTitles: ALL_TITLES } } },
       options: { includePartialProfiles: true } });
@@ -232,6 +234,7 @@ async function pull(admin: Admin, by: string, id: string, max: number) {
       `Role: ${c._role}. Source: Lusha, ${today()}.`,
     ].filter(Boolean).join('\n\n');
     if (!emails.length && !phones.length && !(r.socialLinks?.linkedin || c.socialLinks?.linkedin)) { skipped.push('no contact details'); continue; }
+    if (!trustContact({ email: emails[0], phone: phones[0], matchedBy, orgDomain: o.domain, sector: o.sector })) { skipped.push('other organisation'); continue; }
     const lead = {
       name, company: o.agency, title: r.jobTitle?.title || c.jobTitle?.title || null,
       email: emails[0] || null, phone: phones[0] || null, website: o.domain || r.company?.domain || null,
@@ -242,7 +245,8 @@ async function pull(admin: Admin, by: string, id: string, max: number) {
     if (error) { skipped.push(error.message); continue; }
     added.push(ins);
   }
-  const note = !found.length ? 'no_people' : !picks.length ? 'no_roles' : !added.length ? (skipped[0] || 'none_added') : null;
+  const note = !found.length ? 'no_people' : !picks.length ? 'no_roles'
+    : !added.length ? (skipped.includes('other organisation') ? 'other_org' : skipped[0] || 'none_added') : null;
   await admin.from('lead_intel').update({
     lusha_checked_at: new Date().toISOString(), contacts_found: found.length,
     leads_added: (Number(o.leads_added) || 0) + added.length, lusha_note: note,
