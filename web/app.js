@@ -442,13 +442,13 @@ function sidebar() {
 
   return `
   <aside class="side">
-    <button class="side__brand" data-act="go" data-route="#/" aria-label="expand — home">
+    <button class="side__brand" data-act="go" data-route="#/" aria-label="expand hub — home">
       <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true">
         <circle cx="7" cy="12" r="5.4" fill="none" stroke="var(--brand)" stroke-width="2.4"/>
         <rect x="4.4" y="10.6" width="5.2" height="2.8" fill="var(--s-1)"/>
         <circle cx="7" cy="12" r="1.6" fill="var(--brand)"/>
       </svg>
-      <span class="wordmark">expand</span>
+      <span class="wordmark" dir="ltr">expand<span class="wordmark__hub">hub</span></span>
     </button>
 
     ${groups.map(g => `
