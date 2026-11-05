@@ -964,7 +964,9 @@ export async function fileUrl(bucket, path, seconds = 300) {
 }
 
 export const deleteFile = async (f) => {
-  await sb.storage.from(f.bucket).remove([f.path]);
+  // A tender document shown on its project is the tender's own file: removing
+  // it from the project drops the project's row and leaves the tender's copy.
+  if (f.bucket !== 'tenders') await sb.storage.from(f.bucket).remove([f.path]);
   return ok(await sb.from('files').delete().eq('id', f.id).select());
 };
 
