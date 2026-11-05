@@ -694,7 +694,10 @@ ${!m.rounds ? card(x.title, empty(x.none)) : `
 function sayPoint(lang, p, kind) {
   const x = T(lang).cp;
   const txt = (kind === 's' ? x.s : x.w)[p.code] || p.code;
-  return fill(txt, { n: p.n ?? '', of: p.of ?? '', agency: p.agency || '', v: p.value ? sar(p.value, { compact: true }) : '', scope: p.scope ? scopeName(lang, p.scope) : '' });
+  // Names go in a bidi isolate, so an Arabic agency inside an English
+  // sentence (or the reverse) keeps the sentence's word order.
+  const iso = (v) => (v ? `\u2068${v}\u2069` : '');
+  return fill(txt, { n: p.n ?? '', of: p.of ?? '', agency: iso(p.agency), v: p.value ? iso(sar(p.value, { compact: true })) : '', scope: p.scope ? iso(scopeName(lang, p.scope)) : '' });
 }
 
 export function etimadCompetitorView(lang, ctx) {
