@@ -14,7 +14,7 @@ const today = '2026-11-05';
 const stage = (status, who = 'Bawarith') => ({ id: 's-' + status, department_id: 'production', status, sort: 4, assignee: { full_name: who } });
 const P = [
   { id: 'a', name: 'Won, buying', client: 'NCPD', status: 'won', due_on: '2026-11-12', owner: { full_name: 'Manal' }, project_stages: [stage('pending')] },
-  { id: 'b', name: 'On the floor', status: 'in_production', due_on: '2026-10-30', project_stages: [stage('in_progress')] },
+  { id: 'b', name: 'On the floor', status: 'in_production', due_on: '2026-09-01', estimated_delivery: '2026-10-30', project_stages: [stage('in_progress')] },
   { id: 'c', name: 'Built', status: 'won', estimated_delivery: '2026-12-20', project_stages: [stage('done')] },
   { id: 'd', name: 'Still bidding', status: 'in_design', due_on: '2026-12-01', project_stages: [stage('pending')] },
   { id: 'e', name: 'Not the factory\'s', status: 'in_design', project_stages: [] },
@@ -42,7 +42,7 @@ check(F.phaseOf(P[3]) === 'upcoming', 'bidding = upcoming');
 check(F.phaseOf(P[5]) === 'delivered', 'delivered');
 check(F.deliveryOf(P[0], production[0]).src === 'site', 'site date wins');
 check(F.deliveryOf(P[2], null).on === '2026-12-20', 'then estimate');
-check(F.deliveryOf(P[1], null).src === 'deadline', 'then deadline');
+check(F.deliveryOf(P[3], null).on === null, 'a proposal deadline is not a delivery date');
 check(F.followUpOf({ status: 'done' }, -5, today) === null, 'done never needs follow-up');
 check(F.followUpOf({ status: 'not_available' }, 99, today).code === 'notAvailable', 'not available');
 check(F.followUpOf({ status: 'pending', updated_at: today }, -2, today).code === 'late', 'late delivery');
@@ -111,7 +111,7 @@ const proj = px[1];
 check(proj.rows[3].length === 12 && proj.freezeRow === 4 && proj.autoFilter === 'A4:L8', 'projects sheet header, freeze, filter');
 check(proj.rows.at(-1)[2].f === 'SUBTOTAL(103,B5:B8)', 'projects totals follow the filter');
 const lateCell = proj.rows[5][9];
-check(lateCell.v === -6 && /tdBad$/.test(lateCell.s), 'overdue days in red');
+check(lateCell.v === -65 && /tdBad$/.test(lateCell.s), 'overdue days in red');
 const pbytes = XL.buildWorkbook(px, { title: 'Projects' });
 check(unzipNames(pbytes).filter(n => n.startsWith('xl/worksheets/')).length === 3, 'three sheets in the file');
 check(XL.excelDate('2026-11-05') === 46331, 'excel date serial');
