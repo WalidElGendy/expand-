@@ -45,11 +45,12 @@ export function phaseOf(p) {
 }
 
 /** The date the factory works to: the site delivery date production set,
-    else the project's estimated delivery, else its deadline. */
+    else the project's estimated delivery. Not the project's deadline: that is
+    when the proposal is due, and reading it as a delivery date called every
+    project still being bid "late". */
 export function deliveryOf(p, prod) {
   if (prod?.site_delivery_on) return { on: prod.site_delivery_on, src: 'site' };
   if (p.estimated_delivery) return { on: p.estimated_delivery, src: 'estimate' };
-  if (p.due_on) return { on: p.due_on, src: 'deadline' };
   return { on: null, src: null };
 }
 
