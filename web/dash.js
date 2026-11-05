@@ -2189,7 +2189,8 @@ ${deadlineChart(lang, open)}
   <div class="card__head">
     <h2>${esc(t.projects)}</h2>
     <span class="muted small">${esc(t.showingN.replace('{n}', matched.length).replace('{t}', projects.length))}</span>
-    ${canPlan() ? `<button class="btn btn--primary btn--sm" style="margin-inline-start:auto" data-act="go" data-route="#/new">${esc(t.newProject)}</button>` : ''}
+    <button class="btn btn--sm" style="margin-inline-start:auto" data-proj-xlsx title="${esc(lang === 'ar' ? 'المشاريع المطابقة للتصفية، في ملف Excel منسّق' : 'The projects matching these filters, as a formatted Excel workbook')}">${esc(lang === 'ar' ? 'تصدير Excel' : 'Export Excel')}</button>
+    ${canPlan() ? `<button class="btn btn--primary btn--sm" data-act="go" data-route="#/new">${esc(t.newProject)}</button>` : ''}
   </div>
   ${filterBar(lang, ctx, projects)}
   ${flagged ? `<div class="chipbar">
