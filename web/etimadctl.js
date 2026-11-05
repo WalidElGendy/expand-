@@ -12,7 +12,7 @@ const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const safe = (p, fallback) => p.catch(() => fallback);
 
-export const ET_ROUTES = ['etimad', 'etimadlist', 'etimadours', 'etimadset', 'etimadt'];
+export const ET_ROUTES = ['etimad', 'etimadlist', 'etimadours', 'etimadset', 'etimadt', 'etimadcomp', 'etimadc'];
 
 /* The key check is one function call; it changes only when somebody adds a
    secret, so a minute's cache keeps page changes instant. */
@@ -37,6 +37,10 @@ export async function loadEtimad(route, id, ctx, { fresh = false } = {}) {
     settle('etFiles', E.listFiles(id));
     settle('projects', db.listProjects({ limit: 3000 }));
   }
+  if (route === 'etimadcomp' || route === 'etimadc') {
+    settle('etSettings', E.getSettings(), null);
+    if (route === 'etimadcomp') settle('cpTodo', E.awardsTodo(), null);
+  }
   if (route === 'etimadset') {
     settle('etSettings', E.getSettings(), null);
     settle('etUsage', E.listUsage());
@@ -44,6 +48,7 @@ export async function loadEtimad(route, id, ctx, { fresh = false } = {}) {
     settle('etBalances', E.balances(), null);
   }
   await Promise.all(jobs);
+  ctx.etLoadedAt = Date.now();
   if (route === 'etimadt' && ctx.etTender) ctx.etContacts = await safe(E.contactsFor(ctx.etTender), []);
 }
 
@@ -54,6 +59,8 @@ export function bodyEtimad(lang, route, id, ctx) {
     : route === 'etimadt' ? V.etimadTenderView(lang, ctx)
     : route === 'etimadours' ? V.etimadOursView(lang, ctx)
     : route === 'etimadset' ? V.etimadSettingsView(lang, ctx)
+    : route === 'etimadcomp' ? V.etimadCompetitorsView(lang, ctx)
+    : route === 'etimadc' ? V.etimadCompetitorView(lang, ctx)
     : null;
   ctx.etFlash = null;               // a message shows on one render only
   return html;
@@ -203,11 +210,47 @@ export function wireEtimad(lang, { ctx, rerender, fail }) {
     return t.ours.saved;
   }));
 
+  /* --- competitors --- */
+  const cpq = $('[data-cp-q]');
+  if (cpq) cpq.oninput = () => {
+    ctx.cpQ = cpq.value;
+    const box = $('[data-cp-rows]'); if (box) box.innerHTML = V.cpRowsHtml(lang, ctx);
+    $$('[data-cp-rows] [data-act="go"]').forEach(b => b.onclick = () => { location.hash = b.dataset.route; });
+  };
+  const cpf = $('[data-cp-fetch]');
+  if (cpf) cpf.onclick = run(cpf, t.cp.fetch, async () => {
+    const tot = { done: 0, withResults: 0, credits: 0 };
+    for (let i = 0; i < 25; i++) {
+      const r = await E.readAwards(12);
+      tot.done += r.done; tot.withResults += r.withResults; tot.credits += r.credits;
+      cpf.textContent = t.cp.fetching.replace('{n}', r.remaining ?? '…');
+      if (!r.done || !r.remaining) break;
+    }
+    return t.cp.fetched.replace('{d}', tot.done).replace('{r}', tot.withResults).replace('{c}', tot.credits);
+  });
+  const cph = $('[data-cp-history]');
+  if (cph) cph.onclick = run(cph, t.cp.historying, async () => {
+    /* A few words per call: Etimad answers slowly, and one call for every
+       word at once outlives the function's time limit. Awarded first, then
+       finished tenders. */
+    const words = ctx.etSettings?.keywords || [];
+    const tot = { found: 0, added: 0, credits: 0 };
+    for (const category of [6, 8]) {
+      for (let i = 0; i < words.length; i += 5) {
+        cph.textContent = `${t.cp.historying} ${Math.min(i + 5, words.length)}/${words.length}`;
+        const r = await E.findHistory(words.slice(i, i + 5), { pages: 2, category });
+        tot.found += r.found; tot.added += r.added; tot.credits += r.credits;
+      }
+    }
+    return t.cp.historied.replace('{f}', tot.found).replace('{a}', tot.added).replace('{c}', tot.credits);
+  });
+
   /* --- settings --- */
   const sf = $('[data-et-settings]');
   if (sf) sf.onsubmit = run(sf.querySelector('button'), '', async () => {
     const keywords = [...new Set(sf.elements.keywords.value.split(/\n+/).map(s => s.trim()).filter(Boolean))].slice(0, 60);
-    await E.saveSettings({ keywords, company_profile: sf.elements.company_profile.value.trim() || null });
+    const our_names = [...new Set((sf.elements.our_names?.value || '').split(/\n+/).map(s => s.trim()).filter(Boolean))].slice(0, 12);
+    await E.saveSettings({ keywords, company_profile: sf.elements.company_profile.value.trim() || null, ...(sf.elements.our_names ? { our_names } : {}) });
     return t.set.saved;
   });
   const disc = $('[data-et-discover]');
