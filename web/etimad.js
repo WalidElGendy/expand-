@@ -8,6 +8,7 @@
    Tender     one tender: details, AI analysis, suggested price, RFP files,
               agency contacts (Lusha)
    Our bids   how the tenders we applied for ended, and against whom
+   Competitors who we meet, how they win, and the rounds they took from us
    Settings   search words, our company profile for the AI, API status
    ========================================================================== */
 
@@ -15,11 +16,12 @@ import * as db from './db.js';
 import * as L from './etimadlogic.js';
 import { sar, normClient } from './tenderlogic.js';
 import { esc, fmt, fileSize } from './dash.js';
+import * as C from './competitors.js';
 
 export const ESTR = {
   en: {
     nav: 'Etimad Insights', title: 'Etimad Insights', sub: 'Government tenders in exhibitions, events, fit-out and marketing',
-    tabs: { overview: 'Overview', list: 'Tenders', ours: 'Our bids', settings: 'Settings' },
+    tabs: { overview: 'Overview', list: 'Tenders', ours: 'Our bids', comp: 'Competitors', settings: 'Settings' },
     scope: { stands: 'Exhibition stands', events: 'Events & conferences', fitout: 'Fit-out & interiors', marketing: 'Marketing & branding' },
     rec: { apply: 'Apply', consider: 'Consider', skip: 'Skip' },
     conf: { low: 'Low confidence', medium: 'Medium confidence', high: 'High confidence' },
@@ -64,6 +66,35 @@ export const ESTR = {
       beat: 'Beat us', avg: 'Avg price', lostWhy: 'Why we lost', rejWhy: 'Why we did not apply', clients: 'Agencies we bid with', table: 'Applied tenders — record the outcome',
       ourPrice: 'Our price', winner: 'Winner', winPrice: 'Winning price', bidders: 'Bidders', reason: 'Reason / notes', save: 'Save', saved: 'Saved.',
       none: 'No applied tenders yet. A tender the approver approves in Tenders appears here.', noRivals: 'No competitors recorded yet.' },
+    cp: { title: 'Competitors', sub: 'From Etimad award results: every bidder, their offer, the technical check and the winner — plus the competitor prices our team recorded.',
+      fetch: 'Read award results', fetching: 'Reading award results… {n} left', fetched: '{d} tenders read · {r} with results · {c} credits',
+      history: 'Find past tenders', historying: 'Searching past tenders…', historied: '{f} past tenders found · {a} new · {c} credits',
+      none: 'No award results yet. Press “Find past tenders”, then “Read award results” to collect them from Etimad.', search: 'Search a company…', noMatch: 'No company matches.',
+      todo: '{n} closed tenders still to read', allRead: 'All closed tenders read',
+      k: { rounds: 'Rounds analysed', roundsSub: '{n} from Etimad awards', companies: 'Competitors', withUs: 'Rounds with Expand', usRate: 'Expand win rate',
+        usRateSub: 'in rounds we bid', bidders: 'Bidders per round', winMed: 'Winner vs median', winMedSub: 'winning offer ÷ median compliant offer', techFail: 'Fail the technical check' },
+      col: { name: 'Company', part: 'Bids', wins: 'Won', rate: 'Win rate', value: 'Value won', tech: 'Pass technical', med: 'vs median', us: 'Against Expand', last: 'Last seen' },
+      vsUsCell: '{t} won · {w} lost · met {m}', ourRecord: 'Expand’s own record',
+      back: 'Competitors', notFound: 'No rounds for this company yet.', profile: 'Company profile',
+      tiles: { part: 'Participations', rate: 'Win rate', lost: 'Lost', value: 'Value of winning offers', tech: 'Passes technical', med: 'Offer vs median of compliant', notCheap: 'Won while not cheapest' },
+      medSub: 'under 100% = cheaper than the median', techSub: '{p} of {k} with a published result',
+      rival: 'Most faced', rivalTxt: '{name} — met {m} times · won {w} · the other won {l}',
+      agency: 'Top agency by value', agencyTxt: '{name} — {n} contracts worth {v}',
+      field: 'Strongest field', fieldTxt: '{name} — {w} wins of {n} ({p}%)', noField: 'Not enough rounds yet',
+      vs: 'Against Expand', vsNone: 'Not seen against Expand yet. If Expand bid under another name, add it in Settings → Expand on Etimad.',
+      vsSum: 'Met {m} times · they won {t} · we won {w}',
+      why: { cheaper: 'They were {n}% cheaper', higher_won: 'Won although {n}% more expensive — technical score, or our offer was excluded', failed_tech: 'Our technical offer did not pass',
+        same_price: 'Same price — decided on the technical score', unknown: 'Prices not published' },
+      weWhy: { cheaper: 'We were {n}% cheaper', higher_won: 'We won although {n}% more expensive', failed_tech: 'Their technical offer did not pass', same_price: 'Same price', unknown: '—' },
+      neither: 'Neither won — {w} took it', str: 'Strengths', weak: 'Weaknesses', noStr: 'Nothing stands out yet.', noWeak: 'Nothing stands out yet.',
+      s: { high_win_rate: 'Wins often: {n}% of bids', tech_strong: 'Passes the technical check {n}% of the time', price_aggressive: 'Prices aggressively: {n}% below the median on average',
+        wins_on_quality: 'Won {n} times without being the cheapest — strong technical offers', agency_hold: 'Strong with {agency}: {n} wins worth {v}',
+        scope_strong: 'Strong in {scope}: {n} wins of {of}', beats_us: 'Beat Expand {n} of {of} times' },
+      w: { low_win_rate: 'Rarely wins: {n}% of bids', tech_weak: 'Fails the technical check in {n}% of bids', price_high: 'Prices high: {n}% above the median on average',
+        cheap_but_loses: 'Was the cheapest compliant offer {n} times and still lost', scope_weak: 'No wins in {scope} ({n} bids)', we_beat_them: 'Expand beat them {n} of {of} times' },
+      rounds: 'Rounds', rcol: { tender: 'Tender', date: 'Closed', price: 'Their offer', rank: 'Price rank', tech: 'Technical', result: 'Result', winner: 'Winner' },
+      won: 'Won', lostR: 'Lost', pass: 'Passed', fail: 'Failed', of: '{r} of {n}', src: { etimad: 'Etimad award', analysis: 'Our analysis', ours: 'Our bid record' },
+      ourNames: 'Expand on Etimad', ourNamesHint: 'How Expand appears as a supplier in Etimad award results, one per line. Used to find the rounds competitors won against us.' },
     set: { words: 'Search words', wordsHint: 'One per line. Each word is one Etimad search per sync (Firecrawl credits).', profile: 'Our company, for the AI',
       profileHint: 'What we do, our strengths, typical project sizes, certifications, past clients. The analysis judges fit against this.',
       save: 'Save settings', saved: 'Saved.', api: 'Connections', model: 'AI model', tools: 'Etimad tools known', discover: 'Read Etimad catalogue',
@@ -77,7 +108,7 @@ export const ESTR = {
   },
   ar: {
     nav: 'تحليلات اعتماد', title: 'تحليلات اعتماد', sub: 'المنافسات الحكومية في المعارض والفعاليات والتجهيز والتسويق',
-    tabs: { overview: 'نظرة عامة', list: 'المنافسات', ours: 'عروضنا', settings: 'الإعدادات' },
+    tabs: { overview: 'نظرة عامة', list: 'المنافسات', ours: 'عروضنا', comp: 'المنافسون', settings: 'الإعدادات' },
     scope: { stands: 'أجنحة المعارض', events: 'الفعاليات والمؤتمرات', fitout: 'التجهيز الداخلي', marketing: 'التسويق والهوية' },
     rec: { apply: 'التقدم', consider: 'للدراسة', skip: 'عدم التقدم' },
     conf: { low: 'ثقة منخفضة', medium: 'ثقة متوسطة', high: 'ثقة عالية' },
@@ -122,6 +153,35 @@ export const ESTR = {
       beat: 'تفوّق علينا', avg: 'متوسط السعر', lostWhy: 'أسباب الخسارة', rejWhy: 'أسباب عدم التقدم', clients: 'الجهات التي قدمنا لها', table: 'المنافسات المقدّمة — سجّل النتيجة',
       ourPrice: 'سعرنا', winner: 'الفائز', winPrice: 'السعر الفائز', bidders: 'عدد المتقدمين', reason: 'السبب / ملاحظات', save: 'حفظ', saved: 'تم الحفظ.',
       none: 'لا توجد منافسات مقدّمة بعد. أي مناقصة يعتمدها صاحب القرار في المناقصات تظهر هنا.', noRivals: 'لم يُسجل منافسون بعد.' },
+    cp: { title: 'المنافسون', sub: 'من نتائج الترسية في اعتماد: كل المتقدمين وعروضهم ونتيجة الفحص الفني والفائز — مع أسعار المنافسين التي سجّلها فريقنا.',
+      fetch: 'قراءة نتائج الترسية', fetching: 'جارٍ قراءة نتائج الترسية… متبقٍ {n}', fetched: 'قُرئت {d} منافسة · {r} بنتائج · {c} رصيد',
+      history: 'البحث عن منافسات سابقة', historying: 'جارٍ البحث في المنافسات السابقة…', historied: 'وُجدت {f} منافسة سابقة · {a} جديدة · {c} رصيد',
+      none: 'لا توجد نتائج ترسية بعد. اضغط «البحث عن منافسات سابقة» ثم «قراءة نتائج الترسية» لجمعها من اعتماد.', search: 'ابحث عن شركة…', noMatch: 'لا توجد شركة مطابقة.',
+      todo: 'متبقٍ {n} منافسة مغلقة لم تُقرأ', allRead: 'قُرئت كل المنافسات المغلقة',
+      k: { rounds: 'جولات محللة', roundsSub: '{n} من نتائج ترسية اعتماد', companies: 'المنافسون', withUs: 'جولات شاركت فيها إكسباند', usRate: 'نسبة فوز إكسباند',
+        usRateSub: 'في الجولات التي قدمنا فيها', bidders: 'المتقدمون لكل جولة', winMed: 'الفائز مقابل الوسيط', winMedSub: 'العرض الفائز ÷ وسيط العروض المطابقة', techFail: 'لا يجتازون الفحص الفني' },
+      col: { name: 'الشركة', part: 'العروض', wins: 'فاز', rate: 'نسبة الفوز', value: 'قيمة ما فاز به', tech: 'يجتاز الفني', med: 'مقابل الوسيط', us: 'أمام إكسباند', last: 'آخر ظهور' },
+      vsUsCell: 'فاز {t} · خسر {w} · التقيا {m}', ourRecord: 'سجل إكسباند نفسها',
+      back: 'المنافسون', notFound: 'لا توجد جولات لهذه الشركة بعد.', profile: 'ملف الشركة',
+      tiles: { part: 'مشاركات', rate: 'نسبة الفوز', lost: 'خسرها', value: 'قيمة عروض الفوز', tech: 'يجتاز البوابة الفنية', med: 'موضعه من وسيط المطابقين', notCheap: 'فاز وليس الأرخص' },
+      medSub: 'أقل من 100% = أرخص من الوسيط', techSub: '{p} من {k} بنتيجة منشورة',
+      rival: 'أكثر من يواجه', rivalTxt: '{name} — التقيا {m} مرة · فاز {w} · وفاز الآخر {l}',
+      agency: 'أعلى جهة كسباً', agencyTxt: '{name} — {n} عقود بقيمة {v}',
+      field: 'أقوى ميدان', fieldTxt: '{name} — {w} فوزاً من {n} ({p}%)', noField: 'لا تكفي الجولات بعد',
+      vs: 'أمام إكسباند', vsNone: 'لم يظهر أمام إكسباند بعد. إن تقدمت إكسباند باسم آخر فأضفه في الإعدادات ← إكسباند في اعتماد.',
+      vsSum: 'التقيا {m} مرة · فازوا {t} · فزنا {w}',
+      why: { cheaper: 'كانوا أرخص بـ {n}%', higher_won: 'فازوا رغم أنهم أغلى بـ {n}% — بالتقييم الفني أو لاستبعاد عرضنا', failed_tech: 'لم يجتز عرضنا الفني',
+        same_price: 'السعر نفسه — حُسمت بالتقييم الفني', unknown: 'الأسعار غير منشورة' },
+      weWhy: { cheaper: 'كنا أرخص بـ {n}%', higher_won: 'فزنا رغم أننا أغلى بـ {n}%', failed_tech: 'لم يجتز عرضهم الفني', same_price: 'السعر نفسه', unknown: '—' },
+      neither: 'لم يفز أيٌّ منا — فاز {w}', str: 'نقاط القوة', weak: 'نقاط الضعف', noStr: 'لا شيء بارز بعد.', noWeak: 'لا شيء بارز بعد.',
+      s: { high_win_rate: 'يفوز كثيراً: {n}% من عروضه', tech_strong: 'يجتاز الفحص الفني في {n}% من عروضه', price_aggressive: 'تسعير هجومي: أقل من الوسيط بـ {n}% في المتوسط',
+        wins_on_quality: 'فاز {n} مرات دون أن يكون الأرخص — عروض فنية قوية', agency_hold: 'قوي لدى {agency}: {n} فوز بقيمة {v}',
+        scope_strong: 'قوي في {scope}: {n} فوز من {of}', beats_us: 'تفوّق على إكسباند {n} من {of} مرات' },
+      w: { low_win_rate: 'نادراً ما يفوز: {n}% من عروضه', tech_weak: 'لا يجتاز الفحص الفني في {n}% من عروضه', price_high: 'تسعير مرتفع: أعلى من الوسيط بـ {n}% في المتوسط',
+        cheap_but_loses: 'كان أرخص عرض مطابق {n} مرات وخسر', scope_weak: 'بلا فوز في {scope} ({n} عروض)', we_beat_them: 'تفوّقت عليه إكسباند {n} من {of} مرات' },
+      rounds: 'الجولات', rcol: { tender: 'المنافسة', date: 'الإغلاق', price: 'عرضه', rank: 'ترتيب السعر', tech: 'الفني', result: 'النتيجة', winner: 'الفائز' },
+      won: 'فاز', lostR: 'خسر', pass: 'مطابق', fail: 'غير مطابق', of: '{r} من {n}', src: { etimad: 'ترسية اعتماد', analysis: 'تحليلنا', ours: 'سجل عروضنا' },
+      ourNames: 'إكسباند في اعتماد', ourNamesHint: 'كيف يظهر اسم إكسباند كمورد في نتائج الترسية في اعتماد، اسم في كل سطر. يُستخدم لإيجاد الجولات التي فاز فيها المنافسون علينا.' },
     set: { words: 'كلمات البحث', wordsHint: 'كلمة في كل سطر. كل كلمة بحث واحد في اعتماد لكل مزامنة (رصيد Firecrawl).', profile: 'شركتنا، للذكاء الاصطناعي',
       profileHint: 'ما نقدمه ونقاط قوتنا وأحجام مشاريعنا والشهادات والعملاء السابقون. يقيس التحليل الملاءمة على هذا.',
       save: 'حفظ الإعدادات', saved: 'تم الحفظ.', api: 'الاتصالات', model: 'نموذج الذكاء الاصطناعي', tools: 'أدوات اعتماد المعروفة', discover: 'قراءة دليل اعتماد',
@@ -191,7 +251,7 @@ const recPill = (a, lang) => a?.result?.recommendation ? pill(T(lang).rec[a.resu
 
 function tabs(lang, on, ctx) {
   const t = T(lang);
-  const items = [['overview', '#/etimad'], ['list', '#/etimad/list'], ['ours', '#/etimad/ours'], ['settings', '#/etimad/settings']];
+  const items = [['overview', '#/etimad'], ['list', '#/etimad/list'], ['ours', '#/etimad/ours'], ['comp', '#/etimad/competitors'], ['settings', '#/etimad/settings']];
   const s = ctx.etStatus || {};
   const last = s.last_sync_at ? fill(t.lastSync, { d: stamp(s.last_sync_at, lang) }) : t.never;
   return `<nav class="hrtabs">${items.map(([k, r]) =>
@@ -526,6 +586,7 @@ ${usage}
     <div class="fields">
       ${fld(x.words, `<textarea name="keywords" rows="8"${canEdit ? '' : ' disabled'}>${esc((s.keywords || []).join('\n'))}</textarea><span class="small muted">${esc(x.wordsHint)}</span>`, true)}
       ${fld(x.profile, `<textarea name="company_profile" rows="6"${canEdit ? '' : ' disabled'}>${esc(s.company_profile || '')}</textarea><span class="small muted">${esc(x.profileHint)}</span>`, true)}
+      ${fld(t.cp.ourNames, `<textarea name="our_names" rows="3"${canEdit ? '' : ' disabled'}>${esc((s.our_names || []).join('\n'))}</textarea><span class="small muted">${esc(t.cp.ourNamesHint)}</span>`, true)}
     </div>
     <div class="actions">${canEdit ? `<button class="btn btn--primary btn--sm">${esc(x.save)}</button>` : `<span class="small muted">${esc(x.onlyApprover)}</span>`}</div>
   </form></section>`;
@@ -562,6 +623,144 @@ function usageCard(lang, ctx) {
     ${tile('Claude', keys.anthropic, esc('$' + cl.usd.toFixed(2)), `${line(`${fill(x.analyses, { n: cl.n })} · ${fill(x.tokens, { n: n0(cl.input + cl.output) })}`)}${line(fill(x.claudeEst, { i: cl.rate[0], o: cl.rate[1] }))}${line(x.claudeBill)}`)}
     ${tile('Lusha', keys.lusha, esc(fill(x.credits, { n: n0(lu.units) })), `${line(fill(x.calls, { n: lu.calls }))}${account(bal.lusha, bal.lusha?.total)}${price('revealEmail') != null || price('revealPhone') != null ? line(fill(x.lushaPrice, { e: price('revealEmail') ?? '—', p: price('revealPhone') ?? '—' })) : ''}`)}
   </div>`);
+}
+
+/* ============================================================ competitors */
+
+const OUR_NAMES = ['اكسباند', 'إكسباند', 'اكسبند', 'expand'];
+/** Rounds and company profiles, worked out once per data load. */
+export function competitorData(ctx) {
+  const ourNames = ctx.etSettings?.our_names?.length ? ctx.etSettings.our_names : OUR_NAMES;
+  const sig = `${(ctx.etTenders || []).length}|${(ctx.tenders || []).length}|${(ctx.etOutcomes || []).length}|${ourNames.join(',')}|${ctx.etLoadedAt || ''}`;
+  if (ctx.cpCache?.sig === sig) return ctx.cpCache;
+  const rounds = C.buildRounds({ etimad: ctx.etTenders || [], ours: ctx.tenders || [], outcomes: ctx.etOutcomes || [], ourNames });
+  const comps = C.competitorStats(rounds);
+  ctx.cpCache = { sig, rounds, comps, market: C.marketStats(rounds, comps) };
+  return ctx.cpCache;
+}
+const pct = (n) => (n === null || n === undefined ? '—' : `${n}%`);
+const compRoute = (key) => `#/etimad/c/${encodeURIComponent(key)}`;
+const scopeName = (lang, k) => T(lang).scope[k] || k;
+
+export function cpRowsHtml(lang, ctx) {
+  const t = T(lang), x = t.cp;
+  const { comps } = competitorData(ctx);
+  const q = C.compKey(ctx.cpQ || '') || '';
+  const list = comps.filter(c => !c.us && (!q || c.key.includes(q))).slice(0, 150);
+  if (!list.length) return `<tr><td colspan="9" class="tbl__empty">${esc(x.noMatch)}</td></tr>`;
+  return list.map(c => `<tr>
+    <td style="min-width:220px">${go(compRoute(c.key), c.name)}</td>
+    <td class="num">${c.part}</td><td class="num">${c.wins}</td>
+    <td class="num ${c.winRate >= 30 ? 'good' : ''}">${pct(c.winRate)}</td>
+    <td class="num">${c.value ? moneyC(c.value) : '—'}</td>
+    <td class="num">${pct(c.techRate)}</td>
+    <td class="num">${pct(c.vsMedian)}</td>
+    <td class="small ${c.vsUs.theyWon ? 'bad' : 'muted'}">${c.vsUs.met ? esc(fill(x.vsUsCell, { t: c.vsUs.theyWon, w: c.vsUs.weWon, m: c.vsUs.met })) : '—'}</td>
+    <td class="small muted">${when(c.lastSeen, lang)}</td></tr>`).join('');
+}
+
+export function etimadCompetitorsView(lang, ctx) {
+  const t = T(lang), x = t.cp, k = x.k;
+  if (!canSeeEtimad()) return denied(lang);
+  const { comps, market: m } = competitorData(ctx);
+  const us = comps.find(c => c.us);
+  const todo = ctx.cpTodo;
+  const head = `<span class="small muted" style="margin-inline-start:auto">${todo == null ? '' : esc(todo ? fill(x.todo, { n: todo }) : x.allRead)}</span>
+    <button class="btn btn--sm" data-cp-history>${esc(x.history)}</button>
+    <button class="btn btn--primary btn--sm" data-cp-fetch>${esc(x.fetch)}</button>`;
+  return `
+${tabs(lang, 'comp', ctx)}
+<section class="card"><div class="card__head"><h2>${esc(x.title)}</h2>${head}</div>
+  <p class="muted small" style="margin:0 16px 12px">${esc(x.sub)}</p></section>
+${!m.rounds ? card(x.title, empty(x.none)) : `
+<div class="kpis">
+  ${kpi(m.rounds, k.rounds, { colour: 'var(--brand)', sub: fill(k.roundsSub, { n: m.etimad }) })}
+  ${kpi(m.companies, k.companies, { colour: 'var(--info)' })}
+  ${kpi(m.withUs, k.withUs, { colour: 'var(--warn)', sub: us ? '' : x.vsNone.split('.')[0] })}
+  ${kpi(pct(m.usRate), k.usRate, { colour: 'var(--ok)', sub: k.usRateSub })}
+  ${kpi(m.medBidders ?? '—', k.bidders, { colour: 'var(--ink3)' })}
+  ${kpi(pct(m.winVsMedian), k.winMed, { colour: 'var(--critical)', sub: m.techFail !== null ? `${k.techFail}: ${m.techFail}%` : k.winMedSub })}
+</div>
+<section class="card">
+  <div class="card__head"><h2>${esc(x.title)}</h2><span class="muted small">${m.companies}</span>
+    <input class="cellinput" data-cp-q value="${esc(ctx.cpQ || '')}" placeholder="${esc(x.search)}" style="margin-inline-start:auto;max-width:260px" />
+    ${us ? go(compRoute(us.key), x.ourRecord, 'btn btn--sm') : ''}</div>
+  ${tbl(`<th>${esc(x.col.name)}</th><th class="num">${esc(x.col.part)}</th><th class="num">${esc(x.col.wins)}</th><th class="num">${esc(x.col.rate)}</th>
+    <th class="num">${esc(x.col.value)}</th><th class="num">${esc(x.col.tech)}</th><th class="num">${esc(x.col.med)}</th><th>${esc(x.col.us)}</th><th>${esc(x.col.last)}</th>`,
+    `</tbody><tbody data-cp-rows>${cpRowsHtml(lang, ctx)}`)}
+</section>`}`;
+}
+
+function sayPoint(lang, p, kind) {
+  const x = T(lang).cp;
+  const txt = (kind === 's' ? x.s : x.w)[p.code] || p.code;
+  return fill(txt, { n: p.n ?? '', of: p.of ?? '', agency: p.agency || '', v: p.value ? sar(p.value, { compact: true }) : '', scope: p.scope ? scopeName(lang, p.scope) : '' });
+}
+
+export function etimadCompetitorView(lang, ctx) {
+  const t = T(lang), x = t.cp;
+  if (!canSeeEtimad()) return denied(lang);
+  const { comps } = competitorData(ctx);
+  const c = comps.find(z => z.key === ctx.routeId);
+  const back = `<nav class="crumb">${go('#/etimad/competitors', `← ${x.back}`)}</nav>`;
+  if (!c) return `${tabs(lang, 'comp', ctx)}${back}${card(x.profile, empty(x.notFound))}`;
+  const tile = (label, value, sub = '', cls = '') => `<div class="cptile"><span class="cptile__l">${esc(label)}</span><b class="cptile__n ${cls}">${value}</b>${sub ? `<span class="cptile__s">${esc(sub)}</span>` : ''}</div>`;
+  const rival = c.rivals.find(r => !r.us) || null;
+  const ag = c.agencies.find(a => a.name !== '—' && (a.wins || a.n)) || null;
+  const field = c.scopes.find(s => s.n >= 2) || null;
+  const insight = (icon, label, text) => `<div class="cpins"><span class="cpins__i" aria-hidden="true">${icon}</span><div><span class="cpins__l">${esc(label)}</span><p dir="auto">${text}</p></div></div>`;
+  const b = (s) => `<b dir="auto">${esc(s)}</b>`;
+  const vs = c.vsUs;
+  const winnerName = (r) => r.winner ? (r.winner.us ? 'Expand' : r.winner.name) : '—';
+  const vsRows = vs.rounds.map(v => {
+    const why = v.them.won ? x.why[v.why?.code] : v.us.won ? x.weWhy[v.why?.code] : null;
+    const res = v.them.won ? `<span class="bad">${esc(x.won)}</span>` : v.us.won ? `<span class="good">${esc(x.lostR)}</span>` : `<span class="muted">${esc(fill(x.neither, { w: winnerName(v) }))}</span>`;
+    return `<tr><td style="min-width:200px">${go(v.round.route, v.round.title)}<span class="block small muted">${esc(v.round.agency || '')} · ${esc(x.src[v.round.source])}</span></td>
+      <td class="small">${when(v.round.date, lang)}</td>
+      <td class="num">${v.them.price ? moneyC(v.them.price) : '—'}${v.them.tech === false ? `<span class="block small bad">${esc(x.fail)}</span>` : ''}</td>
+      <td class="num">${v.us.price ? moneyC(v.us.price) : '—'}${v.us.tech === false ? `<span class="block small bad">${esc(x.fail)}</span>` : ''}</td>
+      <td>${res}</td><td class="small">${why ? esc(fill(why, { n: v.why?.pct ?? '' })) : ''}</td></tr>`;
+  }).join('');
+  const roundRows = c.rounds.slice(0, 60).map(({ round: r, me, winner }) => {
+    const priced = r.bidders.filter(z => z.price).sort((p, q) => p.price - q.price);
+    const rank = me.price ? priced.findIndex(z => z.key === me.key) + 1 : 0;
+    return `<tr><td style="min-width:220px">${go(r.route, r.title)}<span class="block small muted">${esc(r.agency || '')} · ${esc(x.src[r.source])}</span></td>
+      <td class="small">${when(r.date, lang)}</td>
+      <td class="num">${me.price ? moneyC(me.price) : '—'}</td>
+      <td class="num small">${rank ? esc(fill(x.of, { r: rank, n: priced.length })) : '—'}</td>
+      <td class="small">${me.tech === null ? '—' : me.tech ? `<span class="good">${esc(x.pass)}</span>` : `<span class="bad">${esc(x.fail)}</span>`}</td>
+      <td>${me.won ? `<span class="good">${esc(x.won)}</span>` : `<span class="muted">${esc(x.lostR)}</span>`}</td>
+      <td class="small" dir="auto">${me.won ? '' : esc(winnerName({ winner }))}${!me.won && winner?.price ? ` · ${moneyC(winner.price)}` : ''}</td></tr>`;
+  }).join('');
+  return `
+${tabs(lang, 'comp', ctx)}
+${back}
+<section class="card cpprof">
+  <div class="card__head"><div><span class="muted small">${esc(x.profile)}</span><h2 dir="auto" style="margin-top:2px">${esc(c.name)}</h2></div></div>
+  <div class="cptiles">
+    ${tile(x.tiles.part, String(c.part))}
+    ${tile(x.tiles.rate, pct(c.winRate), '', 'good')}
+    ${tile(x.tiles.lost, String(c.losses))}
+    ${tile(x.tiles.value, c.value ? moneyC(c.value) : '—', '', 'good')}
+    ${tile(x.tiles.tech, pct(c.techRate), c.techKnown ? fill(x.techSub, { p: c.techPass, k: c.techKnown }) : '')}
+    ${tile(x.tiles.med, c.vsMedian === null ? '—' : `${c.vsMedian}%`, x.medSub)}
+    ${tile(x.tiles.notCheap, String(c.wonNotCheapest))}
+  </div>
+  <div class="cpinsights">
+    ${insight('🥊', x.rival, rival ? fill(esc(x.rivalTxt), { name: b(rival.us ? 'Expand' : rival.name), m: rival.met, w: rival.won, l: rival.lost }) : '—')}
+    ${insight('🏛', x.agency, ag ? fill(esc(x.agencyTxt), { name: b(ag.name), n: ag.wins, v: esc(sar(ag.value, { compact: true })) }) : '—')}
+    ${insight('🎯', x.field, field ? fill(esc(x.fieldTxt), { name: b(scopeName(lang, field.key)), w: field.wins, n: field.n, p: Math.round((field.wins / field.n) * 100) }) : esc(x.noField))}
+  </div>
+</section>
+<div class="chartrow" style="margin:14px 0">
+  ${card(x.str, c.strengths.length ? `<ul class="cppoints cppoints--s">${c.strengths.map(p => `<li dir="auto">${esc(sayPoint(lang, p, 's'))}</li>`).join('')}</ul>` : empty(x.noStr))}
+  ${card(x.weak, c.weaknesses.length ? `<ul class="cppoints cppoints--w">${c.weaknesses.map(p => `<li dir="auto">${esc(sayPoint(lang, p, 'w'))}</li>`).join('')}</ul>` : empty(x.noWeak))}
+</div>
+${c.us ? '' : card(x.vs, vs.met ? `<p class="small" style="margin:0 16px 10px">${esc(fill(x.vsSum, { m: vs.met, t: vs.theyWon, w: vs.weWon }))}</p>
+  ${tbl(`<th>${esc(x.rcol.tender)}</th><th>${esc(x.rcol.date)}</th><th class="num">${esc(x.rcol.price)}</th><th class="num">Expand</th><th>${esc(x.rcol.result)}</th><th></th>`, vsRows)}` : empty(x.vsNone),
+  vs.met ? `<span class="muted small">${vs.met}</span>` : '')}
+${card(x.rounds, tbl(`<th>${esc(x.rcol.tender)}</th><th>${esc(x.rcol.date)}</th><th class="num">${esc(x.rcol.price)}</th><th class="num">${esc(x.rcol.rank)}</th><th>${esc(x.rcol.tech)}</th><th>${esc(x.rcol.result)}</th><th>${esc(x.rcol.winner)}</th>`, roundRows),
+  `<span class="muted small">${c.rounds.length}</span>`)}`;
 }
 
 /** An error sentence a person can act on. */
