@@ -226,7 +226,7 @@ const propsOf = (schema) => {
 };
 
 /** The search tool, and options for one keyword from its schema. */
-export function searchCall(tools, keyword, page = 1) {
+export function searchCall(tools, keyword, page = 1, category) {
   const t = (tools || []).find(x => /search_tenders/i.test(x.capability))
     || (tools || []).find(x => /search/i.test(x.capability) && /tender/i.test(x.capability))
     || { capability: 'public-procurement-tenders/search_tenders', options: null };
@@ -238,6 +238,9 @@ export function searchCall(tools, keyword, page = 1) {
   if (kw) options[kw] = keyword;
   const pg = find(/^(page|page_number|pagenumber)$/i) || (names.length ? null : 'page');
   if (pg && page > 1) options[pg] = page;
+  // Past tenders: Etimad's TenderCategory (6 awarded, 8 finished).
+  const cat = category != null ? find(/^(category|tender_category|tendercategory)$/i) || (names.length ? null : 'category') : null;
+  if (cat) options[cat] = category;
   const sz = find(/^(page_size|pagesize|limit|size|per_page)$/i);
   if (sz) {
     // JSON Schema says `maximum`; Firecrawl's catalogue says `max`.
