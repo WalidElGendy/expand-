@@ -736,6 +736,18 @@ export function wireApp(lang) {
     catch (err) { b.disabled = false; fail(err); }
   });
 
+  /* --- one project: delete a document, pricing sheet or production file --- */
+  $$('[data-file-del]').forEach(b => b.onclick = async () => {
+    const f = (ctx.projectFiles || []).find(x => x.id === b.dataset.fileDel);
+    if (!f || !confirm(V.DSTR[lang].fileDelConfirm.replace('{name}', f.title || f.filename))) return;
+    b.disabled = true;
+    try {
+      const gone = await db.deleteFile(f);
+      if (!gone || !gone.length) throw new Error(V.DSTR[lang].fileDelDenied);
+      await loadFor('project', ctx.project.id); rerender();
+    } catch (err) { b.disabled = false; fail(err); }
+  });
+
   /* --- one project: delete a design (2D / 3D team, planners, managers) --- */
   $$('[data-des-del]').forEach(b => b.onclick = async () => {
     const f = (ctx.projectFiles || []).find(x => x.id === b.dataset.desDel);
