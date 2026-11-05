@@ -66,6 +66,21 @@ export const canManageDesign = (team, me = db.state.me) =>
   (!!me && me.is_active !== false && me.role === 'admin') ||
   (canDesign(team, me) && (!['2d', '3d'].includes(me?.department_id) || me.department_id === team));
 
+/* Who may delete a project file other than a design: whoever uploaded it,
+   admins, and the team that owns its list — planners for documents, the
+   pricing team for pricing sheets, production for procurement and production
+   files. Mirrors can_delete_project_file() in the database. */
+export const canDeleteProjectFile = (f, me = db.state.me) => {
+  if (!me || me.is_active === false || !f) return false;
+  if (me.role === 'admin' || (f.uploader?.id && f.uploader.id === me.id)) return true;
+  if (['rfp', 'reference', 'document'].includes(f.purpose)) return canPlan(me);
+  if (f.purpose === 'pricing') return canPrice(me);
+  if (['procurement', 'production'].includes(f.purpose)) return canEditProduction(me);
+  return false;
+};
+const fileDelBtn = (f, t) => (canDeleteProjectFile(f)
+  ? `<button type="button" class="x" style="margin-inline-start:auto" data-file-del="${esc(f.id)}" title="${esc(t.fileDel)}" aria-label="${esc(t.fileDel)}: ${esc(f.title || f.filename)}">✕</button>` : '');
+
 /* Everyone on a team stage: the members list, falling back to the single
    assignee for rows that predate it. */
 export const stageMemberIds = (s) => {
@@ -418,6 +433,8 @@ export const DSTR = {
     desHint2d: 'Technical drawings — PDF, DWG, DXF, images, up to 200 MB per file. Uploading marks the 2D stage done and sends the project to pricing.',
     desUpload: 'Upload design', desNone: 'No designs uploaded yet.', desNoStage: 'No stage on this project',
     desReadOnly: 'Only the 2D and 3D teams, planners and managers can upload designs.',
+    fileDel: 'Delete file', fileDelConfirm: 'Delete "{name}"? This cannot be undone.',
+    fileDelDenied: 'Only the person who uploaded this file, its team or an admin can delete it.',
     desDel: 'Delete design', desDelConfirm: 'Delete "{name}"? This cannot be undone. If it is the last design for this team, the stage goes back to In progress.',
     procSt: { pending: 'Pending', in_process: 'In process', done: 'Done', not_available: 'Not available', expensive: 'Expensive' },
     prodHead: 'Production', prodSchedule: 'Production schedule',
@@ -744,6 +761,8 @@ export const DSTR = {
     desHint2d: 'الرسومات الفنية — PDF أو DWG أو DXF أو صور، حتى 200 ميجابايت للملف. الرفع يجعل مرحلة 2D مكتملة وينقل المشروع إلى التسعير.',
     desUpload: 'رفع التصميم', desNone: 'لا توجد تصاميم مرفوعة بعد.', desNoStage: 'لا توجد هذه المرحلة في المشروع',
     desReadOnly: 'رفع التصاميم متاح لفريقي 2D و3D والمخططين والمدراء فقط.',
+    fileDel: 'حذف الملف', fileDelConfirm: 'حذف "{name}"؟ لا يمكن التراجع.',
+    fileDelDenied: 'يمكن حذف هذا الملف لمن رفعه أو للفريق المسؤول عنه أو للمدير فقط.',
     desDel: 'حذف التصميم', desDelConfirm: 'حذف "{name}"؟ لا يمكن التراجع. إذا كان آخر تصميم لهذا الفريق تعود المرحلة إلى قيد التنفيذ.',
     procSt: { pending: 'قيد الانتظار', in_process: 'قيد التنفيذ', done: 'تم', not_available: 'غير متوفر', expensive: 'مكلف' },
     prodHead: 'الإنتاج', prodSchedule: 'جدول الإنتاج',
@@ -2345,6 +2364,7 @@ ${inProd ? productionSections(lang, ctx) : ''}
       <span class="muted small">${esc(f.purpose)}${f.size_bytes ? ` · ${Math.max(1, Math.round(f.size_bytes / 1024))} KB` : ''}
         ${f.created_at ? ` · ${esc(t.docAdded.replace('{date}', fmt(f.created_at.slice(0, 10), lang)))}` : ''}
         ${f.uploader?.full_name ? ` · ${esc(t.uploadedBy.replace('{who}', f.uploader.full_name))}` : ''}</span>
+      ${fileDelBtn(f, t)}
     </li>`).join('')}</ul>` : `<p class="note">${esc(t.noDocuments)}</p>`}
 </section>
 
@@ -2394,6 +2414,7 @@ export function productionSections(lang, ctx) {
     <li class="filerow">
       <button class="link" data-file="${esc(f.id)}">${esc(f.title || f.filename)}</button>
       <span class="muted small">${f.size_bytes ? `${Math.max(1, Math.round(f.size_bytes / 1024))} KB` : ''}${f.uploader?.full_name ? ` · ${esc(t.uploadedBy.replace('{who}', f.uploader.full_name))}` : ''}</span>
+      ${fileDelBtn(f, t)}
     </li>`;
 
   const refCell = (it) => {
@@ -2576,6 +2597,7 @@ export function pricingSection(lang, ctx) {
     <li class="filerow">
       <button class="link" data-file="${esc(f.id)}">${esc(f.title || f.filename)}</button>
       <span class="muted small">${f.size_bytes ? `${Math.max(1, Math.round(f.size_bytes / 1024))} KB` : ''}${f.uploader?.full_name ? ` · ${esc(t.uploadedBy.replace('{who}', f.uploader.full_name))}` : ''}</span>
+      ${fileDelBtn(f, t)}
     </li>`).join('')}</ul></div>` : ''}
   ${canEdit ? '' : `<p class="note">${esc(anyEdit ? t.prAssignedOnly : t.prReadOnly)}</p>`}
 </section>`;
