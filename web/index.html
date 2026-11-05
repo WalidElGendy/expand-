@@ -1351,6 +1351,25 @@ select.btn--sm { height: 28px; padding: 0 6px; background: var(--s-2); border: 1
 
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 /* Etimad Insights */
+/* Etimad Insights → Competitors: a company profile */
+.cptiles { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; padding: 4px 16px 14px; }
+@media (max-width: 1400px) { .cptiles { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 760px)  { .cptiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.cptile { background: var(--s-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: grid; gap: 4px; align-content: start; min-width: 0; }
+.cptile__l { font-size: 12px; color: var(--ink2); }
+.cptile__n { font-size: 24px; font-weight: 700; letter-spacing: -.02em; color: var(--ink1); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.cptile__n.good { color: var(--ok); }
+.cptile__s { font-size: 11px; color: var(--ink3); }
+.cpinsights { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 0 16px 16px; }
+@media (max-width: 1000px) { .cpinsights { grid-template-columns: 1fr; } }
+.cpins { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.cpins__i { font-size: 18px; line-height: 1; }
+.cpins__l { font-size: 12px; color: var(--ink3); }
+.cpins p { margin: 2px 0 0; font-size: 13px; line-height: 1.6; color: var(--ink1); }
+.cppoints { margin: 0; padding: 4px 16px 14px; list-style: none; display: grid; gap: 8px; }
+.cppoints li { position: relative; padding-inline-start: 18px; font-size: 13px; line-height: 1.55; }
+.cppoints li::before { content: ''; position: absolute; inset-inline-start: 2px; top: .55em; width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
+.cppoints--w li::before { background: var(--critical); }
 .etchip { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; padding: 2px 8px; border-radius: 999px; margin: 1px 4px 1px 0;
   color: var(--ink2); background: color-mix(in srgb, var(--c) 14%, transparent); white-space: nowrap; }
 .etchip::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--c); }
