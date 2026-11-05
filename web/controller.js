@@ -12,6 +12,7 @@ import * as V from './dash.js';
 import * as HC from './hrctl.js';
 import * as TC from './tenderctl.js';
 import * as EC from './etimadctl.js';
+import * as FC from './factoryctl.js';
 import * as MG from './mgmt.js';
 import * as XL from './xlsx.js';
 import * as LI from './leadintel.js';
@@ -206,6 +207,7 @@ export async function loadFor(route, id) {
     if (HC.HR_ROUTES.includes(route)) jobs.push(HC.loadHR(route, id, ctx));
     if (TC.TN_ROUTES.includes(route)) jobs.push(TC.loadTenders(route, id, ctx));
     if (EC.ET_ROUTES.includes(route)) jobs.push(EC.loadEtimad(route, id, ctx));
+    if (FC.FC_ROUTES.includes(route)) jobs.push(FC.loadFactory(route, ctx));
     if (route === 'admin') {
       jobs.push(db.listPeople().then(p => { ctx.people = p; }));
       jobs.push(db.listInvitations().then(i => { ctx.invites = i; }).catch(() => { ctx.invites = []; }));
@@ -802,6 +804,7 @@ export function wireApp(lang) {
   HC.wireHR2(lang, { ctx, rerender, fail, reload: () => loadFor(ctx.route, ctx.routeId) });
   TC.wireTenders(lang, { ctx, rerender, fail, reload: () => loadFor(ctx.route, ctx.routeId) });
   EC.wireEtimad(lang, { ctx, rerender, fail });
+  FC.wireFactory(lang, { ctx, rerender, fail });
 
   /* --- management dashboard: tabs are view state; tiles that link open on Enter too --- */
   $$('[data-mg-tab]').forEach(b => b.onclick = () => { ctx.mgTab = b.dataset.mgTab; rerender(); window.scrollTo({ top: 0 }); });
@@ -1458,6 +1461,7 @@ function bodyFor(lang, route, id) {
   if (HC.HR_ROUTES.includes(route)) return HC.bodyHR(lang, route, id, ctx);
   if (TC.TN_ROUTES.includes(route)) return TC.bodyTenders(lang, route, id, ctx);
   if (EC.ET_ROUTES.includes(route)) return EC.bodyEtimad(lang, route, id, ctx);
+  if (FC.FC_ROUTES.includes(route)) return FC.bodyFactory(lang, route, ctx);
   /* Gated in the view as well as in the sidebar. A hidden nav item is a
      decoration; this is the check that survives somebody typing the URL. */
   if (route === 'highlights') {
