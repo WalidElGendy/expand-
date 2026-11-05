@@ -197,6 +197,8 @@ function currentRoute() {
   if (h.startsWith('#/etimad/list'))     return { name: 'etimadlist' };
   if (h.startsWith('#/etimad/ours'))     return { name: 'etimadours' };
   if (h.startsWith('#/etimad/settings')) return { name: 'etimadset' };
+  if (h.startsWith('#/etimad/competitors')) return { name: 'etimadcomp' };
+  if (h.startsWith('#/etimad/c/'))       return { name: 'etimadc', id: (() => { try { return decodeURIComponent(h.slice(11)); } catch { return h.slice(11); } })() };
   if (h.startsWith('#/etimad'))          return { name: 'etimad' };
   if (h.startsWith('#/new'))      return { name: 'new' };
   if (h.startsWith('#/leads'))    return { name: 'leads' };
@@ -224,7 +226,7 @@ const APP_ROUTES = ['home', 'projects', 'project', 'new', 'leads', 'lead', 'docs
   'estimate', 'highlights', 'pipeline', 'performance', 'hr', 'hrnew', 'hrreq', 'hremp',
   'hrsec', 'hrrun', 'hrletter', 'me', 'tasks',
   'tenders', 'tenderlist', 'tendernew', 'tender', 'tenderedit', 'tenderset',
-  'etimad', 'etimadlist', 'etimadours', 'etimadset', 'etimadt'];
+  'etimad', 'etimadlist', 'etimadours', 'etimadset', 'etimadt', 'etimadcomp', 'etimadc'];
 
 function render() {
   document.documentElement.lang = S.lang;
@@ -323,7 +325,7 @@ function headTitle(r) {
   if (r.name === 'performance') return { h1: d.perf, sub: d.perfSub };
   if (['tenders', 'tenderlist', 'tendernew', 'tender', 'tenderedit', 'tenderset'].includes(r.name))
     return { h1: TSTR[S.lang].title, sub: TSTR[S.lang].sub };
-  if (['etimad', 'etimadlist', 'etimadours', 'etimadset', 'etimadt'].includes(r.name))
+  if (['etimad', 'etimadlist', 'etimadours', 'etimadset', 'etimadt', 'etimadcomp', 'etimadc'].includes(r.name))
     return { h1: ESTR[S.lang].title, sub: ESTR[S.lang].sub };
   return { h1: 'expand', sub: '' };
 }
