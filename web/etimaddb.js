@@ -31,8 +31,23 @@ export const findContacts = (id, { domain = '', name = '' } = {}) => call('conta
 export const reveal = (contactId) => call('reveal', { id: contactId });
 export const balances = () => call('balances');
 
+/* Competitors: award results and past tenders come from etimad-awards. */
+async function callAwards(action, args = {}) {
+  const { data, error } = await sb.functions.invoke('etimad-awards', { body: { action, ...args } });
+  if (error) {
+    let msg = error.message;
+    try { const b = await error.context?.json?.(); if (b?.error) msg = b.error; } catch { /* keep msg */ }
+    throw new Error(msg);
+  }
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+export const readAwards = (limit = 12) => callAwards('awards', { limit });
+export const findHistory = (keywords, { pages = 2, category = 6 } = {}) => callAwards('history', { keywords, pages, category });
+export const awardsTodo = async () => (await callAwards('todo')).remaining;
+
 export const getSettings = async () => ok(await sb.from('etimad_settings')
-  .select('id, keywords, scopes, company_profile, last_sync_at, last_sync_note, updated_at').eq('id', 1).maybeSingle());
+  .select('id, keywords, scopes, company_profile, our_names, last_sync_at, last_sync_note, updated_at').eq('id', 1).maybeSingle());
 export const saveSettings = async (patch) => ok(await sb.from('etimad_settings')
   .update({ ...patch, updated_by: me(), updated_at: new Date().toISOString() }).eq('id', 1).select('id').single());
 
