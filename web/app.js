@@ -16,6 +16,7 @@ import * as C from './controller.js';
 import { HSTR } from './hr.js';
 import { TSTR, canSeeTenders } from './tenders.js';
 import { ESTR, canSeeEtimad } from './etimad.js';
+import { FSTR } from './factory.js';
 import {
   DSTR, signInView, canPlan, isHR, sizeOptionsHtml, avaHtml,
   buildScheduler, monthlyLoad, workloadCalendar,
@@ -200,6 +201,8 @@ function currentRoute() {
   if (h.startsWith('#/etimad/competitors')) return { name: 'etimadcomp' };
   if (h.startsWith('#/etimad/c/'))       return { name: 'etimadc', id: (() => { try { return decodeURIComponent(h.slice(11)); } catch { return h.slice(11); } })() };
   if (h.startsWith('#/etimad'))          return { name: 'etimad' };
+  if (h.startsWith('#/factory/procurement')) return { name: 'factoryproc' };
+  if (h.startsWith('#/factory'))  return { name: 'factory' };
   if (h.startsWith('#/new'))      return { name: 'new' };
   if (h.startsWith('#/leads'))    return { name: 'leads' };
   if (h.startsWith('#/docs'))     return { name: 'docs' };
@@ -226,7 +229,8 @@ const APP_ROUTES = ['home', 'projects', 'project', 'new', 'leads', 'lead', 'docs
   'estimate', 'highlights', 'pipeline', 'performance', 'hr', 'hrnew', 'hrreq', 'hremp',
   'hrsec', 'hrrun', 'hrletter', 'me', 'tasks',
   'tenders', 'tenderlist', 'tendernew', 'tender', 'tenderedit', 'tenderset',
-  'etimad', 'etimadlist', 'etimadours', 'etimadset', 'etimadt', 'etimadcomp', 'etimadc'];
+  'etimad', 'etimadlist', 'etimadours', 'etimadset', 'etimadt', 'etimadcomp', 'etimadc',
+  'factory', 'factoryproc'];
 
 function render() {
   document.documentElement.lang = S.lang;
@@ -327,6 +331,7 @@ function headTitle(r) {
     return { h1: TSTR[S.lang].title, sub: TSTR[S.lang].sub };
   if (['etimad', 'etimadlist', 'etimadours', 'etimadset', 'etimadt', 'etimadcomp', 'etimadc'].includes(r.name))
     return { h1: ESTR[S.lang].title, sub: ESTR[S.lang].sub };
+  if (r.name === 'factory' || r.name === 'factoryproc') return { h1: FSTR[S.lang].title, sub: FSTR[S.lang].sub };
   return { h1: 'expand', sub: '' };
 }
 
@@ -347,6 +352,7 @@ const ICON = {
   brief:  'M3 8h18v12H3zM8.5 8V5.5A1.5 1.5 0 0 1 10 4h4a1.5 1.5 0 0 1 1.5 1.5V8M3 13h18',
   me:     'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4.5 20a7.5 7.5 0 0 1 15 0',
   radar:  'M12 12l6-6M21 12a9 9 0 1 1-9-9M17 12a5 5 0 1 1-5-5M12 12h.01',
+  factory: 'M3 21V11l5 3v-3l5 3v-3l5 3V4h3v17zM3 21h18M7 17h2M12 17h2M17 17h2',
   gavel:  'M14 13l-7.5 7.5a2.12 2.12 0 0 1-3-3L11 10M16 16l6-6M8 8l6-6M9 7l8 8M21 11l-8-8',
   sun:    'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4',
   moon:   'M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z',
@@ -408,6 +414,9 @@ function appNav() {
   }
   items.push({ group: 'insight', route: '#/pipeline', icon: 'board', label: () => d.pipeline });
   items.push({ group: 'insight', route: '#/estimate', icon: 'spark', label: () => d.openEstimator });
+  /* Factory production: open to everyone, like the projects it reads; only
+     the production team, planners and leads can change anything on it. */
+  items.push({ group: 'insight', route: '#/factory', icon: 'factory', label: () => FSTR[S.lang].nav });
   /* Etimad Insights: the Tenders department and admins only (the database
      and the etimad function enforce the same rule). */
   if (canSeeEtimad(me)) items.push({ group: 'insight', route: '#/etimad', icon: 'radar', label: () => ESTR[S.lang].nav });
