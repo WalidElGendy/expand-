@@ -161,7 +161,12 @@ export function wireEtimad(lang, { ctx, rerender, fail }) {
         competitors: (r.competitors || []).map(c => ({ name: c.name, year: null, project: null, price_sar: null, won: false })).filter(c => c.name),
       });
       await E.patchTender(x.id, { tender_id: row.id });
-      ctx.etFlash = { text: t.t.created.replace('{ref}', row.ref || '') };
+      /* The RFP and every other file uploaded here go with it, so the
+         analyst does not upload the same documents a second time. */
+      const docs = await E.copyFilesToTender(x.id, row.id).catch(() => ({ done: 0, failed: (ctx.etFiles || []).length }));
+      const ref = row.ref || '';
+      ctx.etFlash = { text: [docs.done ? t.t.createdDocs.replace('{ref}', ref).replace('{n}', docs.done) : t.t.created.replace('{ref}', ref),
+        docs.failed ? t.t.docsFailed.replace('{n}', docs.failed) : ''].filter(Boolean).join(' ') };
       await reload();
     } catch (err) { toT.disabled = false; oops(err); }
   };
@@ -171,7 +176,13 @@ export function wireEtimad(lang, { ctx, rerender, fail }) {
   if (up && x) up.onsubmit = (e) => {
     e.preventDefault();
     const files = [...(up.elements.file.files || [])];
-    if (files.length) run(up.querySelector('button'), '', async () => { for (const f of files) await E.addFile(x.id, f); })();
+    /* Once the tender is in the Tenders system, a file added here goes there too. */
+    if (files.length) run(up.querySelector('button'), '', async () => {
+      for (const f of files) {
+        const row = await E.addFile(x.id, f);
+        if (x.tender_id) await E.copyFileToTender(row, x.tender_id).catch(() => {});
+      }
+    })();
   };
   $$('[data-et-file]').forEach(b => b.onclick = async () => {
     const f = (ctx.etFiles || []).find(z => z.id === b.dataset.etFile);
