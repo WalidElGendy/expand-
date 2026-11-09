@@ -312,7 +312,11 @@ export function wireHR2(lang, { ctx, rerender, fail, reload }) {
 
   /* --- requests --- */
   $$('[data-req-decide]').forEach(b => b.onclick = async () => {
-    const approve = b.dataset.approve === '1';
+    /* data-decision, not data-approve: the People screen's "approve this
+       person" handler binds every [data-approve] on the page, ran after this
+       one, and sent the "1" here to it as a profile id — so Approve on a
+       leave request only ever failed with "invalid uuid". */
+    const approve = b.dataset.decision === '1';
     if (!approve && !confirm(t.confirmReject)) return;
     const note = $(`[data-req-note="${b.dataset.reqDecide}"]`)?.value.trim() || null;
     await run(b, () => D.decideRequest(b.dataset.reqDecide, approve, note))();
