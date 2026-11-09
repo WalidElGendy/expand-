@@ -7,6 +7,7 @@
 import { sb, state } from './db.js';
 
 export const ETIMAD_BUCKET = 'etimad';
+const TENDER_BUCKET = 'tenders';   // the Tenders system's bucket (tenderdb.js)
 const ok = ({ data, error }) => { if (error) throw new Error(error.message); return data; };
 const me = () => state.me?.id;
 
@@ -78,6 +79,36 @@ export async function addFile(id, file) {
     etimad_tender_id: id, path, file_name: file.name, size_bytes: file.size || null, mime: file.type || null, uploaded_by: me(),
   }).select().single());
 }
+/* An Etimad file onto a tender in the Tenders system: the same bytes copied
+   into the tenders bucket under the tender's folder (which is what the
+   tenders storage policy checks), and a tender_files row. The kind is read
+   from the file name, falling back to the RFP — that is what Etimad files
+   almost always are. */
+const kindOf = (name) => /boq|كميات|quantit/i.test(name) ? 'boq'
+  : /draw|مخطط|رسوم|dwg|dxf/i.test(name) ? 'drawings' : 'rfp';
+export async function copyFileToTender(f, tenderId) {
+  const path = `${tenderId}/${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}-${slug(f.file_name)}`;
+  let r = await sb.storage.from(ETIMAD_BUCKET).copy(f.path, path, { destinationBucket: TENDER_BUCKET });
+  if (r.error) {                 // an older storage API: move the bytes through the browser
+    const dl = await sb.storage.from(ETIMAD_BUCKET).download(f.path);
+    if (dl.error) throw new Error(dl.error.message);
+    r = await sb.storage.from(TENDER_BUCKET).upload(path, dl.data, { cacheControl: '60', upsert: false, contentType: f.mime || dl.data.type || undefined });
+    if (r.error) throw new Error(r.error.message);
+  }
+  return ok(await sb.from('tender_files').insert({
+    tender_id: tenderId, kind: kindOf(f.file_name), path, file_name: f.file_name, size_bytes: f.size_bytes || null, uploaded_by: me(),
+  }).select().single());
+}
+/** Every file on an Etimad tender onto a tender; returns how many copied and failed. */
+export async function copyFilesToTender(etimadId, tenderId) {
+  const files = await listFiles(etimadId);
+  let done = 0, failed = 0;
+  for (const f of files.slice().reverse()) {
+    try { await copyFileToTender(f, tenderId); done++; } catch { failed++; }
+  }
+  return { done, failed };
+}
+
 export async function deleteFile(f) {
   await sb.storage.from(ETIMAD_BUCKET).remove([f.path]);
   return ok(await sb.from('etimad_files').delete().eq('id', f.id).select('id'));
