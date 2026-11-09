@@ -529,8 +529,8 @@ function reqPanel(lang, ctx, r, { canDecide, mine }) {
     </div>
     ${canDecide ? `<div class="inlineform" style="border:0;padding:8px 0 0">
       <div class="fields">${fld(t.req.note, `<input data-req-note="${esc(r.id)}" maxlength="400" />`, true)}</div>
-      <div class="actions"><button class="btn btn--primary btn--sm" data-req-decide="${esc(r.id)}" data-approve="1">${esc(t.req.approve)}</button>
-        <button class="btn btn--danger btn--sm" data-req-decide="${esc(r.id)}" data-approve="0">${esc(t.req.reject)}</button></div></div>` : ''}
+      <div class="actions"><button class="btn btn--primary btn--sm" data-req-decide="${esc(r.id)}" data-decision="1">${esc(t.req.approve)}</button>
+        <button class="btn btn--danger btn--sm" data-req-decide="${esc(r.id)}" data-decision="0">${esc(t.req.reject)}</button></div></div>` : ''}
     ${hr && docTypes.includes(r.type) && ['approved', 'pending_hr'].includes(r.status) ? `<div class="inlineform" style="border:0;padding:8px 0 0">
       <div class="actions">${['salary_certificate', 'letter'].includes(r.type) ? `<button class="btn btn--sm" data-req-letter="${esc(r.id)}">${esc(t.req.makeLetter)}</button>` : ''}</div>
       <div class="fields"><label class="f f--wide"><span>${esc(t.req.result)}</span><input type="file" data-req-result="${esc(r.id)}" accept="image/*,.pdf,.doc,.docx" /></label></div>
