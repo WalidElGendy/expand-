@@ -376,6 +376,22 @@ export function wireApp(lang) {
     const key = el.dataset.lf;
     el.onchange = () => { ctx.lf = { ...ctx.lf, [key]: el.value }; rerender(); };
   });
+  /* Search: filters as you type, keeping the cursor in the box across the
+     redraw. A short pause first, so a fast typist is not redrawn per key. */
+  const lfq = $('[data-lf-q]');
+  if (lfq) {
+    let timer;
+    lfq.oninput = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        const pos = lfq.selectionStart;
+        ctx.lf = { ...ctx.lf, q: lfq.value };
+        rerender();
+        const again = $('[data-lf-q]');
+        if (again) { again.focus(); try { again.setSelectionRange(pos, pos); } catch { /* ignore */ } }
+      }, 180);
+    };
+  }
   const clearLf = $('[data-lf-clear]');
   if (clearLf) clearLf.onclick = () => { ctx.lf = { ...V.LF_DEFAULT }; rerender(); };
 
