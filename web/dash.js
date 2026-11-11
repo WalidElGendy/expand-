@@ -3075,7 +3075,18 @@ export const leadCompany = (l) => {
   catch { return String(l.website).replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0]; }
 };
 
-export const LF_DEFAULT = { owner: '', status: '', source: '', follow: '', sort: 'follow' };
+export const LF_DEFAULT = { q: '', owner: '', status: '', source: '', follow: '', sort: 'follow' };
+
+/* Search text, folded so the way a name was typed does not decide whether it
+   is found: case, Arabic diacritics and tatweel, the alef/hamza forms, ta
+   marbuta and alef maqsura, and Arabic-Indic digits all compare equal. */
+export const foldSearch = (s) => String(s ?? '').toLowerCase()
+  .replace(/[\u064B-\u065F\u0670\u0640]/g, '')
+  .replace(/[\u0622\u0623\u0625\u0671]/g, '\u0627')
+  .replace(/\u0629/g, '\u0647').replace(/\u0649/g, '\u064A')
+  .replace(/[\u0660-\u0669]/g, (c) => String(c.charCodeAt(0) - 0x0660))
+  .replace(/[\u06F0-\u06F9]/g, (c) => String(c.charCodeAt(0) - 0x06F0))
+  .replace(/\s+/g, ' ').trim();
 
 /* One rule for which leads are shown, read by the table and by the count
    above it, for the same reason the projects filter has one. */
@@ -3085,6 +3096,18 @@ export function filterLeads(leads, lf = {}) {
   const inDays = (d) => Math.round((parse(d) - midnight) / 86400000);
 
   let rows = (leads || []).slice();
+  /* Every word must appear somewhere in the lead: name, title, company,
+     email, phone, owner, source or notes. Phone numbers also match without
+     their spaces, dashes or the leading +. */
+  const words = foldSearch(f.q).split(' ').filter(Boolean);
+  if (words.length) {
+    rows = rows.filter(l => {
+      const hay = foldSearch([l.name, l.title, leadCompany(l), l.company, l.email, l.phone,
+        l.owner?.full_name, l.source, l.notes].filter(Boolean).join(' '));
+      const digits = String(l.phone || '').replace(/\D/g, '');
+      return words.every(w => hay.includes(w) || (/^\+?[\d\s-]+$/.test(w) && digits.includes(w.replace(/\D/g, ''))));
+    });
+  }
   if (f.status) rows = rows.filter(l => l.status === f.status);
   if (f.source) rows = rows.filter(l => l.source === f.source);
   if (f.owner) rows = f.owner === '~none'
@@ -3135,10 +3158,13 @@ function leadFilterBar(lang, ctx, all) {
         ${options.map(o => `<option value="${esc(o.v)}"${o.v === f[key] ? ' selected' : ''}>${esc(o.l)}</option>`).join('')}
       </select></label>`;
 
-  const active = ['owner', 'status', 'source', 'follow'].some(k => f[k]) || f.sort !== 'follow';
+  const active = ['q', 'owner', 'status', 'source', 'follow'].some(k => f[k]) || f.sort !== 'follow';
 
   return `
 <div class="filterbar">
+  <label class="f f--sm f--q"><span>${esc(lang === 'ar' ? 'بحث' : 'Search')}</span>
+    <input type="search" data-lf-q value="${esc(f.q)}" autocomplete="off"
+      placeholder="${esc(lang === 'ar' ? 'ابحث بالاسم أو المسمى أو الجهة أو البريد أو الجوال…' : 'Search by name, title, company, email or phone…')}" /></label>
   ${sel('owner', t.owner, [{ v: '', l: t.anyOwner },
     ...owners.map(o => ({ v: o.id, l: `${o.name} (${o.n})` })),
     ...(noOwner ? [{ v: '~none', l: `${t.unassignedOwner} (${noOwner})` }] : [])])}
