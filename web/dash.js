@@ -3755,6 +3755,7 @@ export const leadFormHtml = (lang, people) => {
 <form id="newLead" class="inlineform">
   <div class="fields">
     <label class="f"><span>${esc(t.name)}</span><input id="lName" required /></label>
+    <label class="f"><span>${esc(t.jobTitle)}</span><input id="lTitle" placeholder="${esc(lang === 'ar' ? 'مثال: مدير التسويق' : 'e.g. Marketing Director')}" /></label>
     <label class="f"><span>${esc(t.company)}</span><input id="lCompany" /></label>
     <label class="f"><span>${esc(t.email)}</span><input id="lEmail" type="email" /></label>
     <label class="f"><span>${esc(t.phone)}</span><input id="lPhone" type="tel" inputmode="tel" /></label>
