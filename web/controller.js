@@ -853,6 +853,7 @@ export function wireApp(lang) {
         try {
           await db.createLead({
             name: $('#lName').value.trim(),
+            title: $('#lTitle').value.trim() || null,
             company: $('#lCompany').value.trim() || null,
             email: $('#lEmail').value.trim() || null,
             phone: $('#lPhone').value.trim() || null,
