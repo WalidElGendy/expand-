@@ -839,6 +839,33 @@ export function wireApp(lang) {
     try { await db.updateProject(ctx.project.id, { due_on: v }); await loadFor('project', ctx.project.id); rerender(); }
     catch (err) { btn.disabled = false; fail(err); }
   };
+  /* --- project description: edit after submission --- */
+  const descForm = $('#descForm');
+  const descEdit = $('[data-desc-edit]');
+  if (descForm && descEdit) {
+    const toggle = (editing) => {
+      descForm.hidden = !editing;
+      $('#descView').hidden = editing;
+      descEdit.hidden = editing;
+      if (editing) { const ta = $('#descValue'); ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+    };
+    descEdit.onclick = () => toggle(true);
+    descForm.querySelector('[data-desc-cancel]').onclick = () => {
+      $('#descValue').value = ctx.project.description || '';
+      toggle(false);
+    };
+    descForm.onsubmit = async (e) => {
+      e.preventDefault();
+      const btn = descForm.querySelector('button[type="submit"]');
+      btn.disabled = true;
+      try {
+        await db.setProjectDescription(ctx.project.id, $('#descValue').value);
+        await loadFor('project', ctx.project.id);
+        rerender();
+      } catch (err) { btn.disabled = false; fail(err); }
+    };
+  }
+
   const cv = $('#cvForm');
   if (cv) cv.onsubmit = async (e) => {
     e.preventDefault();
