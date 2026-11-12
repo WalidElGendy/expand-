@@ -383,7 +383,7 @@ export const setPerson = async (id, patch) => ok(await sb
 const PROJECT_COLS = `
   id, name, client, description, size, status, start_on, due_on, delivered_on,
   estimated_delivery, estimate_meta, is_crm_list, import_flags, asana_url,
-  created_at, updated_at, owner_id, lead_id, contract_value_sar,
+  created_at, updated_at, owner_id, created_by, lead_id, contract_value_sar,
   lead:lead_id ( id, name, company ),
   owner:owner_id ( id, full_name, department_id ),
   project_stages ( id, department_id, assignee_id, effort_days, planned_start,
@@ -413,6 +413,12 @@ export const createProject = async (p) => ok(await sb
 
 export const updateProject = async (id, patch) => ok(await sb
   .from('projects').update(patch).eq('id', id).select().single());
+
+/* The description can be edited after submission by planners and by the
+   project's submitter or owner (set_project_description, which also writes
+   "Description edited" to the project history). */
+export const setProjectDescription = async (id, description) =>
+  ok(await sb.rpc('set_project_description', { p_project: id, p_description: description ?? '' }));
 
 /* ---------------------------------------------------------- project history
 
