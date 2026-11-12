@@ -1062,6 +1062,17 @@ for (const lang of ['en', 'ar']) {
   dbmod.state.me = { id: 'u8', role: 'member', department_id: 'pricing', is_active: true };
   check(!D.projectView('en', { project: { ...proj(13, '2026-10-20', 'submitted') } }).includes('id="dueForm"'), 'a non-planner is offered to change the due date');
 
+  // Description: editable after submission by planners and by the person who
+  // submitted or owns the project, but not by anyone else.
+  const desc = { ...proj(14, null, 'submitted'), description: 'المساحة: 8*5', created_by: 'u8', owner_id: 'o1' };
+  check(D.projectView('en', { project: desc }).includes('data-desc-edit'), 'the submitter cannot edit the description');
+  check(D.projectView('en', { project: desc }).includes('id="descValue" rows="8" dir="auto" aria-label="Description">المساحة: 8*5</textarea>'), 'the description editor does not start from the current text');
+  dbmod.state.me = { id: 'u7', role: 'member', department_id: 'pricing', is_active: true };
+  check(!D.projectView('en', { project: desc }).includes('data-desc-edit'), 'someone unrelated can edit the description');
+  dbmod.state.me = was;
+  check(D.projectView('en', { project: desc }).includes('data-desc-edit'), 'a planner cannot edit the description');
+  check(D.projectView('ar', { project: desc }).includes('تعديل'), 'the Arabic edit button is missing');
+
   // People: a Tender role column, showing who is an approver or analyst.
   dbmod.state.me = was;
   const tp = [{ id: 'a1', full_name: 'Ana', role: 'member', department_id: 'tenders', is_active: true, user_id: 'x1' },
