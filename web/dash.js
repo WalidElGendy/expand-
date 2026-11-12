@@ -410,6 +410,7 @@ export const DSTR = {
     stagesHead: 'Teams and stages', noStages: 'No stages on this project yet.',
     moveTo: 'Move to', statusNote: 'Why (optional)', movedBy: '{who} moved it to {to}',
     createdOn: 'Created', updatedOn: 'Last change', noDescription: 'No description was written.',
+    descEdit: 'Edit', descSave: 'Save description',
     toProduction: 'Accepted — this opens a production stage for the production team.',
     terminal: 'This project is archived. Nothing follows it.',
     openInAsana: 'Open in Asana', sizeBand: 'Size', uploadedBy: 'by {who}',
@@ -738,6 +739,7 @@ export const DSTR = {
     stagesHead: 'الفرق والمراحل', noStages: 'لا توجد مراحل على هذا المشروع بعد.',
     moveTo: 'انقل إلى', statusNote: 'السبب (اختياري)', movedBy: '{who} نقله إلى {to}',
     createdOn: 'أُنشئ', updatedOn: 'آخر تغيير', noDescription: 'لم يُكتب وصف.',
+    descEdit: 'تعديل', descSave: 'حفظ الوصف',
     toProduction: 'مقبول — سيفتح هذا مرحلة تنفيذ لفريق الإنتاج.',
     terminal: 'هذا المشروع مؤرشف. لا شيء يليه.',
     openInAsana: 'افتح في أسانا', sizeBand: 'الحجم', uploadedBy: 'بواسطة {who}',
@@ -2255,6 +2257,11 @@ export function projectView(lang, ctx) {
   const late = lateBy(p.due_on);
   const next = db.NEXT_STATUS[p.status] || [];
   const mayMove = canPlan() && next.length > 0;
+  // Planners, and whoever submitted or owns the project, can fix its brief
+  // after submission (set_project_description checks the same rule).
+  const me = db.state.me;
+  const mayEditDesc = !!me && me.is_active !== false &&
+    (canPlan() || (p.created_by && p.created_by === me.id) || (p.owner_id && p.owner_id === me.id));
   // The procurement + production sections open once a project is accepted.
   const inProd = ['won', 'in_production'].includes(p.status);
   // Their files live in the same table, so keep them out of the general
@@ -2307,8 +2314,12 @@ export function projectView(lang, ctx) {
     <p class="note">${esc(t.cvHint)}</p>
     <div class="actions"><button type="submit" class="btn btn--sm">${esc(t.cvSave)}</button></div></form>` : ''}
 
-  <h3 class="subhead">${esc(t.description)}</h3>
-  <p class="prose${p.description ? '' : ' muted'}">${esc(p.description || t.noDescription)}</p>
+  <h3 class="subhead">${esc(t.description)}${mayEditDesc ? ` <button type="button" class="link small" data-desc-edit>${esc(t.descEdit)}</button>` : ''}</h3>
+  <p class="prose${p.description ? '' : ' muted'}" id="descView" dir="auto">${esc(p.description || t.noDescription)}</p>
+  ${mayEditDesc ? `<form id="descForm" class="inlineform" hidden style="border-bottom:0;padding-top:0">
+    <div class="fields"><label class="f f--wide"><textarea id="descValue" rows="8" dir="auto" aria-label="${esc(t.description)}">${esc(p.description || '')}</textarea></label></div>
+    <div class="actions"><button type="button" class="btn btn--sm" data-desc-cancel>${esc(t.cancel)}</button><button type="submit" class="btn btn--primary btn--sm">${esc(t.descSave)}</button></div>
+  </form>` : ''}
 </section>
 
 ${mayMove ? `
