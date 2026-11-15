@@ -624,7 +624,7 @@ export const setStageStatus = async (id, status) => {
 
 export const listMyTasks = async () => ok(await sb
   .from('tasks')
-  .select('id, name, notes, due_on, completed, section_name, created_at, assignee_id, created_by, project:project_id ( id, name ), assignee:assignee_id ( id, full_name ), creator:created_by ( id, full_name )')
+  .select('id, name, notes, due_on, completed, section_name, created_at, assignee_id, created_by, project:project_id ( id, name ), lead:lead_id ( id, name, company ), assignee:assignee_id ( id, full_name ), creator:created_by ( id, full_name )')
   .eq('assignee_id', state.me?.id)
   .eq('completed', false)
   .order('due_on', { ascending: true, nullsFirst: false })
@@ -644,6 +644,14 @@ export const listProjectTasks = async (project_id) => ok(await sb
   .from('tasks')
   .select('id, name, notes, due_on, completed, section_name, created_at, assignee_id, created_by, asana_gid, assignee:assignee_id ( id, full_name ), creator:created_by ( id, full_name )')
   .eq('project_id', project_id)
+  .order('due_on', { ascending: true, nullsFirst: false }));
+
+/** Actions handed out from a lead's Activity: tasks with a lead_id. */
+export const listLeadTasks = async (lead_id) => ok(await sb
+  .from('tasks')
+  .select('id, name, notes, due_on, completed, completed_at, created_at, assignee_id, created_by, lead_id, assignee:assignee_id ( id, full_name ), creator:created_by ( id, full_name )')
+  .eq('lead_id', lead_id)
+  .order('completed', { ascending: true })
   .order('due_on', { ascending: true, nullsFirst: false }));
 
 export const addTask = async (t) => ok(await sb

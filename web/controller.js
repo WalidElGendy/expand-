@@ -123,10 +123,11 @@ export async function loadFor(route, id) {
        link works, and the proposals come with it because "did we bid for
        them" is the question the page exists to answer. */
     if (route === 'lead' && id) {
-      ctx.lead = null; ctx.leadEvents = []; ctx.leadProposals = [];
+      ctx.lead = null; ctx.leadEvents = []; ctx.leadProposals = []; ctx.leadTasks = [];
       ctx.projectHits = []; ctx.projectQuery = '';
       jobs.push(db.getLead(id).then(l => { ctx.lead = l; }).catch(() => { ctx.lead = null; }));
       jobs.push(db.listLeadEvents(id).then(e => { ctx.leadEvents = e; }).catch(() => {}));
+      jobs.push(db.listLeadTasks(id).then(x => { ctx.leadTasks = x; }).catch(() => { ctx.leadTasks = []; }));
       jobs.push(db.proposalsForLead(id).then(p => { ctx.leadProposals = p; }).catch(() => {}));
       jobs.push(db.listPeople().then(p => { ctx.people = p; }).catch(() => {}));
     }
@@ -446,8 +447,12 @@ export function wireApp(lang) {
     const btn = leadNote.querySelector('button[type=submit]');
     btn.disabled = true;
     try {
-      await db.addLeadEvent({ lead_id: ctx.lead.id, kind: $('#leadNoteKind')?.value || 'note', body });
-      ctx.leadEvents = await db.listLeadEvents(ctx.lead.id);
+      /* Assigned: it becomes a task on the lead, and the database writes the
+         "Assigned to … · due …" line into Activity. Not assigned: a plain note. */
+      const who = $('#leadNoteWho')?.value || '';
+      if (who) await db.addTask({ lead_id: ctx.lead.id, name: body, assignee_id: who, due_on: $('#leadNoteDue')?.value || null });
+      else await db.addLeadEvent({ lead_id: ctx.lead.id, kind: $('#leadNoteKind')?.value || 'note', body });
+      [ctx.leadEvents, ctx.leadTasks] = await Promise.all([db.listLeadEvents(ctx.lead.id), db.listLeadTasks(ctx.lead.id)]);
       rerender();
     } catch (err) { fail(err); btn.disabled = false; }
   };
@@ -722,6 +727,7 @@ export function wireApp(lang) {
   const taskReload = async () => {
     const h = location.hash || '';
     if (h.startsWith('#/p/') && ctx.project) await loadFor('project', ctx.project.id);
+    else if (h.startsWith('#/l/') && ctx.lead) await loadFor('lead', ctx.lead.id);
     else await loadFor(h.startsWith('#/tasks') ? 'tasks' : 'home');
     rerender();
   };

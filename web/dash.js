@@ -261,6 +261,9 @@ export const DSTR = {
     overdueFollow: 'Follow-ups overdue',
     pickUp: 'Pick up', pickUpLead: 'Pick up this lead', pickedTaken: 'Someone else picked this lead up a moment ago.',
     touchKind: 'Type', touch: { note: 'Note', call: 'Call', email: 'Email', meeting: 'Meeting' },
+    leadAssign: 'Assign to', leadAssignNone: 'No one — just log it', leadDue: 'Due by',
+    leadActions: 'Actions on this lead', leadActionsOpen: '{n} open',
+    leadAssignHint: 'Pick a colleague to hand them the next step. It goes to their My tasks.',
     titleHint: 'What is this document called?',
     descHint: 'What is it for, and who should read it? Optional.',
     dropHint: 'PDF, Word, PowerPoint, Excel or images. You can pick several at once.',
@@ -610,6 +613,9 @@ export const DSTR = {
     overdueFollow: 'متابعات متأخرة',
     pickUp: 'استلام', pickUpLead: 'استلام هذا العميل', pickedTaken: 'استلم شخص آخر هذا العميل قبل قليل.',
     touchKind: 'النوع', touch: { note: 'ملاحظة', call: 'مكالمة', email: 'بريد', meeting: 'اجتماع' },
+    leadAssign: 'إسناد إلى', leadAssignNone: 'لا أحد — تسجيل فقط', leadDue: 'الموعد',
+    leadActions: 'الإجراءات على هذا العميل', leadActionsOpen: '{n} مفتوحة',
+    leadAssignHint: 'اختر زميلاً لتسند إليه الخطوة التالية، وستظهر في «مهامي» لديه.',
     titleHint: 'ما اسم هذا المستند؟',
     descHint: 'ما الغرض منه، ومن يجب أن يقرأه؟ اختياري.',
     dropHint: 'PDF أو وورد أو باوربوينت أو إكسل أو صور. يمكن اختيار عدة ملفات.',
@@ -2768,6 +2774,7 @@ const taskRow = (lang, x, { showProject = false } = {}) => {
       ${x.notes ? `<span class="taskrow__d">${esc(x.notes)}</span>` : ''}
       <span class="taskrow__m">
         ${showProject && x.project ? `<button class="link" data-act="go" data-route="#/p/${esc(x.project.id)}">${esc(x.project.name)}</button> · ` : ''}
+        ${showProject && x.lead ? `<button class="link" data-act="go" data-route="#/l/${esc(x.lead.id)}">${esc(x.lead.name)}${x.lead.company ? ` (${esc(x.lead.company)})` : ''}</button> · ` : ''}
         <b>${esc(x.assignee?.full_name || t.tkNoOne)}</b>
         ${x.due_on ? ` · <span class="${late ? 'bad' : ''}">${esc(fmt(x.due_on, lang))}${late ? ` (${late} ${esc(t.overdue)})` : ''}</span>` : ''}
         ${x.section_name ? ` · ${esc(x.section_name)}` : ''}
@@ -3721,6 +3728,14 @@ export function leadView(lang, ctx) {
   const hits = ctx.projectHits || [];
   const late = lateBy(l.next_follow_up_on);
   const mayEdit = canPlan() || db.state.me?.department_id === 'bd';
+  const leadTasks = (ctx.leadTasks || []).slice().sort(taskOrder);
+  const me = db.state.me;
+  /* Whoever holds an action on this lead may post on it too (the database
+     allows the same), so they can say what happened. */
+  const mayPost = mayEdit || leadTasks.some(x => x.assignee_id === me?.id);
+  const people = (ctx.people || []).filter(p => p.is_active !== false && p.id !== undefined)
+    .slice().sort((a, b) => String(a.full_name || a.email).localeCompare(String(b.full_name || b.email)));
+  const openActions = leadTasks.filter(x => !x.completed).length;
 
   const fact = (label, value, cls = '') =>
     `<div class="fact"><span class="fact__l">${esc(label)}</span><span class="fact__v ${cls}">${value}</span></div>`;
@@ -3782,14 +3797,21 @@ export function leadView(lang, ctx) {
 
 <section class="card">
   <div class="card__head"><h2>${esc(t.leadHistory)}</h2></div>
-  ${mayEdit ? `<form id="leadNoteForm" class="inlineform">
+  ${mayPost ? `<form id="leadNoteForm" class="inlineform">
     <div class="fields">
       <label class="f"><span>${esc(t.touchKind)}</span><select id="leadNoteKind">
         ${['note', 'call', 'email', 'meeting'].map(k => `<option value="${k}">${esc(t.touch[k])}</option>`).join('')}</select></label>
+      <label class="f"><span>${esc(t.leadAssign)}</span><select id="leadNoteWho" title="${esc(t.leadAssignHint)}">
+        <option value="">${esc(t.leadAssignNone)}</option>
+        ${people.map(p => `<option value="${esc(p.id)}">${esc(p.full_name || p.email)}${p.id === me?.id ? (lang === 'ar' ? ' (أنت)' : ' (you)') : ''}</option>`).join('')}</select></label>
+      <label class="f"><span>${esc(t.leadDue)}</span><input id="leadNoteDue" type="date" min="2020-01-01" max="2099-12-31" /></label>
       <label class="f f--wide"><span>${esc(t.addNote)}</span><input id="leadNoteBody" required /></label>
     </div>
-    <div class="actions"><button type="submit" class="btn btn--sm">${esc(t.post)}</button></div>
+    <div class="actions"><button type="submit" class="btn btn--sm">${esc(t.post)}</button>
+      <span class="muted small">${esc(t.leadAssignHint)}</span></div>
   </form>` : ''}
+  ${leadTasks.length ? `<h3 class="subhead">${esc(t.leadActions)} <span class="muted small">${esc(t.leadActionsOpen.replace('{n}', openActions))}</span></h3>
+  <ul class="tasklist">${leadTasks.map(x => taskRow(lang, x)).join('')}</ul>` : ''}
   ${events.length ? `<ul class="timeline">${events.map(e => `
     <li class="timeline__i">
       <span class="timeline__d">${esc(sinceText(e.occurred_at, lang, t))}</span>
