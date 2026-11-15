@@ -643,6 +643,11 @@ for (const lang of ['en', 'ar']) {
     'an empty filter slice claims the library itself is empty');
   check(D.docsView('en', { files: [], docf: 'all' }).includes(D.DSTR.en.noDocsYet),
     'a genuinely empty library must say so plainly');
+  /* Search and date sit on the card, and a search narrows the rows. */
+  check(all.includes('id="docQ"') && all.includes('id="docP"') && all.includes(D.DSTR.en.docDate),
+    'the documents card has no search box, period filter or date column');
+  const found = D.docsView('en', { files, docf: 'all', docq: 'moodboard' });
+  check(found.includes('moodboard.jpg') && !found.includes('brand-guide.pdf'), 'documents search does not narrow the rows');
 }
 
 /* 8. THE BUSINESS PIPELINE. Four columns over ten raw statuses, so the
