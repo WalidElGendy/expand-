@@ -53,7 +53,7 @@ export const ctx = {
 
   /* Which slice of the document library is on screen. Same reasoning as `pf`:
      a working session's question, not an address worth sharing. */
-  docf: 'all',
+  docf: 'all', docq: '', docp: 'any',
 
   /* The quarter on screen, the reviews readable for it, and which report's
      form is expanded. `reviews` holds only what RLS let through — your own
@@ -1111,12 +1111,30 @@ export function wireApp(lang) {
 
   $$('[data-docf]').forEach(b => b.onclick = () => { ctx.docf = b.dataset.docf; rerender(); });
 
-  $$('[data-open]').forEach(b => b.onclick = async () => {
-    const f = ctx.files.find(x => x.id === b.dataset.open);
-    if (!f) return;
-    try { window.open(await db.fileUrl(f.bucket, f.path), '_blank', 'noopener'); }
-    catch (e) { fail(e); }
-  });
+  function wireDocRows() {
+    $$('[data-open]').forEach(b => b.onclick = async () => {
+      const f = ctx.files.find(x => x.id === b.dataset.open);
+      if (!f) return;
+      try { window.open(await db.fileUrl(f.bucket, f.path), '_blank', 'noopener'); }
+      catch (e) { fail(e); }
+    });
+    $$('#docRows [data-act="go"]').forEach(b => b.onclick = () => { location.hash = b.dataset.route; });
+  }
+
+  /* Documents search and period: only the rows and the count are rebuilt,
+     so the cursor stays in the box while somebody types. */
+  const refreshDocs = () => {
+    const { body, shown } = V.docsRows(lang, ctx);
+    const rows = $('#docRows'), n = $('#docShown');
+    if (rows) rows.innerHTML = body;
+    if (n) n.textContent = shown;
+    wireDocRows();
+  };
+  const docQ = $('#docQ'), docP = $('#docP');
+  if (docQ) docQ.oninput = () => { ctx.docq = docQ.value; refreshDocs(); };
+  if (docP) docP.onchange = () => { ctx.docp = docP.value; refreshDocs(); };
+
+  wireDocRows();
 
   /* --- admin --- */
   const inv = $('#inviteForm');

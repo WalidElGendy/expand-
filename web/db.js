@@ -958,7 +958,7 @@ export const listFiles = async (filter = {}) => {
     .order('created_at', { ascending: false });
   if (filter.project_id) q = q.eq('project_id', filter.project_id);
   if (filter.purpose)    q = q.eq('purpose', filter.purpose);
-  return ok(await q.limit(300));
+  return ok(await q.limit(1000));
 };
 
 /** Signed, short-lived, and generated on demand — see migration 004 for why

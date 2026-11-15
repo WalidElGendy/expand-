@@ -305,7 +305,10 @@ export const DSTR = {
     pipeNone: 'Nothing at this stage.', pipeMore: '{n} more — open Leads to filter them',
     pipeUnmapped: '{n} leads carry a status this board does not place yet: {s}. They are counted in the list total but appear in no column — tell me and I will put them where they belong.',
     docAll: 'Everything', docLibrary: 'Library', docFromProjects: 'On projects',
-    docWhere: 'Where it lives',
+    docWhere: 'Where it lives', docDate: 'Uploaded',
+    docSearch: 'Search name, title, project, person or date…',
+    docPeriods: { any: 'Any time', 7: 'Last 7 days', 30: 'Last 30 days', 90: 'Last 90 days', year: 'This year' },
+    docNoMatch: 'No documents match this search.',
     /* An RFP and a reference image are not the same thing to somebody
        deciding what to open, and neither is a raw enum. */
     purposes: { document: 'Uploaded here', rfp: 'RFP / tender', reference: 'Reference' },
@@ -647,7 +650,10 @@ export const DSTR = {
     pipeNone: 'لا شيء في هذه المرحلة.', pipeMore: '{n} إضافيون — افتح صفحة العملاء لتصفيتهم',
     pipeUnmapped: '{n} من العملاء يحملون حالة لا يضعها هذا اللوح بعد: {s}. هم ضمن الإجمالي لكن لا يظهرون في أي عمود — أخبرني لأضعهم في مكانهم.',
     docAll: 'الكل', docLibrary: 'المكتبة', docFromProjects: 'على المشاريع',
-    docWhere: 'مكان الملف',
+    docWhere: 'مكان الملف', docDate: 'تاريخ الرفع',
+    docSearch: 'ابحث بالاسم أو العنوان أو المشروع أو الشخص أو التاريخ…',
+    docPeriods: { any: 'كل الأوقات', 7: 'آخر 7 أيام', 30: 'آخر 30 يومًا', 90: 'آخر 90 يومًا', year: 'هذه السنة' },
+    docNoMatch: 'لا توجد مستندات تطابق هذا البحث.',
     purposes: { document: 'مرفوع هنا', rfp: 'كراسة شروط', reference: 'مرجع' },
     attachments: 'المرفقات',
     onlineNow: 'متصل الآن', onlineNowSub: 'التطبيق مفتوح لديهم الآن',
@@ -3809,26 +3815,87 @@ export const leadFormHtml = (lang, people) => {
 
 /* --------------------------------- documents ------------------------------ */
 
+/* Arabic is typed many ways: with or without hamza and tashkeel, ة or ه,
+   ى or ي. Searching folds them all so "اطلاق" finds "إطلاق". */
+export const foldText = (v) => String(v ?? '').toLowerCase()
+  .replace(/[\u064B-\u0652\u0670\u0640]/g, '')
+  .replace(/[أإآٱ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي')
+  .replace(/\s+/g, ' ').trim();
+
+/** Which of `files` the Documents table shows, newest first: the tab
+    (all / library / on projects), the period and the search words. Every
+    word must appear somewhere in the row: name, title, description, the
+    person, the project, the kind, or the upload date as either language
+    writes it. */
+export function filterDocs(files, { f = 'all', q = '', period = 'any', now = new Date() } = {}) {
+  const words = foldText(q).split(' ').filter(Boolean);
+  const since = period === 'year' ? new Date(now.getFullYear(), 0, 1)
+              : Number(period) > 0 ? new Date(now.getTime() - Number(period) * 864e5) : null;
+  return (files || [])
+    .filter(x => f === 'all' || (f === 'document' ? x.purpose === 'document' : x.purpose !== 'document'))
+    .filter(x => !since || (x.created_at && new Date(x.created_at) >= since))
+    .filter(x => {
+      if (!words.length) return true;
+      const hay = foldText([x.filename, x.title, x.description, x.uploader?.full_name, x.project?.name,
+        DSTR.en.purposes?.[x.purpose], DSTR.ar.purposes?.[x.purpose], x.purpose,
+        docDay(x.created_at, 'en'), docDay(x.created_at, 'ar'), (x.created_at || '').slice(0, 10)].join(' '));
+      return words.every(w => hay.includes(w));
+    })
+    .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+}
+
+const docDay = (iso, lang) => (iso ? new Date(iso).toLocaleDateString(lang === 'ar' ? 'ar-SA-u-ca-gregory' : 'en-GB',
+  { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
+const docTime = (iso, lang) => (iso ? new Date(iso).toLocaleTimeString(lang === 'ar' ? 'ar-SA-u-nu-latn' : 'en-GB', { hour: '2-digit', minute: '2-digit' }) : '');
+
+/** The table body and the "showing / total" count, rebuilt on their own while
+    somebody types, so the search box keeps its focus. */
+export function docsRows(lang, ctx) {
+  const t = DSTR[lang];
+  const all = ctx.files || [];
+  const rows = filterDocs(all, { f: ctx.docf || 'all', q: ctx.docq || '', period: ctx.docp || 'any' });
+  const narrowed = (ctx.docq || '').trim() || (ctx.docp && ctx.docp !== 'any');
+  const shown = rows.length === all.length ? `${all.length}` : `${rows.length} ${t.ofTotal} ${all.length}`;
+  const body = rows.length ? rows.map(x => `<tr>
+          <td>${esc(x.filename)}<span class="muted small block">${esc(x.uploader?.full_name || '')}</span></td>
+          <td class="muted small">${esc(x.title || '')}</td>
+          <!-- Where the file came from. A project attachment is only findable
+               if the row says which project, and the kind (RFP, reference)
+               is what tells a reader whether it is worth opening. -->
+          <td class="small">
+            ${x.project?.name
+              ? `<button class="link small" data-act="go" data-route="#/project/${esc(x.project.id)}">${esc(x.project.name)}</button>`
+              : `<span class="muted">${esc(t.docLibrary)}</span>`}
+            <span class="muted small block">${esc(t.purposes?.[x.purpose] || x.purpose || '')}</span>
+          </td>
+          <td class="small nowrap">${esc(docDay(x.created_at, lang))}<span class="muted small block" dir="ltr">${esc(docTime(x.created_at, lang))}</span></td>
+          <!-- dir=ltr because bidi reorders "4.0 MB" into "MB 4.0" in an
+               Arabic paragraph; the unit belongs after the number. -->
+          <td class="num muted small" dir="ltr">${x.size_bytes ? (x.size_bytes / 1048576).toFixed(1) + ' MB' : '—'}</td>
+          <td class="num"><button class="link small" data-open="${esc(x.id)}">${esc(lang === 'ar' ? 'فتح' : 'Open')}</button></td>
+        </tr>`).join('')
+    : `<tr><td class="tbl__empty" colspan="6">${esc(!all.length ? t.noDocsYet : narrowed ? t.docNoMatch : t.noDocsInFilter)}</td></tr>`;
+  return { body, shown };
+}
+
 export function docsView(lang, ctx) {
   const t = DSTR[lang];
   const all = ctx.files || [];
   const f = ctx.docf || 'all';
-  const rows = f === 'all' ? all
-             : f === 'document' ? all.filter(x => x.purpose === 'document')
-             : all.filter(x => x.purpose !== 'document');
   const counts = {
     all: all.length,
     document: all.filter(x => x.purpose === 'document').length,
     project: all.filter(x => x.purpose !== 'document').length,
   };
-  /* The count beside the title is now "showing / total", because the filter
+  /* The count beside the title is "showing / total", because the filters
      can hide rows and a bare number next to an empty-looking table is the
      kind of thing that gets read as "we have lost the files". */
-  const shown = rows.length === all.length ? `${all.length}` : `${rows.length} ${esc(t.ofTotal)} ${all.length}`;
+  const { body, shown } = docsRows(lang, ctx);
+  const period = ctx.docp || 'any';
   return `
 <section class="card">
   <div class="card__head">
-    <h2>${esc(t.library)}</h2><span class="muted small">${shown}</span>
+    <h2>${esc(t.library)}</h2><span class="muted small" id="docShown">${shown}</span>
     <div class="segbar">
       ${[['all', t.docAll], ['document', t.docLibrary], ['project', t.docFromProjects]].map(([k, label]) =>
         `<button class="seg${f === k ? ' is-on' : ''}" data-docf="${k}">${esc(label)} <span class="seg__n">${counts[k]}</span></button>`).join('')}
@@ -3857,32 +3924,21 @@ export function docsView(lang, ctx) {
     </div>
   </form>
 
+  <div class="docbar">
+    <label class="docbar__q"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <input id="docQ" type="search" autocomplete="off" placeholder="${esc(t.docSearch)}" aria-label="${esc(t.docSearch)}" value="${esc(ctx.docq || '')}" /></label>
+    <select id="docP" aria-label="${esc(t.docDate)}">
+      ${Object.entries(t.docPeriods).map(([k, label]) => `<option value="${k}"${String(period) === k ? ' selected' : ''}>${esc(label)}</option>`).join('')}
+    </select>
+  </div>
+
   <div class="tblwrap">
     <table class="tbl">
       <thead><tr>
-        <th>${esc(t.name)}</th><th>${esc(t.title)}</th><th>${esc(t.docWhere)}</th>
+        <th>${esc(t.name)}</th><th>${esc(t.title)}</th><th>${esc(t.docWhere)}</th><th>${esc(t.docDate)}</th>
         <th class="num">${esc(lang === 'ar' ? 'الحجم' : 'Size')}</th><th></th>
       </tr></thead>
-      <tbody>
-        ${rows.length ? rows.map(x => `<tr>
-          <td>${esc(x.filename)}<span class="muted small block">${esc(x.uploader?.full_name || '')}</span></td>
-          <td class="muted small">${esc(x.title || '')}</td>
-          <!-- Where the file came from. A project attachment is only findable
-               if the row says which project, and the kind (RFP, reference)
-               is what tells a reader whether it is worth opening. -->
-          <td class="small">
-            ${x.project?.name
-              ? `<button class="link small" data-act="go" data-route="#/project/${esc(x.project.id)}">${esc(x.project.name)}</button>`
-              : `<span class="muted">${esc(t.docLibrary)}</span>`}
-            <span class="muted small block">${esc(t.purposes?.[x.purpose] || x.purpose || '')}</span>
-          </td>
-          <!-- dir=ltr because bidi reorders "4.0 MB" into "MB 4.0" in an
-               Arabic paragraph; the unit belongs after the number. -->
-          <td class="num muted small" dir="ltr">${x.size_bytes ? (x.size_bytes / 1048576).toFixed(1) + ' MB' : '—'}</td>
-          <td class="num"><button class="link small" data-open="${esc(x.id)}">${esc(lang === 'ar' ? 'فتح' : 'Open')}</button></td>
-        </tr>`).join('')
-        : `<tr><td class="tbl__empty" colspan="5">${esc(all.length ? t.noDocsInFilter : t.noDocsYet)}</td></tr>`}
-      </tbody>
+      <tbody id="docRows">${body}</tbody>
     </table>
   </div>
 </section>`;
