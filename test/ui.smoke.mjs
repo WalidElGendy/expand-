@@ -1295,6 +1295,37 @@ for (const lang of ['en', 'ar']) {
   check(D.leadView('en', { lead: null }).includes(D.DSTR.en.leadNotFound),
     'a missing lead renders a blank page');
 
+  /* Handing the next step on a lead to a colleague. */
+  {
+    const saved = dbmod.state.me;
+    const people = [{ id: 'u1', full_name: 'Test', is_active: true }, { id: 'u2', full_name: 'Sara Q', is_active: true },
+                    { id: 'u3', full_name: 'Gone', is_active: false }];
+    const leadTasks = [
+      { id: 'k1', lead_id: 'l9', name: 'Resubmit supplier papers', assignee_id: 'u2', assignee: { full_name: 'Sara Q' }, created_by: 'u1', due_on: '2026-11-20', completed: false },
+      { id: 'k2', lead_id: 'l9', name: 'Send profile', assignee_id: 'u1', assignee: { full_name: 'Test' }, created_by: 'u1', completed: true },
+    ];
+    for (const lang of ['en', 'ar']) {
+      dbmod.state.me = { id: 'u1', full_name: 'Test', role: 'admin', department_id: 'pm', is_active: true };
+      const html = D.leadView(lang, { lead: lead(9), leadProposals: [], leadEvents: [], projectHits: [], people, leadTasks });
+      check(html.includes('id="leadNoteWho"') && html.includes('>Sara Q<') && !html.includes('>Gone<'),
+        `${lang}: the activity form cannot assign to an active colleague (or lists an inactive one)`);
+      check(html.includes('id="leadNoteDue"'), `${lang}: no due date on an assigned action`);
+      check(html.includes(D.DSTR[lang].leadActions) && html.includes('Resubmit supplier papers') && html.includes('data-task-done="k1"'),
+        `${lang}: the lead's open actions are not listed with a way to tick them off`);
+      check(html.includes(D.DSTR[lang].leadActionsOpen.replace('{n}', 1)), `${lang}: the open-action count is wrong`);
+    }
+    /* The assignee, who is neither a planner nor in BD, can still post on that lead. */
+    dbmod.state.me = { id: 'u2', full_name: 'Sara Q', role: 'member', department_id: '3d', is_active: true };
+    check(D.leadView('en', { lead: lead(9), leadEvents: [], leadProposals: [], projectHits: [], people, leadTasks }).includes('id="leadNoteForm"'),
+      'the person holding an action on a lead cannot post on it');
+    check(!D.leadView('en', { lead: lead(9), leadEvents: [], leadProposals: [], projectHits: [], people, leadTasks: [] }).includes('id="leadNoteForm"'),
+      'someone with no part in a lead got the activity form');
+    /* My tasks names the lead and links to it. */
+    const mine = D.myTasksCard('en', { myTasks: [{ ...leadTasks[0], lead: { id: 'l9', name: 'Qiddiya', company: 'Qiddiya Investment' } }] });
+    check(mine.includes('data-route="#/l/l9"') && mine.includes('Qiddiya (Qiddiya Investment)'), 'My tasks does not link a lead action back to its lead');
+    dbmod.state.me = saved;
+  }
+
   // A project that came from a lead must say so, and link back.
   const fromLead = D.projectView('en', {
     project: { ...proj(11, null, 'submitted'), project_stages: [],
