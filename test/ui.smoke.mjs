@@ -359,7 +359,9 @@ for (const lang of ['en', 'ar']) {
     `${lang}: not every row got a status pill`);
   // A column of nothing but em dashes is furniture, not information.
   check(!html.includes(D.DSTR[lang].estimate),
-    `${lang}: the estimate column is shown even though no project has one`);
+    `${lang}: the estimate column is shown even though no project has one`);  /* Every row says when the project was created. */
+  check(html.includes(`>${D.DSTR[lang].createdCol}<`), `${lang}: the projects table has no Created column`);
+  check(!/Invalid Date/.test(html), `${lang}: a created date did not render`);
 }
 /* ...and it must come BACK the moment a project actually has an estimate. */
 const withEst = D.pmView('en', { ...dctx, projects: [...many, proj(99, '2026-04-01', 'in_design', false, '2026-05-05')] });
@@ -896,6 +898,10 @@ for (const lang of ['en', 'ar']) {
   const byLate = F({ sort: 'duelate', closed: true }).map(p => p.id);
   check(byLate.at(-1) === 'p3', `reverse deadline sort put the undated row somewhere else: ${byLate}`);
   check(F({ sort: 'name', closed: true })[0].name === 'Project 1', 'name sort is not alphabetical');
+  /* Created date: newest first by default, oldest first on request. */
+  const newest = F({ closed: true }).map(p => p.id), oldest = F({ sort: 'oldest', closed: true }).map(p => p.id);
+  check(newest[0] === 'p6' && oldest[0] === 'p1' && oldest.join() === newest.slice().reverse().join(),
+    `oldest-first is not the reverse of most recent: ${oldest}`);
   check(D.filterProjects([{ ...fixtures[0], is_crm_list: true }], {}).length === 0,
     'a CRM list row leaked into the projects table');
 
