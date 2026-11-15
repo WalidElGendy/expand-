@@ -3871,7 +3871,7 @@ export function docsRows(lang, ctx) {
           <td class="small nowrap">${esc(docDay(x.created_at, lang))}<span class="muted small block" dir="ltr">${esc(docTime(x.created_at, lang))}</span></td>
           <!-- dir=ltr because bidi reorders "4.0 MB" into "MB 4.0" in an
                Arabic paragraph; the unit belongs after the number. -->
-          <td class="num muted small" dir="ltr">${x.size_bytes ? (x.size_bytes / 1048576).toFixed(1) + ' MB' : '—'}</td>
+          <td class="num muted small nowrap" dir="ltr">${x.size_bytes ? (x.size_bytes / 1048576).toFixed(1) + ' MB' : '—'}</td>
           <td class="num"><button class="link small" data-open="${esc(x.id)}">${esc(lang === 'ar' ? 'فتح' : 'Open')}</button></td>
         </tr>`).join('')
     : `<tr><td class="tbl__empty" colspan="6">${esc(!all.length ? t.noDocsYet : narrowed ? t.docNoMatch : t.noDocsInFilter)}</td></tr>`;
