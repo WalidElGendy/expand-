@@ -388,6 +388,7 @@ export const DSTR = {
     filters: 'Filters', clearFilters: 'Clear',   // owner/team/status/due already exist above
     anyOwner: 'Any owner', anyTeam: 'Any team', anyStatus: 'Any status', anyDue: 'Any deadline',
     unassignedOwner: 'No owner', sortBy: 'Sort',
+    createdCol: 'Created', sortOldest: 'Oldest first',
     sortRecent: 'Most recent', sortDueSoon: 'Deadline, soonest', sortDueLate: 'Deadline, latest',
     sortName: 'Name', dueOverdue: 'Overdue', due30: 'Next 30 days', due90: 'Next 90 days',
     dueNone: 'No deadline set', showingN: 'Showing {n} of {t}',
@@ -720,6 +721,7 @@ export const DSTR = {
     filters: 'التصفية', clearFilters: 'مسح',
     anyOwner: 'كل المسؤولين', anyTeam: 'كل الفرق', anyStatus: 'كل الحالات', anyDue: 'كل المواعيد',
     unassignedOwner: 'بلا مسؤول', sortBy: 'الترتيب',
+    createdCol: 'تاريخ الإنشاء', sortOldest: 'الأقدم أولاً',
     sortRecent: 'الأحدث', sortDueSoon: 'الموعد، الأقرب', sortDueLate: 'الموعد، الأبعد',
     sortName: 'الاسم', dueOverdue: 'متأخر', due30: 'خلال ٣٠ يوماً', due90: 'خلال ٩٠ يوماً',
     dueNone: 'بلا موعد', showingN: 'يعرض {n} من {t}',
@@ -1786,6 +1788,7 @@ export function filterProjects(projects, pf = {}) {
   };
   const sorters = {
     recent:  (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0),
+    oldest:  (a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0),
     due:     byDue(1),
     duelate: byDue(-1),
     name:    (a, b) => String(a.name).localeCompare(String(b.name)),
@@ -1840,7 +1843,7 @@ function filterBar(lang, ctx, all) {
   ${sel('due', t.due, [{ v: '', l: t.anyDue },
     { v: 'overdue', l: t.dueOverdue }, { v: 'd30', l: t.due30 },
     { v: 'd90', l: t.due90 }, { v: 'none', l: t.dueNone }])}
-  ${sel('sort', t.sortBy, [{ v: 'recent', l: t.sortRecent }, { v: 'due', l: t.sortDueSoon },
+  ${sel('sort', t.sortBy, [{ v: 'recent', l: t.sortRecent }, { v: 'oldest', l: t.sortOldest }, { v: 'due', l: t.sortDueSoon },
     { v: 'duelate', l: t.sortDueLate }, { v: 'name', l: t.sortName }])}
   <label class="chk chk--inline">
     <input type="checkbox" data-pf="closed"${f.closed ? ' checked' : ''} />
@@ -2211,6 +2214,7 @@ ${deadlineChart(lang, open)}
         <th>${esc(t.name)}</th>
         ${anyOwner ? `<th>${esc(t.owner)}</th>` : ''}
         <th>${esc(t.teamsCol)}</th>
+        <th class="num">${esc(t.createdCol)}</th>
         ${anyEstimate ? `<th class="num">${esc(t.estimate)}</th>` : ''}
         <th class="num">${esc(t.due)}</th><th>${esc(t.status)}</th>
       </tr></thead>
@@ -2222,13 +2226,15 @@ ${deadlineChart(lang, open)}
             <td><button class="link" data-act="go" data-route="#/p/${esc(p.id)}">${esc(p.name)}</button></td>
             ${anyOwner ? `<td class="small ${p.owner ? '' : 'muted'}">${esc(p.owner?.full_name || t.unassignedOwner)}</td>` : ''}
             <td class="small"><span class="stagecell">${st.map(s => `<span class="pill" style="--c:${esc(db.dept(s.department_id)?.colour || '#555')}">${esc(deptName(s.department_id, lang))}${s.status === 'done' ? ' ✓' : ''}</span>`).join('')}</span></td>
+            <!-- When the project was opened in Expand: a timestamp, so docDay, not fmt. -->
+            <td class="num muted nowrap">${esc(docDay(p.created_at, lang))}</td>
             ${anyEstimate ? `<td class="num">${esc(fmt(p.estimated_delivery, lang))}</td>` : ''}
             <td class="num ${late ? 'bad' : 'muted'}">${esc(fmt(p.due_on, lang))}
               ${late ? `<span class="block small">${late} ${esc(t.overdue)}</span>` : ''}</td>
             <td>${statusPill(p.status, lang)}</td>
           </tr>`;
         }).join('')
-        : `<tr><td class="tbl__empty" colspan="6">${esc(t.noMatch)}</td></tr>`}
+        : `<tr><td class="tbl__empty" colspan="7">${esc(t.noMatch)}</td></tr>`}
       </tbody>
     </table>
   </div>
