@@ -85,6 +85,59 @@ check(none.includes(V.FSTR.en.emptyProd), 'empty state');
 const filtered = V.factoryProcurementView('en', { ...ctx, fif: { show: 'done' } });
 check(filtered.includes('MDF boards') && !filtered.includes('LED screens'), 'done filter on screen');
 
+/* ------------------------------------------------- purchase requests */
+{
+  const req = { id: 'r1', project_id: 'c', name: 'Acrylic sheets', status: 'pending', updated_at: '2026-11-05T08:00:00Z',
+    qty: 12, unit: 'sheet', needed_by: '2026-11-09', description: '3 mm clear, 1220×2440', created_by: 'x', created_at: '2026-11-04T08:00:00Z',
+    suppliers: [{ name: 'Gulf Plastics', contact: '0551234567', price: 180 }, { name: 'Al Waha', contact: '', price: '150.5' },
+      { name: 'No quote yet', contact: 'x@y.sa', price: null }, { name: '', contact: '', price: 99 }, { name: 'Bad', price: -3 }] };
+  const sups = F.suppliersOf(req);
+  check(sups.length === 4 && sups[3].price === null, `suppliers cleaned: nameless dropped, a negative price is no price (${JSON.stringify(sups)})`);
+  const q = F.bestQuote(req);
+  check(q && q.name === 'Al Waha' && q.price === 150.5 && q.total === 1806 && q.n === 2, `lowest quote × qty: ${JSON.stringify(q)}`);
+  check(F.bestQuote({ suppliers: [{ name: 'x' }] }) === null && F.bestQuote({}) === null, 'no prices → no quote');
+  // Its own needed-by date (4 days off) drives the follow-up, not the project's delivery (45 days off).
+  const D2 = F.factoryData({ projects: P, items: [req], production }, today);
+  const r = D2.items[0];
+  check(r.deliveryOn === '2026-11-09' && r.deliverySrc === 'need' && r.follow?.code === 'soon' && r.follow.need, `needed-by drives follow-up: ${JSON.stringify(r.follow)}`);
+  check(V.followSentence('en', r.follow) === 'Needed in 4 days' && V.followSentence('ar', r.follow).includes('4'), 'needed-by sentence');
+  const late = F.factoryData({ projects: P, items: [{ ...req, needed_by: '2026-11-01' }], production }, today).items[0];
+  check(V.followSentence('en', late.follow) === 'Was needed 4 days ago', 'needed-by passed');
+  const site = F.factoryData({ projects: P, items: [{ ...req, needed_by: null }], production }, today).items[0];
+  check(site.deliverySrc === 'site' && site.deliveryOn === '2026-12-20' && site.follow?.code !== 'soon', 'without needed-by: the project date');
+  check(F.filterItems(D2.items, { q: 'waha' }).length === 1, 'search finds a supplier');
+
+  db.state.me = { id: 'x', role: 'member', department_id: 'production', is_active: true };
+  const photos = [{ id: 'ph1', procurement_item_id: 'r1', filename: 'sample.jpg', mime: 'image/jpeg', url: 'https://example.test/s.jpg' },
+    { id: 'ph2', procurement_item_id: 'r1', filename: 'spec.pdf', mime: 'application/pdf', url: 'https://example.test/s.pdf' }];
+  const c2 = { fProjects: P, fItems: [req], fProd: production, fToday: today, fPhotos: photos, people: [{ id: 'x', full_name: 'Bawarith' }] };
+  for (const lang of ['en', 'ar']) {
+    const r_ = V.FSTR[lang].req;
+    const list = V.factoryProcurementView(lang, c2);
+    check(list.includes('12 sheet') && list.includes('src="https://example.test/s.jpg"') && list.includes('Gulf Plastics, Al Waha +2'),
+      `${lang}: the line shows quantity, a thumbnail and the suppliers`);
+    check(list.includes('SAR 150.50') && list.includes('data-fi-open="r1"') && !list.includes('data-freq'), `${lang}: lowest quote shown, details closed`);
+    check(['fiQty', 'fiUnit', 'fiNeed', 'fiSpec', 'fiPhotos', 'data-fi-sups', 'data-fi-supadd'].every(k => list.includes(k)), `${lang}: the request form has every field`);
+    const open = V.factoryProcurementView(lang, { ...c2, fOpen: 'r1' });
+    check(open.includes('data-freq="r1"') && open.includes('data-fphoto-add="r1"') && open.includes('data-fphoto-del="ph2"') && open.includes('>PDF<'),
+      `${lang}: details: photos, add and remove; a PDF shows as a tile`);
+    check(open.includes('data-fs-item="r1"') && (open.match(/data-fs-row=/g) || []).length === 5 && open.includes(`>${r_.lowest}<`) && open.includes('1,806'),
+      `${lang}: details: every supplier line, the lowest marked, totals at the quantity`);
+    check(open.includes('value="3 mm clear, 1220×2440"') === false && open.includes('3 mm clear, 1220×2440') && open.includes('Bawarith'), `${lang}: specs and who asked`);
+  }
+  db.state.me = { id: 'y', role: 'member', department_id: 'bd', is_active: true };
+  const roOpen = V.factoryProcurementView('en', { ...c2, fOpen: 'r1' });
+  check(!roOpen.includes('data-fs-row') && !roOpen.includes('data-fphoto-add') && roOpen.includes(' disabled') && roOpen.includes('Gulf Plastics'),
+    'others see the request but cannot change it');
+
+  // The Factory export carries the request.
+  const sheets = PX.factoryWorkbook('en', D2, { today, who: 'T', phaseName: x => x, statusName: x => x, procName: x => x, stageName: x => x, srcName: x => x,
+    followText: f => V.followSentence('en', f) });
+  const flat = sheets[1].rows.flat().map(c => c?.v);
+  check(flat.includes(12) && flat.includes('sheet') && flat.includes(150.5) && flat.includes(1806) && flat.some(v => String(v).includes('Gulf Plastics · 0551234567 · 180 SAR')),
+    'export: qty, unit, suppliers, lowest price and total');
+}
+
 /* -------------------------------------------------------------- exports */
 const unzipNames = (bytes) => {
   const names = []; const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
