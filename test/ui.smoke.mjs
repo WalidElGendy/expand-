@@ -1047,6 +1047,29 @@ for (const lang of ['en', 'ar']) {
   check(bytes[0] === 0x50 && bytes[1] === 0x4B && bytes.length > 1500, 'the pricing export is not a valid .xlsx (ZIP) file');
   check(D.pricingFileName({ name: 'A/B: C' }) === 'Pricing - A-B- C.xlsx', 'the export file name is not safe');
 
+  /* A pricing sheet fills the table: the pricing team sees "Fill table from
+     this sheet" next to an Excel sheet (not a PDF), the import note shows
+     for this project only, and the project's price reaches the list. */
+  dbmod.state.me = { id: 'u8', role: 'member', department_id: 'pricing', is_active: true };
+  const sheetsCtx = { project: { id: 'pp' }, pricingItems: [], people: prPeople, projectFiles: [
+    { id: 'fx', purpose: 'pricing', filename: 'هيكلية.xlsx' }, { id: 'fp', purpose: 'pricing', filename: 'quote.pdf' }],
+    prNote: { project: 'pp', at: Date.now(), text: 'Filled from هيكلية.xlsx: 17 lines', bad: false } };
+  const prMine = D.pricingSection('en', sheetsCtx);
+  check(prMine.includes('data-pr-fill="fx"') && !prMine.includes('data-pr-fill="fp"'), 'the fill-from-sheet button is missing, or offered on a PDF');
+  check(prMine.includes('Filled from هيكلية.xlsx'), 'the import note is not shown under the pricing table');
+  check(!D.pricingSection('en', { ...sheetsCtx, project: { id: 'other' } }).includes('data-pr-note'), 'one project\'s import note shows on another');
+  dbmod.state.me = { id: 'u2', role: 'member', department_id: '3d', is_active: true };
+  check(!D.pricingSection('en', sheetsCtx).includes('data-pr-fill'), 'someone outside pricing is offered the fill-from-sheet button');
+  for (const lang of ['en', 'ar']) {
+    const priced = [{ ...proj(31, '2026-12-01', 'submitted'), pricing_items: [{ qty: 2, unit_price_sar: 1000.4 }] },
+                    { ...proj(32, '2026-12-02', 'in_design'), pricing_items: [] }];
+    const pv = D.pmView(lang, { ...dctx, projects: priced });
+    check(pv.includes(`>${D.DSTR[lang].priceCol}<`) && pv.includes('SAR 2,001<'), `${lang}: the projects table does not show the price`);
+    check(pv.includes(D.DSTR[lang].notPriced), `${lang}: an unpriced project does not say so`);
+    check(pv.includes(D.DSTR[lang].pricedTile) && pv.includes(D.DSTR[lang].pricedTileSub.replace('{n}', 1).replace('{m}', 2)), `${lang}: the priced-value tile is missing`);
+    check(D.filterProjects(priced, { sort: 'price' })[0].id === 'p31', `${lang}: price sort does not put the priced project first`);
+  }
+
   // A mistyped deadline (year 0006 or 2126) must not take the Projects page down.
   const typo = [{ id: 't1', name: 'A', due_on: '0006-10-25' }, { id: 't2', name: 'B', due_on: '2026-10-20' },
                 { id: 't3', name: 'C', due_on: '2026-11-01' }, { id: 't4', name: 'D', due_on: '2126-10-22' }];
