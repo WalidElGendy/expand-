@@ -403,6 +403,7 @@ export const DSTR = {
     /* --- Projects screen: filters and detail ------------------------------ */
     filters: 'Filters', clearFilters: 'Clear',   // owner/team/status/due already exist above
     anyOwner: 'Any owner', anyTeam: 'Any team', anyStatus: 'Any status', anyDue: 'Any deadline',
+    customer: 'Customer', anyCustomer: 'Any customer', noCustomer: 'No customer',
     unassignedOwner: 'No owner', sortBy: 'Sort',
     createdCol: 'Created', sortOldest: 'Oldest first',
     priceCol: 'Price excl. VAT', sortPrice: 'Price, highest', notPriced: 'Not priced',
@@ -749,6 +750,7 @@ export const DSTR = {
 
     filters: 'التصفية', clearFilters: 'مسح',
     anyOwner: 'كل المسؤولين', anyTeam: 'كل الفرق', anyStatus: 'كل الحالات', anyDue: 'كل المواعيد',
+    customer: 'العميل', anyCustomer: 'كل العملاء', noCustomer: 'بلا عميل',
     unassignedOwner: 'بلا مسؤول', sortBy: 'الترتيب',
     createdCol: 'تاريخ الإنشاء', sortOldest: 'الأقدم أولاً',
     priceCol: 'السعر قبل الضريبة', sortPrice: 'السعر، الأعلى', notPriced: 'غير مسعّر',
@@ -1786,8 +1788,12 @@ export const CLOSED_STATUS = ['delivered', 'archived', 'lost'];
 const DAY = 86400000;
 
 export const PF_DEFAULT = {
-  owner: '', team: '', status: '', due: '', sort: 'recent', closed: false,
+  client: '', owner: '', team: '', status: '', due: '', sort: 'recent', closed: false,
 };
+
+/* Customers are typed by hand, so the same one can arrive as "NCPD " and
+   "ncpd": compare trimmed and case-folded. */
+export const clientKey = (c) => String(c || '').trim().replace(/\s+/g, ' ').toLowerCase();
 
 export function filterProjects(projects, pf = {}) {
   const f = { ...PF_DEFAULT, ...pf };
@@ -1803,6 +1809,9 @@ export function filterProjects(projects, pf = {}) {
     rows = rows.filter(p => !CLOSED_STATUS.includes(p.status));
   }
   if (f.status) rows = rows.filter(p => p.status === f.status);
+  if (f.client) rows = f.client === '~none'
+    ? rows.filter(p => !clientKey(p.client))
+    : rows.filter(p => clientKey(p.client) === f.client);
   // '~none' rather than '' — an empty value already means "any owner", and
   // the two questions are different ones.
   if (f.owner) rows = f.owner === '~none'
@@ -1861,6 +1870,17 @@ function filterBar(lang, ctx, all) {
                  n: all.filter(p => (p.project_stages || []).some(s => s.department_id === d.id)).length }))
     .filter(d => d.n > 0);
 
+  /* Customers who have projects here, most projects first; the first
+     spelling seen stands for the rest. */
+  const clientMap = new Map();
+  all.forEach(p => {
+    const k = clientKey(p.client); if (!k) return;
+    const c = clientMap.get(k) || { k, name: String(p.client).trim().replace(/\s+/g, ' '), n: 0 };
+    c.n++; clientMap.set(k, c);
+  });
+  const clients = [...clientMap.values()].sort((a, b) => b.n - a.n || a.name.localeCompare(b.name));
+  const noClient = all.filter(p => !clientKey(p.client)).length;
+
   const statuses = [...new Set(all.map(p => p.status))]
     .sort((a, b) => STATUS_ORDER.indexOf(a) - STATUS_ORDER.indexOf(b));
 
@@ -1870,10 +1890,13 @@ function filterBar(lang, ctx, all) {
         ${options.map(o => `<option value="${esc(o.v)}"${o.v === f[key] ? ' selected' : ''}>${esc(o.l)}</option>`).join('')}
       </select></label>`;
 
-  const active = ['owner', 'team', 'status', 'due'].some(k => f[k]) || f.closed || f.sort !== 'recent';
+  const active = ['client', 'owner', 'team', 'status', 'due'].some(k => f[k]) || f.closed || f.sort !== 'recent';
 
   return `
 <div class="filterbar">
+  ${sel('client', t.customer, [{ v: '', l: t.anyCustomer },
+    ...clients.map(c => ({ v: c.k, l: `${c.name} (${c.n})` })),
+    ...(noClient ? [{ v: '~none', l: `${t.noCustomer} (${noClient})` }] : [])])}
   ${sel('owner', t.owner, [{ v: '', l: t.anyOwner },
     ...owners.map(o => ({ v: o.id, l: `${o.name} (${o.n})` })),
     ...(noOwner ? [{ v: '~none', l: `${t.unassignedOwner} (${noOwner})` }] : [])])}
@@ -2257,6 +2280,7 @@ ${deadlineChart(lang, open)}
   <div class="tblwrap">
     <table class="tbl">
       <thead><tr>
+        <th>${esc(t.customer)}</th>
         <th>${esc(t.name)}</th>
         ${anyOwner ? `<th>${esc(t.owner)}</th>` : ''}
         <th>${esc(t.teamsCol)}</th>
@@ -2270,6 +2294,7 @@ ${deadlineChart(lang, open)}
           const late = lateBy(p.due_on);
           const st = (p.project_stages || []).slice().sort((a, b) => a.sort - b.sort);
           return `<tr${p.import_flags?.length ? ' data-flagged="1"' : ''}>
+            <td class="small fclient ${p.client ? '' : 'muted'}" dir="auto">${esc(String(p.client || '').trim() || '—')}</td>
             <td><button class="link" data-act="go" data-route="#/p/${esc(p.id)}">${esc(p.name)}</button></td>
             ${anyOwner ? `<td class="small ${p.owner ? '' : 'muted'}">${esc(p.owner?.full_name || t.unassignedOwner)}</td>` : ''}
             <td class="small"><span class="stagecell">${st.map(s => `<span class="pill" style="--c:${esc(db.dept(s.department_id)?.colour || '#555')}">${esc(deptName(s.department_id, lang))}${s.status === 'done' ? ' ✓' : ''}</span>`).join('')}</span></td>
@@ -2284,7 +2309,7 @@ ${deadlineChart(lang, open)}
             <td>${statusPill(p.status, lang)}</td>
           </tr>`;
         }).join('')
-        : `<tr><td class="tbl__empty" colspan="8">${esc(t.noMatch)}</td></tr>`}
+        : `<tr><td class="tbl__empty" colspan="9">${esc(t.noMatch)}</td></tr>`}
       </tbody>
     </table>
   </div>

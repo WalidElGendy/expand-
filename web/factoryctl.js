@@ -7,7 +7,7 @@ import * as db from './db.js';
 import * as V from './factory.js';
 import * as XL from './xlsx.js';
 import * as PX from './projxlsx.js';
-import { DSTR, deptName, filterProjects } from './dash.js';
+import { DSTR, deptName, filterProjects, clientKey } from './dash.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -67,8 +67,10 @@ function download(name, bytes, type = XLSX_TYPE) {
 /* A sentence of the filters in use on the projects list, for the sheet. */
 const DUE = { en: { overdue: 'overdue', d30: 'due in 30 days', d90: 'due in 90 days', none: 'no deadline' },
   ar: { overdue: 'متأخرة', d30: 'مستحقة خلال 30 يوماً', d90: 'مستحقة خلال 90 يوماً', none: 'بلا موعد نهائي' } };
-export function filterSentence(lang, pf = {}, people = []) {
+export function filterSentence(lang, pf = {}, people = [], projects = []) {
   const d = DSTR[lang], ar = lang === 'ar', parts = [];
+  if (pf.client) parts.push(`${ar ? 'العميل' : 'Customer'}: ${pf.client === '~none' ? (ar ? 'بلا عميل' : 'no customer')
+    : (String(projects.find(p => clientKey(p.client) === pf.client)?.client || pf.client).trim())}`);
   if (pf.status) parts.push(`${ar ? 'الحالة' : 'Status'}: ${d.st[pf.status] || pf.status}`);
   if (pf.owner) parts.push(`${ar ? 'المسؤول' : 'Owner'}: ${pf.owner === '~none' ? (ar ? 'بلا مسؤول' : 'no owner')
     : (people.find(p => p.id === pf.owner)?.full_name || '')}`);
@@ -93,7 +95,7 @@ export function wireFactory(lang, { ctx, rerender, fail }) {
         today, who: db.state.me?.full_name || '',
         statusName: (s) => DSTR[lang].st[s] || s,
         deptName: (id) => deptName(id, lang),
-        filters: filterSentence(lang, ctx.pf, ctx.people || []),
+        filters: filterSentence(lang, ctx.pf, ctx.people || [], ctx.projects || []),
       });
       download(PX.projectsFileName(today), XL.buildWorkbook(sheets, { title: PX.PXSTR[lang].title, author: db.state.me?.full_name || 'expand' }));
     } catch (e) { fail(e); }
