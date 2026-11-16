@@ -1090,6 +1090,7 @@ for (const lang of ['en', 'ar']) {
       check(onPast.includes(`value="${past}"`) && onPast.includes('data-att-step="0"'), `${lang}: a past day is not shown, or there is no way back to today`);
       check(onPast.includes(lang === 'en' ? 'No clock-out' : 'لم يسجّل الخروج'), `${lang}: a past day's missing clock-out is not called out`);
       check(!onPast.includes(lang === 'en' ? '>Today ·' : '>اليوم ·'), `${lang}: a past day is still titled Today`);
+      check(onPast.indexOf('>Khalid<') < onPast.indexOf('>Hana<'), `${lang}: on a past day the people who came in are not listed first`);
       const future = HV.hrAttendanceView(lang, { ...actx, attDay: HL.addDays(today, 3) });
       check(future.includes(`value="${today}"`), `${lang}: a future day was shown instead of today`);
     }
