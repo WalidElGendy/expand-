@@ -391,12 +391,13 @@ export function factoryProcurementView(lang, ctx) {
   const openItem = ctx.fOpen ? D.items.find(i => i.id === ctx.fOpen) : null;
   const modal = (title, sub, inner) => `<div class="fmodal" data-fmodal role="dialog" aria-modal="true" aria-label="${esc(title)}">
     <div class="fmodal__box">
-      <div class="fmodal__head"><div><h2 dir="auto">${esc(title)}</h2>${sub ? `<span class="muted small" dir="auto">${esc(sub)}</span>` : ''}</div>
+      <div class="fmodal__head"><div><h2 dir="auto">${esc(title)}</h2>${sub.length ? `<span class="muted small">${sub.map(x => `<bdi>${esc(x)}</bdi>`).join(' · ')}</span>` : ''}</div>
         <button type="button" class="x" data-fmodal-close aria-label="${esc(r.close)}" title="${esc(r.close)}">✕</button></div>
       <div class="fmodal__body">${inner}</div>
     </div></div>`;
-  const dialog = ctx.fNew && canAdd ? modal(r.title, '', form)
-    : openItem ? modal(openItem.name || '—', [openItem.project?.name, qtyText(openItem)].filter(Boolean).join(' · '), requestPanel(lang, ctx, openItem, edit))
+  // Each part isolated, so an Arabic project name cannot turn "1 robot" into "robot 1".
+  const dialog = ctx.fNew && canAdd ? modal(r.title, [], form)
+    : openItem ? modal(openItem.name || '—', [openItem.project?.name, qtyText(openItem)].filter(Boolean), requestPanel(lang, ctx, openItem, edit))
     : '';
 
   return `
