@@ -37,6 +37,20 @@ t('recordToRow', () => {
   const outOnly = recordToRow({ ...rec, firstCheckIn: null }, 'p1');
   assert.equal(outOnly.clock_in, '2026-10-15T12:09:00.000Z'); assert.equal(outOnly.clock_out, null);
 });
+t('recordToRow: no lastCheckOut from the API → first punch + totalDuration', () => {
+  // As Malachite actually sends it (12 Nov): Incomplete, lastCheckOut null.
+  const real = { ...rec, date: '2026-11-12T00:00:00', firstCheckIn: '2026-11-12T09:33:48', lastCheckOut: null,
+    totalDuration: '07:26:55', lateDuration: '01:03:48', earlyCheckOutDuration: '00:00:00', status: { english: 'Incomplete' } };
+  const r = recordToRow(real, 'p1');
+  assert.equal(r.clock_in, '2026-11-12T06:33:48.000Z');       // 09:33:48 Riyadh
+  assert.equal(r.clock_out, '2026-11-12T14:00:43.000Z');      // 17:00:43 Riyadh
+  assert.equal(r.ext.worked_min, 446);
+  // One punch so far today: no duration, no clock-out.
+  const one = recordToRow({ ...real, totalDuration: '00:00:00' }, 'p1');
+  assert.equal(one.clock_out, null); assert.equal(one.early_minutes, 0);
+  // A real lastCheckOut, when the API does send one, still wins.
+  assert.equal(recordToRow({ ...real, lastCheckOut: '2026-11-12T17:30:00' }, 'p1').clock_out, '2026-11-12T14:30:00.000Z');
+});
 t('mergeRow', () => {
   const r = recordToRow(rec, 'p1');
   assert.equal(mergeRow({ source: 'manual' }, r), null);
