@@ -1353,6 +1353,25 @@ select.btn--sm { height: 28px; padding: 0 6px; background: var(--s-2); border: 1
 .tbl__total td { border-top: 1px solid var(--line2); }
 .good { color: var(--ok); }
 .daypick { display: flex; gap: 10px; flex-wrap: wrap; padding-top: 4px; }
+/* Assignment pop-ups (notify.js): a stack of cards at the top of the screen,
+   above everything, each with Open and Dismiss. */
+.notif { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 1000;
+  width: min(560px, calc(100vw - 32px)); display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+.notif:empty { display: none; }
+.notif__card { pointer-events: auto; display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+  background: var(--s-1); border: 1px solid var(--line2); border-inline-start: 4px solid var(--brand);
+  border-radius: var(--r); box-shadow: 0 10px 30px rgba(0, 0, 0, .35); }
+.notif__card.is-new { animation: notifIn .35s ease-out; }
+@keyframes notifIn { from { opacity: 0; transform: translateY(-14px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .notif__card.is-new { animation: none; } }
+.notif__dot { width: 9px; height: 9px; border-radius: 50%; background: var(--brand); flex: none; }
+.notif__txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.notif__h { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink3); }
+.notif__w { font-size: 14px; color: var(--ink1); overflow-wrap: anywhere; }
+.notif__c { font-size: 12px; color: var(--ink2); overflow-wrap: anywhere; }
+.notif__more { pointer-events: auto; align-self: flex-end; display: flex; gap: 10px; align-items: center;
+  font-size: 12px; color: var(--ink3); background: var(--s-1); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; }
+
 /* Attendance: step through days. */
 .attday { margin-inline-start: auto; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .attday input[type=date] { padding: 4px 8px; font: inherit; font-size: 13px; }

@@ -13,6 +13,7 @@ import { Scheduler, calibrate, backtest, DEFAULT_STAGES, SIZES } from '../engine
 import { WorkCalendar, iso, parse } from '../engine/calendar.js';
 import * as db from './db.js';
 import * as C from './controller.js';
+import * as N from './notify.js';
 import { HSTR } from './hr.js';
 import { TSTR, canSeeTenders } from './tenders.js';
 import { ESTR, canSeeEtimad } from './etimad.js';
@@ -249,6 +250,7 @@ function render() {
     document.body.dataset.route = 'signin';
     $('#root').innerHTML = shell({ name: 'signin' }, signInView(S.lang, C.ctx.authMode, C.ctx.authMsg, C.ctx.authErr, C.ctx.authAddr));
     C.wireAuth(S.lang); wire();
+    try { N.ensure(S.lang); } catch { /* signed out: nothing to show */ }
     return;
   }
 
@@ -284,6 +286,8 @@ function render() {
   wire();
   if (r.name === 'signin') C.wireAuth(S.lang);
   if (APP.includes(r.name)) C.wireApp(S.lang);
+  // Assignment pop-ups: start for whoever is signed in, stop on sign-out.
+  try { N.ensure(S.lang); } catch (e) { console.error(e); }
 }
 
 /* The calendar is the one block on this screen made of real rows rather than
