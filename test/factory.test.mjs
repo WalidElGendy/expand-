@@ -75,11 +75,11 @@ for (const lang of ['en', 'ar']) {
   check(h.includes('data-fd-date="a"') && h.includes('fflow__c') && h.includes(V.FSTR[lang].phase.making), `${lang} production view, editable`);
   check(h.includes('data-fp-project="c"'), `${lang} follow-up chip links to procurement`);
   const q = V.factoryProcurementView(lang, ctx);
-  check(q.includes('data-fp-status="i4"') && q.includes('data-fi-add') && q.includes('fwhy--notAvailable'), `${lang} procurement view, editable`);
+  check(q.includes('data-fp-status="i4"') && q.includes('data-fi-new') && !q.includes('data-fi-add') && q.includes('fwhy--notAvailable'), `${lang} procurement view, editable; the request form waits behind its button`);
 }
 db.state.me = { id: 'y', role: 'member', department_id: 'bd', is_active: true };
 const ro = V.factoryProcurementView('en', ctx);
-check(!ro.includes('data-fp-status') && !ro.includes('data-fi-add') && ro.includes(V.FSTR.en.readOnly), 'read-only for others');
+check(!ro.includes('data-fp-status') && !ro.includes('data-fi-new') && !V.factoryProcurementView('en', { ...ctx, fNew: true }).includes('data-fi-add') && ro.includes(V.FSTR.en.readOnly), 'read-only for others');
 const none = V.factoryProductionView('en', { fProjects: [P[4]], fItems: [], fProd: [], fToday: today });
 check(none.includes(V.FSTR.en.emptyProd), 'empty state');
 const filtered = V.factoryProcurementView('en', { ...ctx, fif: { show: 'done' } });
@@ -106,6 +106,8 @@ check(filtered.includes('MDF boards') && !filtered.includes('LED screens'), 'don
   const site = F.factoryData({ projects: P, items: [{ ...req, needed_by: null }], production }, today).items[0];
   check(site.deliverySrc === 'site' && site.deliveryOn === '2026-12-20' && site.follow?.code !== 'soon', 'without needed-by: the project date');
   check(F.filterItems(D2.items, { q: 'waha' }).length === 1, 'search finds a supplier');
+  check(V.shortName('https://shop.unitree.com/products/unitree-g1') === 'shop.unitree.com' && V.shortName('www.alwaha.sa/x') === 'alwaha.sa'
+    && V.shortName('Gulf Plastics') === 'Gulf Plastics' && V.shortName('sales@alwaha.sa') === 'sales@alwaha.sa', 'a supplier web address reads as its site');
 
   db.state.me = { id: 'x', role: 'member', department_id: 'production', is_active: true };
   const photos = [{ id: 'ph1', procurement_item_id: 'r1', filename: 'sample.jpg', mime: 'image/jpeg', url: 'https://example.test/s.jpg' },
@@ -117,9 +119,12 @@ check(filtered.includes('MDF boards') && !filtered.includes('LED screens'), 'don
     check(list.includes('12 sheet') && list.includes('src="https://example.test/s.jpg"') && list.includes('Gulf Plastics, Al Waha +2'),
       `${lang}: the line shows quantity, a thumbnail and the suppliers`);
     check(list.includes('SAR 150.50') && list.includes('data-fi-open="r1"') && !list.includes('data-freq'), `${lang}: lowest quote shown, details closed`);
-    check(['fiQty', 'fiUnit', 'fiNeed', 'fiSpec', 'fiPhotos', 'data-fi-sups', 'data-fi-supadd'].every(k => list.includes(k)), `${lang}: the request form has every field`);
+    check(!list.includes('data-fmodal') && !list.includes('fiQty'), `${lang}: the list shows only the list`);
+    const nw = V.factoryProcurementView(lang, { ...c2, fNew: true });
+    check(nw.includes('data-fmodal') && nw.includes(r_.title) && ['data-fi-add', 'fiQty', 'fiUnit', 'fiNeed', 'fiSpec', 'fiPhotos', 'data-fi-sups', 'data-fi-supadd', 'data-fmodal-close'].every(k => nw.includes(k)),
+      `${lang}: "New purchase request" opens the form, with every field, in a dialog`);
     const open = V.factoryProcurementView(lang, { ...c2, fOpen: 'r1' });
-    check(open.includes('data-freq="r1"') && open.includes('data-fphoto-add="r1"') && open.includes('data-fphoto-del="ph2"') && open.includes('>PDF<'),
+    check(open.includes('data-fmodal') && open.includes('data-freq="r1"') && open.includes('data-fphoto-add="r1"') && open.includes('data-fphoto-del="ph2"') && open.includes('>PDF<'),
       `${lang}: details: photos, add and remove; a PDF shows as a tile`);
     check(open.includes('data-fs-item="r1"') && (open.match(/data-fs-row=/g) || []).length === 5 && open.includes(`>${r_.lowest}<`) && open.includes('1,806'),
       `${lang}: details: every supplier line, the lowest marked, totals at the quantity`);
