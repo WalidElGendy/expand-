@@ -109,15 +109,21 @@ export function factoryData({ projects = [], items = [], production = [] } = {},
   }
   const byId = new Map(rows.map(r => [r.project.id, r]));
 
-  /* Items, each with its project's delivery and its follow-up reason. */
+  /* Items, each with the date it is needed by and its follow-up reason. The
+     request's own "needed by" date wins; without one, the project's delivery
+     to site is when it is needed at the latest. */
   const all = [];
   for (const it of items) {
     const r = byId.get(it.project_id);
     const p = r?.project || projects.find(x => x.id === it.project_id) || null;
-    const left = r ? r.left : null;
+    const own = it.needed_by || null;
+    const left = own ? daysUntil(own, today) : (r ? r.left : null);
     const follow = followUpOf(it, left, today);
+    if (follow && own) follow.need = true;
     if (follow && r) r.itemsFollow++;
-    all.push({ ...it, project: p, row: r || null, follow, deliveryOn: r?.delivery.on || null, deliveryLeft: left });
+    all.push({ ...it, project: p, row: r || null, follow,
+      deliveryOn: own || r?.delivery.on || null, deliverySrc: own ? 'need' : (r?.delivery.on ? 'site' : null),
+      deliveryLeft: left, quote: bestQuote(it) });
   }
   /* Follow-ups first (late before soon before flagged before stale), then
      open items, then done; within a group, the nearest delivery first. */
@@ -160,6 +166,28 @@ export function factoryData({ projects = [], items = [], production = [] } = {},
 }
 
 /** Item list as the Procurement tab filters it. */
+/** The suppliers of a request, cleaned: a name or a contact, a price that is
+    a number of zero or more (or null). */
+export function suppliersOf(item) {
+  const list = Array.isArray(item?.suppliers) ? item.suppliers : [];
+  return list.map(x => ({
+    name: String(x?.name || '').trim(), contact: String(x?.contact || '').trim(),
+    price: x?.price === '' || x?.price === null || x?.price === undefined || !Number.isFinite(Number(x.price)) || Number(x.price) < 0
+      ? null : Number(x.price),
+    note: String(x?.note || '').trim(),
+  })).filter(x => x.name || x.contact);
+}
+
+/** The lowest quote on a request: { name, price, total, n } — n is how many
+    suppliers have quoted — or null when nobody has given a price yet. */
+export function bestQuote(item) {
+  const priced = suppliersOf(item).filter(x => x.price !== null);
+  if (!priced.length) return null;
+  const b = priced.reduce((a, x) => (x.price < a.price ? x : a));
+  const qty = Number(item?.qty) > 0 ? Number(item.qty) : 1;
+  return { name: b.name || b.contact, price: b.price, total: Math.round(b.price * qty * 100) / 100, n: priced.length };
+}
+
 export function filterItems(items, { show = 'all', project = '', q = '' } = {}) {
   let out = items;
   if (show === 'follow') out = out.filter(i => i.follow);
@@ -167,7 +195,8 @@ export function filterItems(items, { show = 'all', project = '', q = '' } = {}) 
   else if (show === 'done') out = out.filter(i => i.status === 'done');
   if (project) out = out.filter(i => i.project_id === project);
   const n = String(q || '').trim().toLowerCase();
-  if (n) out = out.filter(i => [i.name, i.description, i.project?.name, i.project?.client]
+  if (n) out = out.filter(i => [i.name, i.description, i.project?.name, i.project?.client,
+    ...suppliersOf(i).map(x => x.name)]
     .some(v => String(v || '').toLowerCase().includes(n)));
   return out;
 }

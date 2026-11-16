@@ -205,14 +205,16 @@ export const FXSTR = {
     production: 'Production', procurement: 'Procurement', exported: 'Exported {d} by {who} · {n} projects · {i} items',
     col: { n: '#', project: 'Project', client: 'Client', pm: 'Project manager', phase: 'Phase', status: 'Project status', team: 'Production team',
       stage: 'Stage status', delivery: 'Delivery to site', src: 'Date from', left: 'Days left', bought: 'Items bought', follow: 'Need follow-up', schedule: 'Schedule notes',
-      item: 'Item', desc: 'Description', istatus: 'Status', why: 'Follow-up', pdel: 'Project delivery', updated: 'Last update' },
+      item: 'Item', desc: 'Specifications', istatus: 'Status', why: 'Follow-up', pdel: 'Needed by', updated: 'Last update',
+      qty: 'Qty', unit: 'Unit', sup: 'Suppliers', best: 'Lowest unit price (SAR)', bestTotal: 'Lowest total (SAR)' },
     total: 'Total',
   },
   ar: {
     production: 'الإنتاج', procurement: 'المشتريات', exported: 'صُدّر في {d} بواسطة {who} · {n} مشروع · {i} بند',
     col: { n: '#', project: 'المشروع', client: 'العميل', pm: 'مدير المشروع', phase: 'المرحلة', status: 'حالة المشروع', team: 'فريق الإنتاج',
       stage: 'حالة المرحلة', delivery: 'التسليم للموقع', src: 'مصدر الموعد', left: 'الأيام المتبقية', bought: 'البنود المشتراة', follow: 'تحتاج متابعة', schedule: 'ملاحظات الجدول',
-      item: 'البند', desc: 'الوصف', istatus: 'الحالة', why: 'المتابعة', pdel: 'تسليم المشروع', updated: 'آخر تحديث' },
+      item: 'البند', desc: 'المواصفات', istatus: 'الحالة', why: 'المتابعة', pdel: 'مطلوب بتاريخ', updated: 'آخر تحديث',
+      qty: 'الكمية', unit: 'الوحدة', sup: 'الموردون', best: 'أقل سعر للوحدة (ر.س)', bestTotal: 'أقل إجمالي (ر.س)' },
     total: 'الإجمالي',
   },
 };
@@ -268,7 +270,12 @@ export function factoryWorkbook(lang, data, o = {}) {
     merges: [`A1:${L}1`, `A2:${L}2`], autoFilter: `A3:${L}${Math.max(3, rows.length)}`, rows,
   };
 
-  const ihead = [t.col.n, t.col.item, t.col.desc, t.col.project, t.col.istatus, t.col.why, t.col.pdel, t.col.updated];
+  const ihead = [t.col.n, t.col.item, t.col.qty, t.col.unit, t.col.desc, t.col.project, t.col.istatus, t.col.why, t.col.pdel,
+    t.col.sup, t.col.best, t.col.bestTotal, t.col.updated];
+  const supText = (it) => (Array.isArray(it.suppliers) ? it.suppliers : [])
+    .filter(x => x && (x.name || x.contact))
+    .map(x => [x.name, x.contact, x.price !== null && x.price !== undefined && x.price !== '' ? `${Number(x.price).toLocaleString('en-US')} SAR` : ''].filter(Boolean).join(' · '))
+    .join('\n');
   const irows = [
     [{ v: t.procurement, s: 'banner' }, ...Array(ihead.length - 1).fill({ v: '', s: 'banner' })],
     [{ v: meta, s: 'sub' }],
@@ -279,18 +286,23 @@ export function factoryWorkbook(lang, data, o = {}) {
     irows.push([
       { v: i + 1, s: `${z}tdNum` },
       { v: it.name || '', s: `${z}tdStrong` },
+      { v: Number(it.qty) > 0 ? Number(it.qty) : 1, s: `${z}tdNum` },
+      { v: it.unit || '', s: `${z}td` },
       { v: it.description || '', s: `${z}td` },
       { v: it.project?.name || '', s: `${z}td` },
       { v: procName(it.status), s: PROC_TONE[it.status] || 'stMuted' },
       { v: it.follow ? followText(it.follow) : '', s: it.follow ? `${z}tdBad` : `${z}td` },
       { v: excelDate(it.deliveryOn), s: `${z}tdDate` },
+      { v: supText(it), s: `${z}td` },
+      { v: it.quote ? it.quote.price : null, s: `${z}tdMoney` },
+      { v: it.quote ? it.quote.total : null, s: `${z}tdMoney` },
       { v: excelDate(it.updated_at || it.created_at), s: `${z}tdDate` },
     ]);
   });
   const IL = colName(ihead.length - 1);
   const procSheet = {
     name: t.procurement, rtl, grid: false, tabColor: 'FFB77900', freezeRow: 3,
-    colWidths: [5, 34, 40, 38, 15, 36, 15, 14], heights: { 0: 34, 2: 30 },
+    colWidths: [5, 34, 8, 10, 40, 38, 15, 36, 15, 40, 16, 16, 14], heights: { 0: 34, 2: 30 },
     merges: [`A1:${IL}1`, `A2:${IL}2`], autoFilter: `A3:${IL}${Math.max(3, irows.length)}`, rows: irows,
   };
   return [prodSheet, procSheet];

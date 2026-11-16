@@ -514,7 +514,7 @@ export async function ensureProductionStage(project_id) {
 
 export const listProcurementItems = async (project_id) => ok(await sb
   .from('procurement_items')
-  .select('id, project_id, name, description, status, sort, created_at')
+  .select('id, project_id, name, description, status, sort, created_at, qty, unit, needed_by, suppliers')
   .eq('project_id', project_id)
   .order('sort', { ascending: true })
   .order('created_at', { ascending: true }));
@@ -526,6 +526,10 @@ export const addProcurementItem = async (project_id, patch = {}) => ok(await sb
             description: patch.description ?? null,
             status: patch.status || 'pending',
             sort: patch.sort ?? 0,
+            ...(patch.qty !== undefined ? { qty: patch.qty } : {}),
+            ...(patch.unit !== undefined ? { unit: patch.unit } : {}),
+            ...(patch.needed_by !== undefined ? { needed_by: patch.needed_by } : {}),
+            ...(patch.suppliers !== undefined ? { suppliers: patch.suppliers } : {}),
             created_by: state.me?.id })
   .select().single());
 

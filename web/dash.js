@@ -441,6 +441,7 @@ export const DSTR = {
     procAdd: '+ Add item', procNone: 'No items added yet.', procView: 'View', procPhoto: 'Add photo',
     procList: 'Upload a list', procListHint: 'Excel, PDF or a photo of the full items list',
     procDelConfirm: 'Remove this item from the list?',
+    procFull: 'Full purchase requests — suppliers, photos, dates →',
     prHead: 'Pricing', prItem: 'Item', prDesc: 'Description', prQty: 'Qty', prUnit: 'Unit', prUnitPrice: 'Unit price (SAR)',
     prLine: 'Total', prAdd: 'Add item', prNone: 'No pricing items yet.', prDelConfirm: 'Remove this pricing item?',
     prCost: 'Unit cost (SAR)', prMargin: 'Margin %', prMarginHint: 'Profit as a share of the selling price: (price − cost) ÷ price. Type a margin to set the price from the cost.',
@@ -786,6 +787,7 @@ export const DSTR = {
     procAdd: '+ إضافة صنف', procNone: 'لا توجد أصناف بعد.', procView: 'عرض', procPhoto: 'إضافة صورة',
     procList: 'رفع قائمة', procListHint: 'إكسل أو PDF أو صورة لقائمة الأصناف كاملة',
     procDelConfirm: 'حذف هذا الصنف من القائمة؟',
+    procFull: 'طلبات الشراء كاملة — الموردون والصور والمواعيد ←',
     prHead: 'التسعير', prItem: 'البند', prDesc: 'الوصف', prQty: 'الكمية', prUnit: 'الوحدة', prUnitPrice: 'سعر الوحدة (ريال)',
     prLine: 'الإجمالي', prAdd: 'إضافة بند', prNone: 'لا توجد بنود تسعير بعد.', prDelConfirm: 'حذف بند التسعير هذا؟',
     prCost: 'تكلفة الوحدة (ريال)', prMargin: 'هامش الربح %', prMarginHint: 'الربح كنسبة من سعر البيع: (السعر − التكلفة) ÷ السعر. اكتب الهامش ليُحسب السعر من التكلفة.',
@@ -2509,6 +2511,8 @@ export function productionSections(lang, ctx) {
   const editRow = (it) => `<tr>
     <td><input class="cellinput" data-pi="${esc(it.id)}" data-field="name" value="${esc(it.name || '')}" placeholder="${esc(t.procItem)}" /></td>
     <td><input class="cellinput" data-pi="${esc(it.id)}" data-field="description" value="${esc(it.description || '')}" placeholder="${esc(t.description)}" /></td>
+    <td class="num"><input class="cellinput cellinput--num" type="number" min="0" step="any" inputmode="decimal" data-pi="${esc(it.id)}" data-field="qty" value="${esc(String(Number(it.qty) > 0 ? Number(it.qty) : 1))}" aria-label="${esc(t.prQty)}" /></td>
+    <td><input class="cellinput cellinput--unit" data-pi="${esc(it.id)}" data-field="unit" value="${esc(it.unit || '')}" placeholder="pcs, m²…" aria-label="${esc(t.prUnit)}" /></td>
     <td>${refCell(it)}</td>
     <td>${statusSelect(it)}</td>
     <td class="proc-actions"><button class="x" data-pi-del="${esc(it.id)}" title="${esc(t.remove)}" aria-label="${esc(t.remove)}">✕</button></td>
@@ -2517,18 +2521,20 @@ export function productionSections(lang, ctx) {
   const viewRow = (it) => `<tr>
     <td>${esc(it.name || '—')}</td>
     <td class="${it.description ? '' : 'muted'}">${esc(it.description || '—')}</td>
+    <td class="num">${esc(String(Number(it.qty) > 0 ? Number(it.qty) : 1))}</td><td>${esc(it.unit || '')}</td>
     <td>${itemFile(it.id) ? `<button class="link" data-file="${esc(itemFile(it.id).id)}">${esc(t.procView)}</button>` : '<span class="muted">—</span>'}</td>
     <td>${procStatusPill(it.status, lang)}</td>
   </tr>`;
 
-  const cols = canEdit ? 5 : 4;
+  const cols = canEdit ? 7 : 6;
 
   const procurement = `
 <section class="card">
-  <div class="card__head"><h2>${esc(t.procHead)}</h2><span class="muted small">${items.length}</span></div>
+  <div class="card__head"><h2>${esc(t.procHead)}</h2><span class="muted small">${items.length}</span>
+    <button type="button" class="link small" style="margin-inline-start:auto" data-proc-full="${esc(p.id)}">${esc(t.procFull)}</button></div>
   <div class="tblwrap"><table class="tbl tbl--tight tbl--proc">
     <thead><tr>
-      <th>${esc(t.procItem)}</th><th>${esc(t.description)}</th>
+      <th>${esc(t.procItem)}</th><th>${esc(t.description)}</th><th class="num">${esc(t.prQty)}</th><th>${esc(t.prUnit)}</th>
       <th>${esc(t.procRef)}</th><th>${esc(t.status)}</th>${canEdit ? '<th></th>' : ''}
     </tr></thead>
     <tbody>

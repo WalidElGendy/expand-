@@ -505,9 +505,19 @@ export function wireApp(lang) {
      uploads do reload, because each changes which rows or links exist. */
   $$('[data-pi]').forEach(inp => inp.onchange = async () => {
     const field = inp.dataset.field;
-    const value = field === 'name' ? inp.value.trim() : (inp.value.trim() || null);
+    let value = field === 'name' ? inp.value.trim() : (inp.value.trim() || null);
+    if (field === 'qty') {
+      value = Number(value);
+      if (!(value > 0)) { fail(new Error(V.DSTR[lang].prBadNumber)); return; }
+    }
     try { await db.updateProcurementItem(inp.dataset.pi, { [field]: value }); }
     catch (e) { fail(e); }
+  });
+
+  // The whole request (suppliers, photos, needed-by) lives on Factory → Procurement.
+  $$('[data-proc-full]').forEach(b => b.onclick = () => {
+    ctx.fif = { show: 'all', project: b.dataset.procFull, q: '' };
+    location.hash = '#/factory/procurement';
   });
 
   $$('[data-pi-status]').forEach(sel => sel.onchange = async () => {
