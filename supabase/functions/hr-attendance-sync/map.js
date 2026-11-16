@@ -19,6 +19,15 @@ export function spanMin(v) {
   return days * 1440 + h * 60 + mi + Math.floor(s / 60);
 }
 
+/** The same TimeSpan in whole seconds: "07:30:51" → 27051. */
+export function spanSec(v) {
+  if (v == null || v === '') return 0;
+  if (typeof v === 'number') return Math.max(0, Math.round(v * 60));
+  const m = String(v).trim().match(/^(-)?(?:(\d+)\.)?(\d+):(\d+)(?::(\d+)(?:\.\d+)?)?$/);
+  if (!m || m[1]) return 0;
+  return (+(m[2] || 0)) * 86400 + (+m[3]) * 3600 + (+m[4]) * 60 + (+(m[5] || 0));
+}
+
 /** Minutes east of UTC for `tz` at the given instant. */
 export function tzOffsetMin(tz, at = new Date()) {
   const parts = new Intl.DateTimeFormat('en-US', {
@@ -50,6 +59,15 @@ export function recordToRow(rec, employee_id, tz = 'Asia/Riyadh') {
   if (!/^\d{4}-\d\d-\d\d$/.test(day)) return null;
   const cin = localToISO(rec.firstCheckIn, tz);
   let cout = localToISO(rec.lastCheckOut, tz);
+  /* Malachite's API leaves lastCheckOut empty for this company's devices,
+     even on complete days, but totalDuration is the time from the first
+     punch to the last one (08:23 + 9:20 = the 17:43 punch). So the last
+     punch is the first one plus that. A day with one punch so far has a
+     duration of zero and stays without a clock-out. */
+  if (!cout && cin && !rec.lastCheckOut) {
+    const sec = spanSec(rec.totalDuration);
+    if (sec > 0) cout = new Date(Date.parse(cin) + sec * 1000).toISOString();
+  }
   if (!cin && !cout) return null;
   if (cin && cout && cout <= cin) cout = null;           // a single punch
   return {
