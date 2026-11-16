@@ -1070,6 +1070,31 @@ for (const lang of ['en', 'ar']) {
     check(D.filterProjects(priced, { sort: 'price' })[0].id === 'p31', `${lang}: price sort does not put the priced project first`);
   }
 
+  /* Attendance: the day table can show a past day, with a picker; a past
+     punch-in with no punch-out reads "No clock-out", not "In". */
+  {
+    const HV = await import('../web/hr.js');
+    const HL = await import('../web/hrlogic.js');
+    dbmod.state.me = { id: 'h1', role: 'admin', department_id: 'hr', is_active: true };
+    const today = HL.todayIn('Asia/Riyadh');
+    const past = HL.addDays(today, -7);   // same weekday a week ago
+    const staff = [{ id: 'h1', full_name: 'Hana', is_active: true, department_id: 'hr' }, { id: 'k2', full_name: 'Khalid', is_active: true, department_id: 'pm' }];
+    const actx = { people: staff, hrEmployees: staff.map(p => ({ profile_id: p.id })), hrSettings: { attendance_source: 'fingerprint' },
+      hrAttendance: [{ employee_id: 'k2', day: past, clock_in: `${past}T05:40:00Z`, clock_out: null, late_minutes: 10, source: 'fingerprint' }] };
+    for (const lang of ['en', 'ar']) {
+      const t = HV.T ? HV.T(lang) : null;
+      const onToday = HV.hrAttendanceView(lang, actx);
+      check(onToday.includes('data-att-day') && onToday.includes(`max="${today}"`), `${lang}: the attendance day table has no day picker`);
+      check(/data-att-step="1"[^>]*disabled/.test(onToday), `${lang}: "next day" is offered when today is already shown`);
+      const onPast = HV.hrAttendanceView(lang, { ...actx, attDay: past });
+      check(onPast.includes(`value="${past}"`) && onPast.includes('data-att-step="0"'), `${lang}: a past day is not shown, or there is no way back to today`);
+      check(onPast.includes(lang === 'en' ? 'No clock-out' : 'لم يسجّل الخروج'), `${lang}: a past day's missing clock-out is not called out`);
+      check(!onPast.includes(lang === 'en' ? '>Today ·' : '>اليوم ·'), `${lang}: a past day is still titled Today`);
+      const future = HV.hrAttendanceView(lang, { ...actx, attDay: HL.addDays(today, 3) });
+      check(future.includes(`value="${today}"`), `${lang}: a future day was shown instead of today`);
+    }
+  }
+
   // A mistyped deadline (year 0006 or 2126) must not take the Projects page down.
   const typo = [{ id: 't1', name: 'A', due_on: '0006-10-25' }, { id: 't2', name: 'B', due_on: '2026-10-20' },
                 { id: 't3', name: 'C', due_on: '2026-11-01' }, { id: 't4', name: 'D', due_on: '2126-10-22' }];

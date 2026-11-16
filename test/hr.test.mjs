@@ -97,6 +97,22 @@ const fs = (r) => ({ pct: r.v });
 eq(H.lowPerformers([{ subject_id: 'a', period: '2026-Q1', ratings: { v: 40 } }, { subject_id: 'a', period: '2026-Q2', ratings: { v: 80 } },
   { subject_id: 'b', period: '2026-Q2', ratings: { v: 50 } }], fs), [{ employee_id: 'b', period: '2026-Q2', pct: 50 }], 'latest review decides');
 
+// a past day's attendance: a punch-in with no punch-out is a forgotten
+// clock-out, not someone still in; no punch on a work day is absent.
+{
+  const people = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
+  const att = [{ employee_id: 'a', day: '2026-11-15', clock_in: '08:40', clock_out: null, late_minutes: 10 },
+               { employee_id: 'b', day: '2026-11-15', clock_in: '08:20', clock_out: '17:05', late_minutes: 0 },
+               { employee_id: 'a', day: '2026-11-16', clock_in: '08:30', clock_out: null, late_minutes: 0 }];
+  const past = H.todayAttendance({ people, attendance: att, leaves: [], settings: S, today: '2026-11-15', closed: true });
+  eq(past.rows.map(r => r.state), ['noout', 'out', 'absent'], 'a past day: no clock-out / left / absent');
+  eq([past.present, past.noOut, past.absent, past.late], [2, 1, 1, 1], 'a past day: counts');
+  const now = H.todayAttendance({ people, attendance: att, leaves: [], settings: S, today: '2026-11-16', nowMin: 8 * 60 + 45 });
+  eq(now.rows.map(r => r.state), ['in', 'expected', 'expected'], 'today, before the grace period: in / not in yet');
+  eq(H.todayAttendance({ people, attendance: att, leaves: [], settings: S, today: '2026-11-14', closed: true }).rows.map(r => r.state),
+    ['off', 'off', 'off'], 'a past weekend day is off for everyone');
+}
+
 // letters & csv
 const L = H.letterTemplate('salary_certificate', 'en', { name: 'Sara', position: 'Designer', joining: '1 Feb 2020', salary: sal, company: 'Expand', addressee: 'Embassy of France' });
 eq(L.body.includes('SAR 13,500.00') && L.body.includes('Embassy of France'), true, 'salary certificate text');
