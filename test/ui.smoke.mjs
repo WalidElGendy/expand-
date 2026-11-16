@@ -902,6 +902,26 @@ for (const lang of ['en', 'ar']) {
   const newest = F({ closed: true }).map(p => p.id), oldest = F({ sort: 'oldest', closed: true }).map(p => p.id);
   check(newest[0] === 'p6' && oldest[0] === 'p1' && oldest.join() === newest.slice().reverse().join(),
     `oldest-first is not the reverse of most recent: ${oldest}`);
+  /* Customer: a column before the name, and a filter that treats "NCPD "
+     and "ncpd" as the same customer. */
+  {
+    const cl = [{ ...proj(41, null, 'won'), client: 'NCPD ' }, { ...proj(42, null, 'won'), client: 'ncpd' },
+                { ...proj(43, null, 'won'), client: 'بنك البلاد' }, { ...proj(44, null, 'won'), client: null }];
+    check(D.filterProjects(cl, { client: 'ncpd' }).length === 2, 'customer filter: spelling variants are one customer');
+    check(D.filterProjects(cl, { client: '~none' }).map(p => p.id).join() === 'p44', 'customer filter: no customer');
+    for (const lang of ['en', 'ar']) {
+      const v = D.pmView(lang, { ...dctx, projects: cl, pf: { ...D.PF_DEFAULT } });
+      check(v.includes('data-pf="client"') && v.includes('>NCPD (2)<') && v.includes('بنك البلاد (1)') && v.includes(`${D.DSTR[lang].noCustomer} (1)`),
+        `${lang}: the customer filter lists customers with counts`);
+      const head = v.slice(v.indexOf('<thead>'), v.indexOf('</thead>'));
+      check(head.indexOf(D.DSTR[lang].customer) > -1 && head.indexOf(D.DSTR[lang].customer) < head.indexOf(D.DSTR[lang].name),
+        `${lang}: the customer column comes before the project name`);
+      const one = D.pmView(lang, { ...dctx, projects: cl, pf: { ...D.PF_DEFAULT, client: 'ncpd' } });
+      check(one.includes('Project 41') && one.includes('Project 42') && !one.includes('Project 43') && one.includes('data-pf-clear'),
+        `${lang}: picking a customer narrows the table and offers Clear`);
+    }
+  }
+
   check(D.filterProjects([{ ...fixtures[0], is_crm_list: true }], {}).length === 0,
     'a CRM list row leaked into the projects table');
 
