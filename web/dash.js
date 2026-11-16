@@ -1792,7 +1792,9 @@ export const PF_DEFAULT = {
 };
 
 /* Customers are typed by hand, so the same one can arrive as "NCPD " and
-   "ncpd": compare trimmed and case-folded. */
+   "ncpd": compare trimmed and case-folded. Different names for the same
+   customer ("SERA" / "هيئة تنظيم الكهرباء") stay separate: merging those is
+   a decision for whoever owns the customer list, not a guess for the code. */
 export const clientKey = (c) => String(c || '').trim().replace(/\s+/g, ' ').toLowerCase();
 
 export function filterProjects(projects, pf = {}) {
