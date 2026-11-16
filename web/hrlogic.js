@@ -128,7 +128,10 @@ export function monthAttendance({ period, employeeId, emp = null, attendance = [
 }
 
 /** Today's picture across the company. */
-export function todayAttendance({ people, attendance, leaves, settings, holidays = new Set(), today, nowMin }) {
+/* `today` is the day shown, not necessarily today: HR can step back through
+   past days. On a past day (`closed`) a clock-in with no clock-out is a
+   forgotten punch, not someone still in the office. */
+export function todayAttendance({ people, attendance, leaves, settings, holidays = new Set(), today, nowMin, closed = false }) {
   const s = settingsOf(settings);
   const work = isWorkDay(today, s, holidays);
   const started = nowMin === undefined || nowMin >= timeToMin(s.work_start) + s.grace_minutes;
@@ -137,14 +140,14 @@ export function todayAttendance({ people, attendance, leaves, settings, holidays
     const lv = leaveOn(leaves, p.id, today);
     let state = 'off';
     if (lv) state = lv.kind === 'sick' ? 'sick' : 'leave';
-    else if (a?.clock_in) state = a.clock_out ? 'out' : 'in';
+    else if (a?.clock_in) state = a.clock_out ? 'out' : (closed ? 'noout' : 'in');
     else if (work) state = started && (!s.attendance_start || today >= s.attendance_start) ? 'absent' : 'expected';
     return { person: p, att: a, leave: lv, state, late: a?.late_minutes || 0, remote: !!(a?.in_remote || a?.out_remote) };
   });
   const count = (st) => rows.filter(r => r.state === st).length;
   return {
     work, rows,
-    present: count('in') + count('out'), clockedIn: count('in'), absent: count('absent'),
+    present: count('in') + count('out') + count('noout'), clockedIn: count('in'), absent: count('absent'), noOut: count('noout'),
     onLeave: count('leave'), sick: count('sick'), expected: count('expected'),
     late: rows.filter(r => r.late > 0).length, remote: rows.filter(r => r.remote).length,
   };

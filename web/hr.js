@@ -28,7 +28,7 @@ export const HSTR = {
     noData: 'No data yet.', days: 'days', viewAll: 'View all',
     name: 'Name', dept: 'Department', position: 'Position', status: 'Status', joined: 'Joined', contractEnd: 'Contract ends',
     balance: 'Annual balance', today: 'Today', search: 'Search', all: 'All', exportCsv: 'Export CSV', newHire: '+ New hiring request',
-    st: { in: 'In', out: 'Left', absent: 'Absent', leave: 'On leave', sick: 'Sick', off: 'Off', expected: 'Not in yet' },
+    st: { in: 'In', out: 'Left', absent: 'Absent', leave: 'On leave', sick: 'Sick', off: 'Off', expected: 'Not in yet', noout: 'No clock-out' },
     empTabs: { profile: 'Profile', documents: 'Documents', leave: 'Leave', attendance: 'Attendance', salary: 'Salary',
       performance: 'Performance', requests: 'Requests', tasks: 'Work timeline' },
     personal: 'Personal', job: 'Job & contract', identity: 'Identity & bank (HR only)',
@@ -54,6 +54,7 @@ export const HSTR = {
       workDays: 'Work days', present: 'Present', absent: 'Absent', lateN: 'Late', earlyN: 'Early leave', remoteN: 'Away punches',
       leaveDays: 'Leave', fix: 'Correct a day', fixHint: 'Times in the office time zone.', min: 'min', none: 'No attendance yet.',
       report: 'Monthly attendance report', todayHead: 'Today', distance: '{m} m from office', noLoc: 'no location',
+      prevDay: 'Previous day', nextDay: 'Next day', backToday: 'Today', pickDay: 'Show attendance for a day',
       forgot: 'No clock-out', date: 'Date',
       src: { fingerprint: 'Fingerprint', app: 'App', manual: 'Edited by HR' }, source: 'Source' },
     sal: { current: 'Current salary', basic: 'Basic', housing: 'Housing', transport: 'Transport', other: 'Other allowances',
@@ -152,7 +153,7 @@ export const HSTR = {
     noData: 'لا توجد بيانات بعد.', days: 'يوم', viewAll: 'عرض الكل',
     name: 'الاسم', dept: 'القسم', position: 'المسمى', status: 'الحالة', joined: 'المباشرة', contractEnd: 'نهاية العقد',
     balance: 'الرصيد السنوي', today: 'اليوم', search: 'بحث', all: 'الكل', exportCsv: 'تصدير CSV', newHire: '+ طلب توظيف جديد',
-    st: { in: 'حاضر', out: 'انصرف', absent: 'غائب', leave: 'إجازة', sick: 'مريض', off: 'عطلة', expected: 'لم يحضر بعد' },
+    st: { in: 'حاضر', out: 'انصرف', absent: 'غائب', leave: 'إجازة', sick: 'مريض', off: 'عطلة', expected: 'لم يحضر بعد', noout: 'لم يسجّل الخروج' },
     empTabs: { profile: 'الملف', documents: 'الوثائق', leave: 'الإجازات', attendance: 'الحضور', salary: 'الراتب',
       performance: 'الأداء', requests: 'الطلبات', tasks: 'سجل المهام' },
     personal: 'البيانات الشخصية', job: 'الوظيفة والعقد', identity: 'الهوية والبنك (للموارد البشرية فقط)',
@@ -178,6 +179,7 @@ export const HSTR = {
       workDays: 'أيام العمل', present: 'حضور', absent: 'غياب', lateN: 'تأخير', earlyN: 'انصراف مبكر', remoteN: 'تسجيل خارج المكتب',
       leaveDays: 'إجازات', fix: 'تصحيح يوم', fixHint: 'الأوقات بتوقيت المكتب.', min: 'د', none: 'لا يوجد حضور بعد.',
       report: 'تقرير الحضور الشهري', todayHead: 'اليوم', distance: 'يبعد {m} م عن المكتب', noLoc: 'بدون موقع',
+      prevDay: 'اليوم السابق', nextDay: 'اليوم التالي', backToday: 'اليوم', pickDay: 'عرض الحضور ليوم محدد',
       forgot: 'لم يسجل الخروج', date: 'التاريخ',
       src: { fingerprint: 'البصمة', app: 'التطبيق', manual: 'معدّل من الموارد البشرية' }, source: 'المصدر' },
     sal: { current: 'الراتب الحالي', basic: 'الأساسي', housing: 'السكن', transport: 'النقل', other: 'بدلات أخرى',
@@ -273,7 +275,7 @@ const REQ_C = { pending_manager: 'var(--warn)', pending_hr: 'var(--warn)', appro
   cancelled: 'var(--ink4)', completed: 'var(--ok)' };
 const LET_C = { draft: 'var(--ink3)', review: 'var(--warn)', approved: 'var(--info)', sent: 'var(--ok)' };
 const RUN_C = { draft: 'var(--ink3)', approved: 'var(--info)', paid: 'var(--ok)' };
-const ST_C = { in: 'var(--ok)', out: 'var(--ink3)', absent: 'var(--critical)', leave: 'var(--info)', sick: 'var(--warn)',
+const ST_C = { noout: 'var(--warn)', in: 'var(--ok)', out: 'var(--ink3)', absent: 'var(--critical)', leave: 'var(--info)', sick: 'var(--warn)',
   off: 'var(--ink4)', expected: 'var(--ink4)' };
 export const reqPill = (s, lang) => pill(T(lang).req.st[s] || s, REQ_C[s] || 'var(--ink3)');
 const letPill = (s, lang) => pill(T(lang).let.lst[s] || s, LET_C[s] || 'var(--ink3)');
@@ -445,8 +447,22 @@ ${kpis}
 ${todayCard(lang, ctx, T0, S)}`;
 }
 
-function todayCard(lang, ctx, T0, S) {
+/* The day's attendance table. On the Attendance screen it has a day picker
+   (previous / next / any date up to today); on the HR dashboard it is
+   always today. */
+function todayCard(lang, ctx, T0, S, { day = null, today = null } = {}) {
   const t = T(lang);
+  const shown = day || H.todayIn(S.timezone);
+  const isToday = !today || shown === today;
+  const wd = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString(lang === 'ar' ? 'ar-SA-u-ca-gregory-nu-latn' : 'en-GB', { weekday: 'long', timeZone: 'UTC' });
+  const title = isToday ? `${t.att.todayHead} · ${fmt(shown, lang)}` : `${wd(shown)} · ${fmt(shown, lang)}`;
+  const [back, fwd] = lang === 'ar' ? ['›', '‹'] : ['‹', '›'];
+  const picker = today ? `<span class="attday">
+      <button class="btn btn--sm" data-att-step="-1" title="${esc(t.att.prevDay)}" aria-label="${esc(t.att.prevDay)}">${back}</button>
+      <input type="date" data-att-day value="${esc(shown)}" max="${esc(today)}" aria-label="${esc(t.att.pickDay)}" />
+      <button class="btn btn--sm" data-att-step="1" title="${esc(t.att.nextDay)}" aria-label="${esc(t.att.nextDay)}"${isToday ? ' disabled' : ''}>${fwd}</button>
+      ${isToday ? '' : `<button class="btn btn--sm" data-att-step="0">${esc(t.att.backToday)}</button>`}
+    </span>` : '';
   /* Who is here first (earliest punch at the top), then who has not come in,
      then sick / leave / day off. */
   const order = { in: 0, out: 1, expected: 2, absent: 3, sick: 4, leave: 5, off: 6 };
@@ -454,7 +470,7 @@ function todayCard(lang, ctx, T0, S) {
   const rows = [...T0.rows].sort((a, b) => (order[a.state] ?? 9) - (order[b.state] ?? 9)
     || String(a.att?.clock_in || '').localeCompare(String(b.att?.clock_in || ''))
     || nameOf(a).localeCompare(nameOf(b)));
-  return card(`${t.att.todayHead} · ${fmt(H.todayIn(S.timezone), lang)}`, tbl(
+  return card(title, tbl(
     `<th>${t.name}</th><th>${t.dept}</th><th>${t.status}</th><th class="num">${t.att.in}</th><th class="num">${t.att.out}</th><th class="num">${t.att.late}</th><th>${S.attendance_source === 'app' ? t.att.remote : t.att.source}</th>`,
     rows.map(r => `<tr>
       <td>${go(`#/hr/e/${r.person.id}`, r.person.full_name || r.person.email)}</td>
@@ -464,7 +480,7 @@ function todayCard(lang, ctx, T0, S) {
       <td class="num">${hhmm(r.att?.clock_out, S.timezone)}</td>
       <td class="num${r.late ? ' bad' : ' muted'}">${r.late ? `${r.late} ${t.att.min}` : '—'}</td>
       <td class="small">${r.remote ? `<span class="chip chip--warn">${esc(r.att?.in_distance_m != null ? t.att.distance.replace('{m}', r.att.in_distance_m) : t.att.remote)}</span>` : ''}${srcChip(r.att, lang)}</td>
-    </tr>`).join('')), `<span class="muted small">${T0.present}/${T0.rows.length}</span>`);
+    </tr>`).join('')), `<span class="muted small">${T0.present}/${T0.rows.length}</span>${picker}`);
 }
 
 /** Where a day's punches came from, when it is not the app button. */
@@ -921,8 +937,10 @@ export function hrAttendanceView(lang, ctx) {
   const today = H.todayIn(S.timezone);
   const holidays = new Set((ctx.hrHolidays || []).map(h => h.day));
   const leaves = ctx.hrLeaves || [];
-  const T0 = H.todayAttendance({ people, attendance: ctx.hrAttendance || [], leaves, settings: S, holidays, today,
-    nowMin: H.minutesNowIn(S.timezone) });
+  /* The day shown: today, or a past day HR picked. Never a future one. */
+  const day = ctx.attDay && ctx.attDay < today ? ctx.attDay : today;
+  const T0 = H.todayAttendance({ people, attendance: ctx.hrAttendance || [], leaves, settings: S, holidays, today: day,
+    nowMin: day === today ? H.minutesNowIn(S.timezone) : undefined, closed: day < today });
   const period = ctx.attPeriod || H.periodOf(today);
   const emps = new Map((ctx.hrEmployees || []).map(e => [e.profile_id, e]));
   const report = people.map(p => ({ p, m: H.monthAttendance({ period, employeeId: p.id, emp: emps.get(p.id),
@@ -938,7 +956,7 @@ ${hrTabs(lang, 'attendance')}
   ${kpi(T0.remote, t.att.remote, { colour: 'var(--warn)' })}
 </div>
 ${fpStrip(lang, ctx, S)}
-${todayCard(lang, ctx, T0, S)}
+${todayCard(lang, ctx, T0, S, { day, today })}
 <section class="card">
   <div class="card__head"><h2>${esc(t.att.report)}</h2>
     <span style="margin-inline-start:auto;display:flex;gap:8px;align-items:center">

@@ -63,10 +63,12 @@ export async function loadHR(route, id, ctx) {
     }
     if (id === 'attendance') {
       const period = ctx.attPeriod || H.periodOf(today);
-      const from = `${period}-01`;
-      const to = H.periodDays(period).slice(-1)[0];
-      settle('hrAttendance', D.listAttendance({ from: from < today ? from : today, to: to > today ? to : today }));
-      settle('hrLeaves', D.listLeavesSince(from < today ? from : today));
+      // The month in the report, today, and the day picked in the day table.
+      const day = ctx.attDay && ctx.attDay < today ? ctx.attDay : today;
+      const dates = [`${period}-01`, H.periodDays(period).slice(-1)[0], today, day].sort();
+      const from = dates[0], to = dates[dates.length - 1];
+      settle('hrAttendance', D.listAttendance({ from, to }));
+      settle('hrLeaves', D.listLeavesSince(from));
       settle('hrRequests', D.listRequests({}));
     }
     if (id === 'requests') {
@@ -307,6 +309,19 @@ export function wireHR2(lang, { ctx, rerender, fail, reload }) {
     ctx.attPeriod = i.value || null;
     if (route === 'hrsec') { await reload(); }
     rerender();
+  });
+  /* Attendance: step through days, or pick one. */
+  const showDay = async (iso) => {
+    const today = H.todayIn(H.settingsOf(ctx.hrSettings).timezone);
+    ctx.attDay = iso && iso < today ? iso : null;
+    if (route === 'hrsec') await reload();
+    rerender();
+  };
+  $$('[data-att-day]').forEach(i => i.onchange = () => { if (/^\d{4}-\d{2}-\d{2}$/.test(i.value)) showDay(i.value); });
+  $$('[data-att-step]').forEach(b => b.onclick = () => {
+    const n = Number(b.dataset.attStep);
+    const today = H.todayIn(H.settingsOf(ctx.hrSettings).timezone);
+    showDay(n === 0 ? null : H.addDays(ctx.attDay && ctx.attDay < today ? ctx.attDay : today, n));
   });
   $$('[data-req-open]').forEach(b => b.onclick = () => { ctx.openReq = ctx.openReq === b.dataset.reqOpen ? null : b.dataset.reqOpen; rerender(); });
 
