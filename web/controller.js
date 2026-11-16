@@ -690,6 +690,7 @@ export function wireApp(lang) {
     let text = d.prImported.replace('{f}', label).replace('{n}', r.items.length).replace('{v}', V.sarFmt(r.subtotal));
     if (r.matches === true) text += ` ${d.prImportMatch}`;
     else if (r.matches === false) text += ` ${d.prImportDiff.replace('{v}', V.sarFmt(r.sheetSubtotal))}`;
+    if (r.discounted) text += ` ${d.prDiscounted}`;
     note(text, r.matches === false);
     return 'done';
   };

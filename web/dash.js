@@ -158,12 +158,13 @@ export const sarFmt = (v) => `SAR ${(Number(v) || 0).toLocaleString('en-US', { m
 export const sarShort = (v) => `SAR ${Math.round(Number(v) || 0).toLocaleString('en-US')}`;
 
 /* A project's price: Σ qty × unit price over its pricing lines, before VAT.
-   null when nothing has been priced, so "not priced yet" never reads as
-   "priced at zero". */
+   null when nothing has been priced (no lines, or lines with no prices), so
+   "not priced yet" never reads as "priced at SAR 0". */
 export const projectPrice = (p) => {
   const items = p?.pricing_items || [];
-  if (!items.length) return null;
-  return items.reduce((a, it) => a + (Number(it.qty) || 0) * (Number(it.unit_price_sar) || 0), 0);
+  const sum = items.reduce((a, it) => a + (Number(it.qty) || 0) * (Number(it.unit_price_sar) || 0), 0);
+  // Lines with no prices in them yet are a project still being priced.
+  return sum > 0 ? sum : null;
 };
 
 export const DSTR = {
@@ -453,6 +454,7 @@ export const DSTR = {
     prFill: 'Fill table from this sheet', prReading: 'Reading…',
     prImported: 'Filled from {f}: {n} lines, {v} before VAT.', prImportMatch: 'Matches the sheet\'s own total.',
     prImportDiff: 'The sheet\'s own total says {v}; check the lines above.',
+    prDiscounted: 'Prices are after the discount in the sheet.',
     prReplace: 'Replace the {n} current pricing lines with the {m} lines in {f} ({v} before VAT)?\n\nLines assigned to people will be replaced too.',
     prNoLines: '{f} was saved, but no priced item rows were found in it, so the table was left as it was. The sheet needs a heading row with the item (البند) and its price or total.',
     prReadOnly: 'Only the pricing team, planners and managers can edit pricing.',
@@ -797,6 +799,7 @@ export const DSTR = {
     prFill: 'تعبئة الجدول من هذا الملف', prReading: 'جارٍ القراءة…',
     prImported: 'عُبّئ من {f}: {n} بنداً، {v} قبل الضريبة.', prImportMatch: 'يطابق إجمالي الملف نفسه.',
     prImportDiff: 'إجمالي الملف نفسه {v}؛ راجع البنود أعلاه.',
+    prDiscounted: 'الأسعار بعد الخصم الموجود في الملف.',
     prReplace: 'استبدال بنود التسعير الحالية ({n}) بالبنود الموجودة في {f} ({m} بنداً، {v} قبل الضريبة)؟\n\nالبنود المسندة لأشخاص ستُستبدل أيضاً.',
     prNoLines: 'حُفظ {f}، لكن لم نجد فيه بنوداً مسعّرة، فبقي الجدول كما هو. يحتاج الملف صف عناوين فيه البند وسعره أو إجماليه.',
     prReadOnly: 'تعديل التسعير متاح لفريق التسعير والمخططين والمدراء فقط.',
