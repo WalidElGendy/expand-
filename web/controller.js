@@ -16,6 +16,8 @@ import * as FC from './factoryctl.js';
 import * as MG from './mgmt.js';
 import * as XL from './xlsx.js';
 import * as LI from './leadintel.js';
+import * as PI from './pricingimport.js';
+import { readSpreadsheet } from './xlsxread.js';
 
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -668,6 +670,29 @@ export function wireApp(lang) {
     try { await db.deletePricingItem(b.dataset.prDel); await loadFor('project', ctx.project.id); rerender(); }
     catch (e) { fail(e); b.disabled = false; }
   });
+  /* A pricing sheet in Excel fills the pricing table: its item rows replace
+     the project's lines (after a confirm if there were any), so the price
+     shows on the project and in the Projects list. The outcome is left as a
+     note under the table: how many lines, the total, and whether it agrees
+     with the total the sheet states itself. */
+  const prImportFrom = async (fileRow, blob) => {
+    const d = V.DSTR[lang];
+    const label = fileRow?.title || fileRow?.filename || blob.name || '';
+    const note = (text, bad = false) => { ctx.prNote = { text, bad, project: ctx.project.id, at: Date.now() }; };
+    let r;
+    try { r = PI.readPricing(await readSpreadsheet(blob)); }
+    catch { r = { items: [] }; }
+    if (!r.items.length) { note(d.prNoLines.replace('{f}', label), true); return 'none'; }
+    const current = (ctx.pricingItems || []).length;
+    if (current && !confirm(d.prReplace.replace('{n}', current).replace('{m}', r.items.length)
+      .replace('{f}', label).replace('{v}', V.sarFmt(r.subtotal)))) return 'cancel';
+    await db.replacePricingItems(ctx.project.id, r.items, fileRow?.id || null);
+    let text = d.prImported.replace('{f}', label).replace('{n}', r.items.length).replace('{v}', V.sarFmt(r.subtotal));
+    if (r.matches === true) text += ` ${d.prImportMatch}`;
+    else if (r.matches === false) text += ` ${d.prImportDiff.replace('{v}', V.sarFmt(r.sheetSubtotal))}`;
+    note(text, r.matches === false);
+    return 'done';
+  };
   const prFileForm = $('#prFileForm');
   if (prFileForm) prFileForm.onsubmit = async (e) => {
     e.preventDefault();
@@ -676,12 +701,30 @@ export function wireApp(lang) {
     const btn = prFileForm.querySelector('button[type=submit]');
     btn.disabled = true; btn.textContent = V.DSTR[lang].uploading;
     try {
+      const sheets = [];
       for (const f of files) {
-        await db.uploadFile('docs', f, { purpose: 'pricing', project_id: ctx.project.id, department_id: 'pricing' });
+        const row = await db.uploadFile('docs', f, { purpose: 'pricing', project_id: ctx.project.id, department_id: 'pricing' });
+        if (PI.isSpreadsheet(f)) sheets.push([row, f]);
+      }
+      // Several sheets at once: the first one with priced lines fills the table.
+      for (const [row, f] of sheets) {
+        if (await prImportFrom(row, f) !== 'none') break;
       }
       await loadFor('project', ctx.project.id); rerender();
     } catch (err) { fail(err); btn.disabled = false; btn.textContent = V.DSTR[lang].prUpload; }
   };
+  // A sheet uploaded before this existed, or re-read after editing the table.
+  $$('[data-pr-fill]').forEach(b => b.onclick = async () => {
+    const f = (ctx.projectFiles || []).find(x => x.id === b.dataset.prFill);
+    if (!f) return;
+    b.disabled = true; b.textContent = V.DSTR[lang].prReading;
+    try {
+      const res = await fetch(await db.fileUrl(f.bucket, f.path));
+      if (!res.ok) throw new Error(`${f.filename}: HTTP ${res.status}`);
+      await prImportFrom(f, new File([await res.blob()], f.filename || 'pricing.xlsx', { type: f.mime || '' }));
+      await loadFor('project', ctx.project.id); rerender();
+    } catch (err) { fail(err); }
+  });
 
   /* --- people pickers: keep the summary in step with the ticks; on the
      project page, save a stage's people when its picker is closed --- */

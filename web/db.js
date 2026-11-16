@@ -384,6 +384,7 @@ const PROJECT_COLS = `
   id, name, client, description, size, status, start_on, due_on, delivered_on,
   estimated_delivery, estimate_meta, is_crm_list, import_flags, asana_url,
   created_at, updated_at, owner_id, created_by, lead_id, contract_value_sar,
+  pricing_items ( qty, unit_price_sar ),
   lead:lead_id ( id, name, company ),
   owner:owner_id ( id, full_name, department_id ),
   project_stages ( id, department_id, assignee_id, effort_days, planned_start,
@@ -553,6 +554,14 @@ export const addPricingItem = async (project_id, patch = {}) => ok(await sb
 
 export const updatePricingItem = async (id, patch) => ok(await sb
   .from('pricing_items').update(patch).eq('id', id).select().single());
+
+/* A pricing sheet's lines replace the project's, in one transaction, and
+   the project history records it (replace_pricing_items in the database). */
+export const replacePricingItems = async (project_id, items, file_id = null) => {
+  const { data, error } = await sb.rpc('replace_pricing_items', { p_project: project_id, p_items: items, p_file: file_id });
+  if (error) throw new Error(error.message);
+  return data;
+};
 
 /* Pricing lines assigned to me across projects (for My tasks). */
 export const listMyPricingItems = async () => ok(await sb

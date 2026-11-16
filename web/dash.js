@@ -12,6 +12,7 @@
    ========================================================================== */
 
 import * as db from './db.js';
+import { isSpreadsheet } from './pricingimport.js';
 import { Scheduler, SIZES, DEFAULT_STAGES } from '../engine/scheduler.js';
 import { WorkCalendar, iso, parse } from '../engine/calendar.js';
 
@@ -153,6 +154,17 @@ export function avatarCard(lang, person, { canEdit = false } = {}) {
 /* Saudi VAT, shown under the pricing lines. */
 export const VAT_RATE = 0.15;
 export const sarFmt = (v) => `SAR ${(Number(v) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+/* Whole riyals, for lists and tiles where halalas are noise. */
+export const sarShort = (v) => `SAR ${Math.round(Number(v) || 0).toLocaleString('en-US')}`;
+
+/* A project's price: Σ qty × unit price over its pricing lines, before VAT.
+   null when nothing has been priced, so "not priced yet" never reads as
+   "priced at zero". */
+export const projectPrice = (p) => {
+  const items = p?.pricing_items || [];
+  if (!items.length) return null;
+  return items.reduce((a, it) => a + (Number(it.qty) || 0) * (Number(it.unit_price_sar) || 0), 0);
+};
 
 export const DSTR = {
   en: {
@@ -392,6 +404,9 @@ export const DSTR = {
     anyOwner: 'Any owner', anyTeam: 'Any team', anyStatus: 'Any status', anyDue: 'Any deadline',
     unassignedOwner: 'No owner', sortBy: 'Sort',
     createdCol: 'Created', sortOldest: 'Oldest first',
+    priceCol: 'Price excl. VAT', sortPrice: 'Price, highest', notPriced: 'Not priced',
+    pricedTile: 'Priced value', pricedTileSub: '{n} of {m} open projects priced · excl. VAT',
+    priceFact: 'Price (from pricing)', priceInclVat: '{v} incl. VAT',
     sortRecent: 'Most recent', sortDueSoon: 'Deadline, soonest', sortDueLate: 'Deadline, latest',
     sortName: 'Name', dueOverdue: 'Overdue', due30: 'Next 30 days', due90: 'Next 90 days',
     dueNone: 'No deadline set', showingN: 'Showing {n} of {t}',
@@ -434,7 +449,12 @@ export const DSTR = {
     prExport: 'Export to Excel', prExported: 'Exported',
     myPricing: 'Pricing to fill in', myPricingSub: 'Pricing lines assigned to you.',
     prSub: 'Subtotal', prVat: 'VAT 15%', prTotal: 'Total incl. VAT', prBadNumber: 'Quantity and price must be numbers of zero or more.',
-    prSheet: 'Pricing sheet', prSheetHint: 'Excel, PDF or Word — the full priced breakdown.', prUpload: 'Upload', prSheets: 'Pricing sheets',
+    prSheet: 'Pricing sheet', prSheetHint: 'Excel, PDF or Word — the full priced breakdown. An Excel sheet fills the table above automatically.', prUpload: 'Upload', prSheets: 'Pricing sheets',
+    prFill: 'Fill table from this sheet', prReading: 'Reading…',
+    prImported: 'Filled from {f}: {n} lines, {v} before VAT.', prImportMatch: 'Matches the sheet\'s own total.',
+    prImportDiff: 'The sheet\'s own total says {v}; check the lines above.',
+    prReplace: 'Replace the {n} current pricing lines with the {m} lines in {f} ({v} before VAT)?\n\nLines assigned to people will be replaced too.',
+    prNoLines: '{f} was saved, but no priced item rows were found in it, so the table was left as it was. The sheet needs a heading row with the item (البند) and its price or total.',
     prReadOnly: 'Only the pricing team, planners and managers can edit pricing.',
     desHead: 'Design', des3d: '3D design', des2d: '2D design (technical drawings)',
     desFile: 'Design files', desHint3d: 'Renders, images, PDF or the 3D model. Up to 200 MB per file. Uploading marks the 3D stage done.',
@@ -728,6 +748,9 @@ export const DSTR = {
     anyOwner: 'كل المسؤولين', anyTeam: 'كل الفرق', anyStatus: 'كل الحالات', anyDue: 'كل المواعيد',
     unassignedOwner: 'بلا مسؤول', sortBy: 'الترتيب',
     createdCol: 'تاريخ الإنشاء', sortOldest: 'الأقدم أولاً',
+    priceCol: 'السعر قبل الضريبة', sortPrice: 'السعر، الأعلى', notPriced: 'غير مسعّر',
+    pricedTile: 'قيمة المشاريع المسعّرة', pricedTileSub: '{n} من {m} مشروعاً مفتوحاً مسعّرة · قبل الضريبة',
+    priceFact: 'السعر (من التسعير)', priceInclVat: '{v} شامل الضريبة',
     sortRecent: 'الأحدث', sortDueSoon: 'الموعد، الأقرب', sortDueLate: 'الموعد، الأبعد',
     sortName: 'الاسم', dueOverdue: 'متأخر', due30: 'خلال ٣٠ يوماً', due90: 'خلال ٩٠ يوماً',
     dueNone: 'بلا موعد', showingN: 'يعرض {n} من {t}',
@@ -770,7 +793,12 @@ export const DSTR = {
     prExport: 'تصدير إلى Excel', prExported: 'تاريخ التصدير',
     myPricing: 'تسعير مطلوب منك', myPricingSub: 'بنود التسعير المسندة إليك.',
     prSub: 'المجموع', prVat: 'ضريبة القيمة المضافة 15%', prTotal: 'الإجمالي شامل الضريبة', prBadNumber: 'الكمية والسعر يجب أن تكون أرقاماً صفراً أو أكثر.',
-    prSheet: 'ملف التسعير', prSheetHint: 'Excel أو PDF أو Word — التفصيل الكامل للأسعار.', prUpload: 'رفع', prSheets: 'ملفات التسعير',
+    prSheet: 'ملف التسعير', prSheetHint: 'Excel أو PDF أو Word — التفصيل الكامل للأسعار. ملف Excel يعبّئ الجدول أعلاه تلقائياً.', prUpload: 'رفع', prSheets: 'ملفات التسعير',
+    prFill: 'تعبئة الجدول من هذا الملف', prReading: 'جارٍ القراءة…',
+    prImported: 'عُبّئ من {f}: {n} بنداً، {v} قبل الضريبة.', prImportMatch: 'يطابق إجمالي الملف نفسه.',
+    prImportDiff: 'إجمالي الملف نفسه {v}؛ راجع البنود أعلاه.',
+    prReplace: 'استبدال بنود التسعير الحالية ({n}) بالبنود الموجودة في {f} ({m} بنداً، {v} قبل الضريبة)؟\n\nالبنود المسندة لأشخاص ستُستبدل أيضاً.',
+    prNoLines: 'حُفظ {f}، لكن لم نجد فيه بنوداً مسعّرة، فبقي الجدول كما هو. يحتاج الملف صف عناوين فيه البند وسعره أو إجماليه.',
     prReadOnly: 'تعديل التسعير متاح لفريق التسعير والمخططين والمدراء فقط.',
     desHead: 'التصميم', des3d: 'التصميم ثلاثي الأبعاد', des2d: 'التصميم ثنائي الأبعاد (الرسومات الفنية)',
     desFile: 'ملفات التصميم', desHint3d: 'صور أو PDF أو المجسم ثلاثي الأبعاد، حتى 200 ميجابايت للملف. الرفع يجعل مرحلة 3D مكتملة.',
@@ -1798,6 +1826,8 @@ export function filterProjects(projects, pf = {}) {
     due:     byDue(1),
     duelate: byDue(-1),
     name:    (a, b) => String(a.name).localeCompare(String(b.name)),
+    // Unpriced projects last, as undated ones are for the deadline sorts.
+    price:   (a, b) => (projectPrice(b) ?? -1) - (projectPrice(a) ?? -1),
   };
   return rows.slice().sort(sorters[f.sort] || sorters.recent);
 }
@@ -1850,7 +1880,7 @@ function filterBar(lang, ctx, all) {
     { v: 'overdue', l: t.dueOverdue }, { v: 'd30', l: t.due30 },
     { v: 'd90', l: t.due90 }, { v: 'none', l: t.dueNone }])}
   ${sel('sort', t.sortBy, [{ v: 'recent', l: t.sortRecent }, { v: 'oldest', l: t.sortOldest }, { v: 'due', l: t.sortDueSoon },
-    { v: 'duelate', l: t.sortDueLate }, { v: 'name', l: t.sortName }])}
+    { v: 'duelate', l: t.sortDueLate }, { v: 'price', l: t.sortPrice }, { v: 'name', l: t.sortName }])}
   <label class="chk chk--inline">
     <input type="checkbox" data-pf="closed"${f.closed ? ' checked' : ''} />
     <span>${esc(t.includeClosed)}</span>
@@ -2186,6 +2216,11 @@ export function pmView(lang, ctx) {
     sub: unpriced ? `${unpriced} ${lang === 'ar' ? 'مرحلة بلا رقم جهد' : 'stages have no effort figure'}`
                   : (lang === 'ar' ? 'جهد متبقٍ' : 'effort still to do') })}
   ${kpi(esc(fmt(freeFrom, lang)), t.nextFree, { date: true, sub: lang === 'ar' ? 'حجم متوسط، يبدأ اليوم' : 'medium size, starting today', colour: 'var(--s1)' })}
+  ${(() => {
+    const priced = open.filter(p => projectPrice(p) !== null);
+    return kpi(esc(sarShort(priced.reduce((a, p) => a + projectPrice(p), 0))), t.pricedTile, { date: true, colour: 'var(--ok)',
+      sub: t.pricedTileSub.replace('{n}', priced.length).replace('{m}', open.length) });
+  })()}
 </div>
 
 ${(() => {
@@ -2221,6 +2256,7 @@ ${deadlineChart(lang, open)}
         ${anyOwner ? `<th>${esc(t.owner)}</th>` : ''}
         <th>${esc(t.teamsCol)}</th>
         <th class="num">${esc(t.createdCol)}</th>
+        <th class="num">${esc(t.priceCol)}</th>
         ${anyEstimate ? `<th class="num">${esc(t.estimate)}</th>` : ''}
         <th class="num">${esc(t.due)}</th><th>${esc(t.status)}</th>
       </tr></thead>
@@ -2234,13 +2270,16 @@ ${deadlineChart(lang, open)}
             <td class="small"><span class="stagecell">${st.map(s => `<span class="pill" style="--c:${esc(db.dept(s.department_id)?.colour || '#555')}">${esc(deptName(s.department_id, lang))}${s.status === 'done' ? ' ✓' : ''}</span>`).join('')}</span></td>
             <!-- When the project was opened in Expand: a timestamp, so docDay, not fmt. -->
             <td class="num muted nowrap">${esc(docDay(p.created_at, lang))}</td>
+            ${(() => { const pr = projectPrice(p); return pr === null
+              ? `<td class="num muted small">${esc(t.notPriced)}</td>`
+              : `<td class="num nowrap" title="${esc(t.priceInclVat.replace('{v}', sarFmt(pr * (1 + VAT_RATE))))}">${esc(sarShort(pr))}</td>`; })()}
             ${anyEstimate ? `<td class="num">${esc(fmt(p.estimated_delivery, lang))}</td>` : ''}
             <td class="num ${late ? 'bad' : 'muted'}">${esc(fmt(p.due_on, lang))}
               ${late ? `<span class="block small">${late} ${esc(t.overdue)}</span>` : ''}</td>
             <td>${statusPill(p.status, lang)}</td>
           </tr>`;
         }).join('')
-        : `<tr><td class="tbl__empty" colspan="7">${esc(t.noMatch)}</td></tr>`}
+        : `<tr><td class="tbl__empty" colspan="8">${esc(t.noMatch)}</td></tr>`}
       </tbody>
     </table>
   </div>
@@ -2312,6 +2351,9 @@ export function projectView(lang, ctx) {
     ${fact(t.due, `${esc(fmt(p.due_on, lang))}${late ? ` <span class="bad small">${late} ${esc(t.overdue)}</span>` : ''}`)}
     ${fact(t.estimate, esc(fmt(p.estimated_delivery, lang)))}
     ${fact(t.contractValue, p.contract_value_sar != null ? esc(`SAR ${Number(p.contract_value_sar).toLocaleString('en-US', { maximumFractionDigits: 0 })}`) : '—', p.contract_value_sar != null ? '' : 'muted')}
+    ${(() => { const pr = projectPrice({ pricing_items: ctx.pricingItems || p.pricing_items });
+      return fact(t.priceFact, pr === null ? esc(t.notPriced)
+        : `${esc(sarFmt(pr))} <span class="muted small block">${esc(t.priceInclVat.replace('{v}', sarFmt(pr * (1 + VAT_RATE))))}</span>`, pr === null ? 'muted' : ''); })()}
     ${fact(t.createdOn, esc(fmt((p.created_at || '').slice(0, 10), lang)))}
     ${fact(t.updatedOn, esc(fmt((p.updated_at || '').slice(0, 10), lang)))}
     ${p.lead ? fact(t.fromLead,
@@ -2618,6 +2660,8 @@ export function pricingSection(lang, ctx) {
         <td colspan="${tail}" class="small ${overall !== null && overall < 0 ? 'bad' : 'muted'}" data-pr-margin-all>${overall !== null ? `${esc(t.prMargin)} ${overall.toFixed(1)}%${esc(coverage)}` : ''}</td></tr>
     </tfoot>` : ''}
   </table></div>
+  ${ctx.prNote && ctx.prNote.project === ctx.project?.id && Date.now() - ctx.prNote.at < 10 * 60e3
+    ? `<p class="note ${ctx.prNote.bad ? 'bad' : ''}" data-pr-note>${esc(ctx.prNote.text)}</p>` : ''}
   ${canEdit ? `<div class="actions"><button type="button" class="btn btn--sm" data-pr-add>${esc(t.prAdd)}</button></div>
   <form id="prFileForm" class="inlineform" style="border-bottom:0">
     ${dropField('prFiles', t.prSheet, t.prSheetHint, { accept: '.xls,.xlsx,.csv,.pdf,.doc,.docx,.numbers', multiple: true })}
@@ -2627,6 +2671,7 @@ export function pricingSection(lang, ctx) {
     <li class="filerow">
       <button class="link" data-file="${esc(f.id)}">${esc(f.title || f.filename)}</button>
       <span class="muted small">${f.size_bytes ? `${Math.max(1, Math.round(f.size_bytes / 1024))} KB` : ''}${f.uploader?.full_name ? ` · ${esc(t.uploadedBy.replace('{who}', f.uploader.full_name))}` : ''}</span>
+      ${canEdit && isSpreadsheet(f) ? `<button type="button" class="btn btn--sm" data-pr-fill="${esc(f.id)}">${esc(t.prFill)}</button>` : ''}
       ${fileDelBtn(f, t)}
     </li>`).join('')}</ul></div>` : ''}
   ${canEdit ? '' : `<p class="note">${esc(anyEdit ? t.prAssignedOnly : t.prReadOnly)}</p>`}

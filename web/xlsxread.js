@@ -87,8 +87,14 @@ export function parseSharedStrings(xml) {
   return [...String(xml || '').matchAll(/<si>([\s\S]*?)<\/si>|<si\/>/g)].map(m => runsText(m[1] || ''));
 }
 
-export function parseSheet(xml, shared = []) {
+/* fx, when given, collects each cell's formula as fx['r,c'] = 'G3*E3' (0-based,
+   no leading '='). Shared formulas (Excel writes one master and refers to it
+   from the cells it was filled down to) are expanded relative to the master.
+   Most files carry the computed value as well; the formula is what a reader
+   falls back on when a file was written by a tool that saved no values. */
+export function parseSheet(xml, shared = [], fx = null) {
   const rows = [];
+  const masters = {};
   for (const rm of String(xml).matchAll(/<row\b([^>]*)>([\s\S]*?)<\/row>|<row\b([^>]*)\/>/g)) {
     const rAttr = rm[1] ?? rm[3] ?? '';
     const rn = Number(attr(rAttr, 'r')) || rows.length + 1;
@@ -99,6 +105,18 @@ export function parseSheet(xml, shared = []) {
       const ci = ref ? colIndex(ref) : row.length;
       const t = attr(a, 't');
       const v = inner.match(/<v>([\s\S]*?)<\/v>/)?.[1];
+      if (fx) {
+        const fm = inner.match(/<f\b([^>]*?)(?:\/>|>([\s\S]*?)<\/f>)/);
+        if (fm) {
+          const si = attr(fm[1], 'si'), body = fm[2] !== undefined ? xmlText(fm[2]) : '';
+          let f = body;
+          if (attr(fm[1], 't') === 'shared' && si !== null) {
+            if (body) masters[si] = { f: body, r: rn - 1, c: ci };
+            else if (masters[si]) f = shiftFormula(masters[si].f, rn - 1 - masters[si].r, ci - masters[si].c);
+          }
+          if (f) fx[`${rn - 1},${ci}`] = f;
+        }
+      }
       let val = null;
       if (t === 's') val = shared[Number(v)] ?? null;
       else if (t === 'inlineStr') val = runsText(inner.match(/<is>([\s\S]*?)<\/is>/)?.[1] || '');
@@ -114,7 +132,20 @@ export function parseSheet(xml, shared = []) {
   return rows;
 }
 
-/** The sheets of an .xlsx, in workbook order, with their names. */
+/** Move every relative reference in a formula by dr rows and dc columns
+    ($-anchored parts stay put), as Excel does when a formula is filled. */
+export function shiftFormula(f, dr, dc) {
+  const name = (n) => { let s = ''; for (n += 1; n > 0; n = Math.floor((n - 1) / 26)) s = String.fromCharCode(65 + ((n - 1) % 26)) + s; return s; };
+  return String(f).replace(/("[^"]*")|(\$?)([A-Z]{1,3})(\$?)(\d+)(?![\w(])/g, (m, str, ca, col, ra, row) => {
+    if (str) return str;
+    const c = ca ? col : name(colIndex(col) + dc);
+    const r = ra ? row : String(Number(row) + dr);
+    return `${ca}${c}${ra}${r}`;
+  });
+}
+
+/** The sheets of an .xlsx, in workbook order, with their names. Each sheet
+    also carries `formulas` (see parseSheet). */
 export async function readXlsx(buf) {
   const z = await unzip(buf);
   const text = async (name) => (z[name] ? td.decode(await z[name]()) : '');
@@ -132,7 +163,8 @@ export async function readXlsx(buf) {
     const rid = attr(m[0], 'r:id');
     const path = target[rid] || `xl/worksheets/sheet${sheets.length + 1}.xml`;
     const xml = await text(path);
-    if (xml) sheets.push({ name, rows: parseSheet(xml, shared) });
+    const formulas = {};
+    if (xml) sheets.push({ name, rows: parseSheet(xml, shared, formulas), formulas });
   }
   if (!sheets.length) {
     for (const name of Object.keys(z).filter(n => /^xl\/worksheets\/sheet\d+\.xml$/.test(n)).sort()) {
