@@ -14,6 +14,7 @@ const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
 export const FC_ROUTES = ['factory', 'factoryproc'];
+let escBound = false, escClose = null;
 
 const rows = (r) => { if (r.error) throw new Error(r.error.message); return r.data || []; };
 
@@ -185,9 +186,20 @@ export function wireFactory(lang, { ctx, rerender, fail }) {
     const row = await db.updateProcurementItem(id, patch);
     ctx.fItems = (ctx.fItems || []).map(i => i.id === id ? { ...i, ...row } : i);
   };
-  $$('[data-fi-open]').forEach(b => b.onclick = () => {
-    ctx.fOpen = ctx.fOpen === b.dataset.fiOpen ? null : b.dataset.fiOpen; rerender();
-  });
+  /* The dialog: a new request, or one item's details. Closed by ✕, Cancel,
+     a click on the dimmed page behind it, or Escape. */
+  const closeDialog = () => { ctx.fNew = false; ctx.fOpen = null; rerender(); };
+  $$('[data-fi-open]').forEach(b => b.onclick = () => { ctx.fNew = false; ctx.fOpen = b.dataset.fiOpen; rerender(); });
+  const newBtn = $('[data-fi-new]');
+  if (newBtn) newBtn.onclick = () => { ctx.fOpen = null; ctx.fNew = true; rerender(); $('#fiName')?.focus(); };
+  $$('[data-fmodal-close]').forEach(b => b.onclick = closeDialog);
+  const backdrop = $('[data-fmodal]');
+  if (backdrop) backdrop.onmousedown = (e) => { if (e.target === backdrop) closeDialog(); };
+  escClose = backdrop ? closeDialog : null;
+  if (!escBound) {
+    escBound = true;
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && escClose && document.querySelector('[data-fmodal]')) escClose(); });
+  }
   $$('[data-fe]').forEach(inp => inp.onchange = async () => {
     const id = inp.dataset.feId, field = inp.dataset.fe;
     let value = inp.value.trim();
@@ -290,7 +302,8 @@ export function wireFactory(lang, { ctx, rerender, fail }) {
       ctx.fItems = [...(ctx.fItems || []), { updated_at: row.created_at, ...row }];
       if (photos.length) await uploadPhotos(row.id, project, photos);
       ctx.fif = { ...(ctx.fif || {}), project };
-      ctx.fOpen = row.id;
+      ctx.fNew = false;
+      ctx.fOpen = row.id;   // straight into the new request, photos and all
       rerender();
     } catch (err) { btn.disabled = false; btn.textContent = t.req.send; fail(err); }
   };

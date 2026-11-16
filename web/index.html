@@ -1353,6 +1353,23 @@ select.btn--sm { height: 28px; padding: 0 6px; background: var(--s-2); border: 1
 .tbl__total td { border-top: 1px solid var(--line2); }
 .good { color: var(--ok); }
 .daypick { display: flex; gap: 10px; flex-wrap: wrap; padding-top: 4px; }
+/* Factory → Procurement: a request (new, or an item's details) opens in a
+   dialog over the list. */
+.fmodal { position: fixed; inset: 0; z-index: 900; background: rgba(5, 4, 10, .62); display: flex;
+  align-items: flex-start; justify-content: center; padding: 48px 16px; overflow-y: auto; }
+.fmodal__box { width: min(880px, 100%); background: var(--s-1); border: 1px solid var(--line2); border-radius: 14px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .45); }
+.fmodal__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  padding: 16px 20px; border-bottom: 1px solid var(--line); }
+.fmodal__head h2 { margin: 0 0 2px; font-size: 17px; }
+.fmodal__head .x { font-size: 18px; padding: 4px; }
+.fmodal__body { padding: 12px 20px 18px; }
+.fmodal__body .faddform { border-top: 0; margin-top: 0; padding: 0; }
+body:has(.fmodal) { overflow: hidden; }
+.fitem__name { font-weight: 600; text-align: start; }
+.fsupname { display: flex; align-items: center; gap: 6px; }
+.fsupname a { text-decoration: none; }
+
 /* Projects list: the customer column. */
 .fclient { max-width: 220px; overflow-wrap: anywhere; }
 

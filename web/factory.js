@@ -39,7 +39,7 @@ export const FSTR = {
       photos: 'Reference photos', photosHint: 'Photos or a PDF of what is needed', addPhotos: '+ Add photos', noPhotos: 'No reference photo yet.',
       suppliers: 'Suppliers', suppliersOpt: 'Suppliers (if already known)', supName: 'Supplier', supContact: 'Phone or email', supPrice: 'Unit price (SAR)',
       supNote: 'Note', supTotal: 'Total (SAR)', addSup: '+ Another supplier', addSupRow: '+ Add supplier', noSup: 'No supplier yet.', lowest: 'Lowest',
-      send: 'Send request', sending: 'Sending…', details: 'Details', hide: 'Hide', by: 'Requested by {who} · {d}',
+      send: 'Send request', sending: 'Sending…', newBtn: '+ New purchase request', cancel: 'Cancel', close: 'Close', details: 'Details', hide: 'Hide', by: 'Requested by {who} · {d}',
       quotes: '{n} quotes', quote1: '1 quote', best: 'from {p}', unquoted: '{n} without price', delPhoto: 'Remove this photo?', delSup: 'Remove this supplier?',
       site: 'site date', badQty: 'Quantity must be more than zero.', badPrice: 'Prices must be numbers of zero or more.' },
     left: { late: '{n} late', today: 'today', in: '{n}' }, days: 'days',
@@ -71,7 +71,7 @@ export const FSTR = {
       photos: 'صور مرجعية', photosHint: 'صور أو ملف PDF لما هو مطلوب', addPhotos: '+ إضافة صور', noPhotos: 'لا توجد صورة مرجعية بعد.',
       suppliers: 'الموردون', suppliersOpt: 'الموردون (إن وُجدوا)', supName: 'المورد', supContact: 'الجوال أو البريد', supPrice: 'سعر الوحدة (ر.س)',
       supNote: 'ملاحظة', supTotal: 'الإجمالي (ر.س)', addSup: '+ مورد آخر', addSupRow: '+ إضافة مورد', noSup: 'لا يوجد مورد بعد.', lowest: 'الأقل',
-      send: 'إرسال الطلب', sending: 'جارٍ الإرسال…', details: 'التفاصيل', hide: 'إخفاء', by: 'طلبه {who} · {d}',
+      send: 'إرسال الطلب', sending: 'جارٍ الإرسال…', newBtn: '+ طلب شراء جديد', cancel: 'إلغاء', close: 'إغلاق', details: 'التفاصيل', hide: 'إخفاء', by: 'طلبه {who} · {d}',
       quotes: '{n} عروض', quote1: 'عرض واحد', best: 'من {p}', unquoted: '{n} بلا سعر', delPhoto: 'حذف هذه الصورة؟', delSup: 'حذف هذا المورد؟',
       site: 'موعد الموقع', badQty: 'يجب أن تكون الكمية أكبر من صفر.', badPrice: 'الأسعار يجب أن تكون أرقاماً صفراً أو أكثر.' },
     left: { late: 'متأخر {n}', today: 'اليوم', in: '{n}' }, days: 'يوم',
@@ -241,13 +241,20 @@ function thumb(f, { big = false } = {}) {
     : `<button type="button" class="${cls} fthumb--file" data-fphoto-open="${esc(f.id)}" title="${esc(f.filename || '')}">${esc(String(f.filename || 'file').split('.').pop().toUpperCase().slice(0, 4))}</button>`;
 }
 
+/** A supplier typed as a web address reads as its site: shop.unitree.com. */
+export const shortName = (v) => {
+  const m = String(v || '').trim().match(/^(?:https?:\/\/)?(?:www\.)?([a-z0-9.-]+\.[a-z]{2,})(?:[\/?#]|$)/i);
+  return m && /[\/.]/.test(v) && /^(https?:|www\.)/i.test(String(v).trim()) ? m[1] : String(v || '');
+};
+const isUrl = (v) => /^https?:\/\/\S+$/i.test(String(v || '').trim());
+
 /** The supplier summary on an item's line. */
 function supSummary(lang, it) {
   const t = FSTR[lang].req;
   const sups = F.suppliersOf(it);
   if (!sups.length) return `<span class="muted">—</span>`;
   const q = it.quote;
-  const names = sups.slice(0, 2).map(x => x.name || x.contact).join(', ') + (sups.length > 2 ? ` +${sups.length - 2}` : '');
+  const names = sups.slice(0, 2).map(x => shortName(x.name || x.contact)).join(', ') + (sups.length > 2 ? ` +${sups.length - 2}` : '');
   const priced = q ? (q.n === 1 ? t.quote1 : fill(t.quotes, { n: q.n })) : '';
   return `<span class="small">${esc(names)}</span>${q ? `<span class="block small muted">${esc(priced)} · ${esc(fill(t.best, { p: sarFmt(q.price) }))}</span>` : ''}`;
 }
@@ -279,19 +286,21 @@ export function requestPanel(lang, ctx, it, edit) {
       ${edit ? `<label class="miniup">${esc(r.addPhotos)}<input type="file" multiple accept="image/*,.pdf" data-fphoto-add="${esc(it.id)}" /></label>` : ''}
     </div>`;
 
+  // A supplier given as a web address opens in a new tab.
+  const link = (v) => (isUrl(v) ? `<a href="${esc(String(v).trim())}" target="_blank" rel="noopener noreferrer">${esc(shortName(v))} ↗</a>` : '');
   const supRow = (x, i) => {
     const price = x?.price === null || x?.price === undefined ? '' : String(x.price);
     const total = price === '' || !Number.isFinite(Number(price)) ? '' : money(Number(price) * qty);
     const isLow = low !== null && price !== '' && Number(price) === low;
     return edit ? `<tr data-fs-row="${i}">
-        <td><input class="cellinput" dir="auto" data-fs="name" value="${esc(x?.name || '')}" placeholder="${esc(r.supName)}" maxlength="120" /></td>
+        <td><span class="fsupname"><input class="cellinput" dir="auto" data-fs="name" value="${esc(x?.name || '')}" placeholder="${esc(r.supName)}" maxlength="300" />${isUrl(x?.name) ? `<a href="${esc(String(x.name).trim())}" target="_blank" rel="noopener noreferrer" title="${esc(shortName(x.name))}">↗</a>` : ''}</span></td>
         <td><input class="cellinput" data-fs="contact" value="${esc(x?.contact || '')}" placeholder="${esc(r.supContact)}" maxlength="120" /></td>
         <td class="num"><input class="cellinput cellinput--num" type="number" min="0" step="any" inputmode="decimal" data-fs="price" value="${esc(price)}" /></td>
         <td class="num">${esc(total)}${isLow ? ` <span class="chip chip--ok">${esc(r.lowest)}</span>` : ''}</td>
         <td><input class="cellinput" dir="auto" data-fs="note" value="${esc(x?.note || '')}" placeholder="${esc(r.supNote)}" maxlength="200" /></td>
         <td class="proc-actions"><button type="button" class="x" data-fs-del="${i}" aria-label="✕">✕</button></td>
       </tr>`
-      : `<tr><td>${esc(x?.name || '—')}</td><td class="small">${esc(x?.contact || '')}</td><td class="num">${esc(money(price) || '—')}</td>
+      : `<tr><td>${link(x?.name) || esc(x?.name || '—')}</td><td class="small">${link(x?.contact) || esc(x?.contact || '')}</td><td class="num">${esc(money(price) || '—')}</td>
         <td class="num">${esc(total || '—')}${isLow ? ` <span class="chip chip--ok">${esc(r.lowest)}</span>` : ''}</td><td class="small muted">${esc(x?.note || '')}</td></tr>`;
   };
   const supBlock = `<h3 class="subhead">${esc(r.suppliers)}</h3>
@@ -343,7 +352,7 @@ export function factoryProcurementView(lang, ctx) {
     const open = ctx.fOpen === it.id;
     const ph = photosOf(ctx, it.id)[0];
     return `<tr class="${it.follow ? 'frow--follow' : ''}${open ? ' is-open' : ''}">
-      <td><span class="fitem">${ph ? thumb(ph) : ''}<span><strong dir="auto">${esc(it.name || '—')}</strong>${it.description ? `<span class="block small muted fclip" dir="auto">${esc(it.description)}</span>` : ''}</span></span></td>
+      <td><span class="fitem">${ph ? thumb(ph) : ''}<span><button type="button" class="link fitem__name" dir="auto" data-fi-open="${esc(it.id)}">${esc(it.name || '—')}</button>${it.description ? `<span class="block small muted fclip" dir="auto">${esc(it.description)}</span>` : ''}</span></span></td>
       <td class="num nowrap"><bdi>${esc(qtyText(it))}</bdi></td>
       <td>${it.project ? `<button class="link" data-act="go" data-route="#/p/${esc(it.project.id)}">${esc(it.project.name)}</button>` : '<span class="muted">—</span>'}</td>
       <td>${statusCell(it)}</td>
@@ -351,15 +360,15 @@ export function factoryProcurementView(lang, ctx) {
       <td class="num nowrap">${esc(it.deliveryOn ? fmt(it.deliveryOn, lang) : '—')}${it.deliverySrc === 'site' ? `<span class="block small muted">${esc(r.site)}</span>` : ''}</td>
       <td>${supSummary(lang, it)}</td>
       <td class="num small muted">${esc(fmt(String(it.updated_at || it.created_at || '').slice(0, 10), lang) || '—')}</td>
-      <td class="num"><button type="button" class="btn btn--sm" data-fi-open="${esc(it.id)}" aria-expanded="${open}">${esc(open ? r.hide : r.details)}</button></td>
-    </tr>${open ? `<tr class="reqdet"><td colspan="${COLS}">${requestPanel(lang, ctx, it, edit)}</td></tr>` : ''}`;
+      <td class="num"><button type="button" class="btn btn--sm" data-fi-open="${esc(it.id)}">${esc(r.details)}</button></td>
+    </tr>`;
   };
   const body = items.length ? items.map(line).join('')
     : `<tr><td class="tbl__empty" colspan="${COLS}">${esc(D.items.length ? t.noMatch : t.emptyProc)}</td></tr>`;
 
   const fld = (label, inner, wide = false) => `<label class="f${wide ? ' f--wide' : ''}"><span>${esc(label)}</span>${inner}</label>`;
-  const form = edit && addable.length ? `<form class="inlineform faddform" data-fi-add style="border-bottom:0">
-    <h3 class="subhead" style="margin-top:0">${esc(r.title)}</h3>
+  const canAdd = edit && addable.length > 0;
+  const form = canAdd ? `<form class="inlineform faddform" data-fi-add style="border-bottom:0">
     <div class="fields">
       ${fld(t.addTo, `<select id="fiProject" required>
         ${addable.map(p => `<option value="${esc(p.id)}"${p.id === f.project ? ' selected' : ''}>${esc(p.name)}</option>`).join('')}</select>`)}
@@ -373,8 +382,22 @@ export function factoryProcurementView(lang, ctx) {
         <div data-fi-sups>${supplierInputs(lang)}</div>
         <div><button type="button" class="btn btn--sm" data-fi-supadd>${esc(r.addSup)}</button></div></div>
     </div>
-    <div class="actions"><button type="submit" class="btn btn--primary btn--sm">${esc(r.send)}</button></div>
+    <div class="actions"><button type="button" class="btn btn--sm" data-fmodal-close>${esc(r.cancel)}</button>
+      <button type="submit" class="btn btn--primary btn--sm">${esc(r.send)}</button></div>
   </form>` : '';
+
+  /* The list stays a list: a new request and an item's details open in a
+     dialog over it, not inside the table. */
+  const openItem = ctx.fOpen ? D.items.find(i => i.id === ctx.fOpen) : null;
+  const modal = (title, sub, inner) => `<div class="fmodal" data-fmodal role="dialog" aria-modal="true" aria-label="${esc(title)}">
+    <div class="fmodal__box">
+      <div class="fmodal__head"><div><h2 dir="auto">${esc(title)}</h2>${sub ? `<span class="muted small" dir="auto">${esc(sub)}</span>` : ''}</div>
+        <button type="button" class="x" data-fmodal-close aria-label="${esc(r.close)}" title="${esc(r.close)}">✕</button></div>
+      <div class="fmodal__body">${inner}</div>
+    </div></div>`;
+  const dialog = ctx.fNew && canAdd ? modal(r.title, '', form)
+    : openItem ? modal(openItem.name || '—', [openItem.project?.name, qtyText(openItem)].filter(Boolean).join(' · '), requestPanel(lang, ctx, openItem, edit))
+    : '';
 
   return `
 ${tabs(lang, 'proc')}
@@ -391,7 +414,8 @@ ${tabs(lang, 'proc')}
       <option value="">${esc(t.anyProject)}</option>
       ${projects.map(p => `<option value="${esc(p.id)}"${p.id === f.project ? ' selected' : ''}>${esc(p.name)}</option>`).join('')}
     </select>
-    <input class="cellinput" data-fi-q value="${esc(f.q)}" placeholder="${esc(t.searchItems)}" style="max-width:240px" /></div>
+    <input class="cellinput" data-fi-q value="${esc(f.q)}" placeholder="${esc(t.searchItems)}" style="max-width:240px" />
+    ${canAdd ? `<button type="button" class="btn btn--primary btn--sm" data-fi-new>${esc(r.newBtn)}</button>` : ''}</div>
   <div class="chipbar">${Object.keys(t.show).map(k =>
     `<button class="chip chip--btn${f.show === k ? ' is-on' : ''}${k === 'follow' && counts.follow ? ' chip--warn' : ''}" data-fi-show="${k}">${esc(t.show[k])} ${counts[k]}</button>`).join('')}</div>
   <div class="tblwrap"><table class="tbl tbl--tight ftbl">
@@ -399,7 +423,7 @@ ${tabs(lang, 'proc')}
       <th class="num">${esc(t.col.need)}</th><th>${esc(t.col.sup)}</th><th class="num">${esc(t.col.updated)}</th><th></th></tr></thead>
     <tbody>${body}</tbody>
   </table></div>
-  ${form}
   ${edit ? '' : `<p class="note">${esc(t.readOnly)}</p>`}
-</section>`;
+</section>
+${dialog}`;
 }
