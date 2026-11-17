@@ -2392,7 +2392,7 @@ export function projectView(lang, ctx) {
     ${fact(t.contractValue, p.contract_value_sar != null ? esc(`SAR ${Number(p.contract_value_sar).toLocaleString('en-US', { maximumFractionDigits: 0 })}`) : '—', p.contract_value_sar != null ? '' : 'muted')}
     ${(() => { const pr = projectPrice({ pricing_items: ctx.pricingItems || p.pricing_items });
       return fact(t.priceFact, pr === null ? esc(t.notPriced)
-        : `${esc(sarFmt(pr))} <span class="muted small block">${esc(t.priceInclVat.replace('{v}', sarFmt(pr * (1 + VAT_RATE))))}</span>`, pr === null ? 'muted' : ''); })()}
+        : `<span class="nowrap">${esc(sarFmt(pr))}</span> <span class="muted small block nowrap">${esc(t.priceInclVat.replace('{v}', sarFmt(pr * (1 + VAT_RATE))))}</span>`, pr === null ? 'muted' : ''); })()}
     ${fact(t.createdOn, esc(fmt((p.created_at || '').slice(0, 10), lang)))}
     ${fact(t.updatedOn, esc(fmt((p.updated_at || '').slice(0, 10), lang)))}
     ${p.lead ? fact(t.fromLead,

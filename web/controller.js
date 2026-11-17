@@ -708,6 +708,10 @@ export function wireApp(lang) {
   prCells().forEach(el => el.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' || e.isComposing || e.altKey || e.ctrlKey || e.metaKey) return;
     e.preventDefault();
+    // A sum that does not work out keeps the cursor where it is, to be fixed.
+    if (el.dataset.calc !== undefined && el.value.trim() && CALC.evaluate(el.value).error) {
+      el.classList.add('is-bad'); el.title = V.DSTR[lang].prCalcBad; return;
+    }
     const cells = prCells(), i = cells.indexOf(el);
     const next = cells[i + (e.shiftKey ? -1 : 1)];
     if (next) { next.focus(); } else el.blur();
