@@ -120,6 +120,9 @@ check(filtered.includes('MDF boards') && !filtered.includes('LED screens'), 'don
       `${lang}: the line shows quantity, a thumbnail and the suppliers`);
     check(list.includes('SAR 150.50') && list.includes('data-fi-open="r1"') && !list.includes('data-freq'), `${lang}: lowest quote shown, details closed`);
     check(!list.includes('data-fmodal') && !list.includes('fiQty'), `${lang}: the list shows only the list`);
+    const solo = V.factoryProcurementView(lang, c2, { standalone: true });
+    check(!solo.includes('hrtabs') && list.includes('hrtabs') && solo.includes('data-fx-xlsx') && solo.includes('data-fi-new') && solo.includes('src="https://example.test/s.jpg"'),
+      `${lang}: Work → Procurement is the same list without the Factory tabs, Export in its header`);
     const nw = V.factoryProcurementView(lang, { ...c2, fNew: true });
     check(nw.includes('data-fmodal') && nw.includes(r_.title) && ['data-fi-add', 'fiQty', 'fiUnit', 'fiNeed', 'fiSpec', 'fiPhotos', 'data-fi-sups', 'data-fi-supadd', 'data-fmodal-close'].every(k => nw.includes(k)),
       `${lang}: "New purchase request" opens the form, with every field, in a dialog`);
