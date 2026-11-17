@@ -14,9 +14,18 @@
   var t = null;
   try { t = localStorage.getItem('expand.theme'); } catch (e) { /* storage blocked */ }
   if (t !== 'light' && t !== 'dark') t = window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-  document.documentElement.setAttribute('data-theme', t);
+  var root = document.documentElement, bg = t === 'light' ? '#f5f4f9' : '#000000';
+  root.setAttribute('data-theme', t);
+  /* The person's own colours (theme.js keeps this cache): painted now, so
+     a pink app never shows purple first. */
+  try {
+    var c = JSON.parse(localStorage.getItem('expand.look') || 'null'), v = c && c.vars && c.vars[t];
+    if (v) for (var k in v) if (/^--[a-z0-9-]+$/.test(k) && /^#[0-9a-f]{6}$|^\d+px$/i.test(v[k])) root.style.setProperty(k, v[k]);
+    if (v && v['--bg']) bg = v['--bg'];
+    if (c && c.zoom && c.zoom !== 1 && c.zoom > 0.8 && c.zoom < 1.25) root.style.zoom = String(c.zoom);
+  } catch (e) { /* no saved look */ }
   var m = document.querySelector('meta[name="theme-color"]');
-  if (m) m.setAttribute('content', t === 'light' ? '#f5f4f9' : '#000000');
+  if (m) m.setAttribute('content', bg);
 })();
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -41,6 +50,8 @@
   --selago:   #e8d9fa;
   --biloba:   #bd96f2;
   --lilac:    #f2ebfa;
+  --brand-hi: #c86bf0;   /* the wordmark's far end */
+  --on-brand: #10041f;   /* text on a brand-coloured fill; theme.js flips it to white on dark accents */
 
   /* --- surfaces --- */
   --bg:   #000000;
@@ -152,7 +163,7 @@ button { cursor: pointer; border: 0; background: none; }
 .navbtn svg { width: 17px; height: 17px; flex: none; opacity: .75; }
 .navbtn:hover { color: var(--ink1); background: var(--s-2); }
 .navbtn.is-on {
-  color: #fff; background: linear-gradient(90deg, var(--midnight), var(--brand));
+  color: var(--nav-ink, #fff); background: linear-gradient(90deg, var(--midnight), var(--brand));
   border-color: transparent; font-weight: 600;
 }
 html[dir="rtl"] .navbtn.is-on { background: linear-gradient(270deg, var(--midnight), var(--brand)); }
@@ -162,6 +173,7 @@ html[dir="rtl"] .navbtn.is-on { background: linear-gradient(270deg, var(--midnig
   background: var(--s-3); color: var(--ink2); border-radius: 999px; padding: 1px 7px;
 }
 .navbtn.is-on .navbtn__n { background: rgba(0,0,0,.25); color: #fff; }
+/* The selected item in a light accent (gold, say) wears dark ink instead. */
 
 /* The person, at the bottom of the rail where every CRM puts them. */
 .online { margin: 0 0 8px; border-radius: 9px; }
@@ -268,7 +280,7 @@ html[dir="rtl"] .head::after { transform: scaleX(-1); }
   font-family: "Instrument Serif", Georgia, "Times New Roman", serif;
   font-style: italic; font-weight: 400; font-size: 25px; line-height: 1; letter-spacing: 0;
   padding-inline-end: 3px;   /* room for the italic overhang */
-  background: linear-gradient(100deg, var(--biloba) 0%, var(--brand) 55%, #c86bf0 100%);
+  background: linear-gradient(100deg, var(--biloba) 0%, var(--brand) 55%, var(--brand-hi) 100%);
   -webkit-background-clip: text; background-clip: text; color: transparent;
   filter: drop-shadow(0 0 10px color-mix(in srgb, var(--brand) 45%, transparent));
   position: relative; top: 1px;
@@ -323,7 +335,7 @@ html[dir="rtl"] .head::after { transform: scaleX(-1); }
   background: var(--s-2); border: 1px solid var(--line2); color: var(--ink1);
 }
 .btn:hover { background: var(--s-3); }
-.btn--primary { background: var(--brand); border-color: var(--brand); color: #10041f; font-weight: 600; }
+.btn--primary { background: var(--brand); border-color: var(--brand); color: var(--on-brand); font-weight: 600; }
 .btn--primary:hover { background: var(--biloba); }
 .btn--ghost { background: none; color: var(--ink3); }
 .btn--ghost:hover { color: var(--ink1); }
@@ -372,7 +384,7 @@ html[dir="rtl"] .head::after { transform: scaleX(-1); }
   width: 24px; height: 24px; border-radius: 6px; background: var(--s-2);
   border: 1px solid var(--line2); color: var(--ink2); font-size: 14px; line-height: 1;
 }
-.stepper button:hover { background: var(--brand); color: #10041f; border-color: var(--brand); }
+.stepper button:hover { background: var(--brand); color: var(--on-brand); border-color: var(--brand); }
 .stepper b { min-width: 22px; text-align: center; font-family: var(--mono); font-size: 13px; }
 
 /* --------------------------------- form ---------------------------------- */
@@ -960,7 +972,7 @@ select.btn--sm { height: 28px; padding: 0 6px; background: var(--s-2); border: 1
 }
 .chip--btn { background: var(--s-2); cursor: pointer; }
 .chip--btn:hover { color: var(--ink1); border-color: var(--line2); }
-.chip--btn.is-on { color: #fff; background: var(--brand); border-color: var(--brand); }
+.chip--btn.is-on { color: var(--on-brand); background: var(--brand); border-color: var(--brand); }
 
 /* ------------------------------- filter bar -------------------------------
    Auto-fit rather than a fixed column count: five selects sit in one row on
@@ -1406,7 +1418,7 @@ span.prcell.has-f::after { top: -6px; inset-inline-start: -8px; }
 /* Quick chat (chat.js): a launcher bottom corner, a panel above it. */
 .chat { position: fixed; bottom: 18px; inset-inline-end: 18px; z-index: 950; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
 .chat:empty { display: none; }
-.chat__fab { position: relative; width: 50px; height: 50px; border-radius: 50%; background: var(--brand); color: #10041f; border: 0;
+.chat__fab { position: relative; width: 50px; height: 50px; border-radius: 50%; background: var(--brand); color: var(--on-brand); border: 0;
   display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 10px 24px rgba(0,0,0,.35); cursor: pointer; }
 .chat__fab:hover { filter: brightness(1.08); }
 .chat__fab.is-open { background: var(--s-3); color: var(--ink1); }
@@ -1438,7 +1450,7 @@ span.prcell.has-f::after { top: -6px; inset-inline-start: -8px; }
 .chat__msg { display: flex; flex-direction: column; align-items: flex-start; max-width: 85%; }
 .chat__msg.is-mine { align-self: flex-end; align-items: flex-end; }
 .chat__bubble { padding: 8px 11px; border-radius: 12px; background: var(--s-3); color: var(--ink1); font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
-.chat__msg.is-mine .chat__bubble { background: var(--brand); color: #10041f; }
+.chat__msg.is-mine .chat__bubble { background: var(--brand); color: var(--on-brand); }
 .chat__msg.is-mine .chat__bubble a { color: inherit; }
 .chat__msg.is-failed .chat__bubble { opacity: .55; }
 .chat__meta { font-size: 10.5px; color: var(--ink4); margin-top: 2px; }
@@ -1457,7 +1469,7 @@ span.prcell.has-f::after { top: -6px; inset-inline-start: -8px; }
   background: var(--s-2); color: var(--ink1); font: inherit; font-size: 13px; line-height: 1.4; }
 .chat__icon { flex: none; width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--line2); background: var(--s-2); color: var(--ink2);
   display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
-.chat__send { background: var(--brand); border-color: var(--brand); color: #10041f; }
+.chat__send { background: var(--brand); border-color: var(--brand); color: var(--on-brand); }
 .chat__icon:disabled { opacity: .45; cursor: not-allowed; }
 .chat__foot { margin: 0; padding: 6px 14px 10px; font-size: 10.5px; color: var(--ink4); text-align: center; }
 /* Message cards: top corner, so they never sit on a task notification. */
@@ -1586,6 +1598,78 @@ span.prcell.has-f::after { top: -6px; inset-inline-start: -8px; }
 [dir="rtl"] .etlist { padding: 0 34px 0 16px; }
 .etuse { display: grid; gap: 3px; min-width: 0; }
 .etuse__n { font-size: 18px; font-weight: 700; }
+
+/* ------------------------------------------------------------- appearance
+   Workspace › Appearance. Controls on one side, a small live copy of the app
+   on the other; both read the same variables, so the preview is the app. */
+.look { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 14px; align-items: start; }
+.look__opts > .card + .card { margin-top: 14px; }
+.look__side { position: sticky; top: 14px; }
+@media (max-width: 900px) { .look { grid-template-columns: 1fr; } .look__side { position: static; order: -1; } }
+.lookgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; }
+.lookcard {
+  position: relative; display: grid; gap: 8px; padding: 8px; border-radius: calc(var(--r) + 2px);
+  border: 1px solid var(--line); background: var(--s-2); text-align: start; transition: border-color .15s, transform .15s;
+}
+.lookcard:hover { border-color: var(--line2); transform: translateY(-1px); }
+.lookcard.is-on { border-color: var(--lc-brand); box-shadow: 0 0 0 2px color-mix(in srgb, var(--lc-brand) 35%, transparent); }
+.lookcard__mock {
+  display: grid; grid-template-columns: 30% 1fr; grid-template-rows: 1fr 1fr; gap: 5px; height: 54px; padding: 6px;
+  border-radius: 8px; background: var(--lc-bg); border: 1px solid var(--lc-line);
+}
+.lookcard__mock i { grid-row: 1 / 3; border-radius: 4px; background: linear-gradient(180deg, var(--lc-mid), var(--lc-brand)); }
+.lookcard__mock b { border-radius: 4px; background: var(--lc-line); }
+.lookcard__mock b:last-child { width: 60%; background: var(--lc-brand); }
+.lookcard__n { font-size: 12px; font-weight: 600; color: var(--ink2); }
+.lookcard.is-on .lookcard__n { color: var(--ink1); }
+.lookcard__tick {
+  position: absolute; top: 4px; inset-inline-end: 4px; width: 18px; height: 18px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 11px; font-weight: 700; background: var(--lc-brand); color: var(--on-brand);
+}
+.lookcustom {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px; padding: 10px 12px !important;
+  border: 1px dashed var(--line2); border-radius: var(--r); margin-inline: 16px; margin-bottom: 14px;
+}
+.lookcustom.is-on { border-style: solid; border-color: var(--brand); }
+.lookcustom__pick { position: relative; width: 38px; height: 38px; border-radius: 50%; overflow: hidden; flex: none; cursor: pointer;
+  background: conic-gradient(#f43f5e, #f59e0b, #84cc16, #14b8a6, #3b82f6, #a855f7, #f43f5e); padding: 4px; }
+.lookcustom__pick input { width: 100%; height: 100%; border: 0; padding: 0; border-radius: 50%; cursor: pointer; background: none; }
+.lookcustom__pick input::-webkit-color-swatch-wrapper { padding: 0; }
+.lookcustom__pick input::-webkit-color-swatch { border: 2px solid var(--s-1); border-radius: 50%; }
+.lookcustom__pick input::-moz-color-swatch { border: 2px solid var(--s-1); border-radius: 50%; }
+.lookcustom__t { display: grid; flex: 1; min-width: 160px; font-size: 12.5px; }
+.lookcustom__hex { width: 92px; height: 30px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--line2);
+  background: var(--s-2); font-family: var(--mono); font-size: 12px; text-transform: lowercase; }
+.lookcustom__hex.is-bad { border-color: var(--critical); }
+.lookrow { padding-top: 12px !important; padding-bottom: 14px !important; }
+.look__seg { margin-inline-start: 0; display: inline-flex; flex-wrap: wrap; }
+.look__seg .seg { font-size: 12.5px; padding: 7px 14px; }
+.look__seg .seg.is-on { color: var(--on-brand); background: var(--brand); border-color: var(--brand); }
+.lookhead2 { border-top: 1px solid var(--line); }
+.look__foot { display: flex; align-items: center; gap: 10px; justify-content: space-between; margin-top: 10px; min-height: 28px; }
+.look__foot .btn { white-space: nowrap; }
+.look__foot .btn:disabled { opacity: .4; cursor: default; }
+
+.lookpv { display: grid; grid-template-columns: 92px 1fr; min-height: 210px; padding: 0 !important; background: var(--bg); }
+.lookpv__side { display: grid; align-content: start; gap: 4px; padding: 10px 8px; background: var(--s-1); border-inline-end: 1px solid var(--line); }
+.lookpv__logo { font-weight: 700; font-size: 13px; margin-bottom: 6px; background: linear-gradient(100deg, var(--biloba), var(--brand) 55%, var(--brand-hi));
+  -webkit-background-clip: text; background-clip: text; color: transparent; }
+.lookpv__nav { font-size: 10.5px; color: var(--ink3); padding: 5px 7px; border-radius: 6px; }
+.lookpv__nav.is-on { color: var(--nav-ink, #fff); font-weight: 600; background: linear-gradient(90deg, var(--midnight), var(--brand)); }
+html[dir="rtl"] .lookpv__nav.is-on { background: linear-gradient(270deg, var(--midnight), var(--brand)); }
+.lookpv__main { display: grid; align-content: start; gap: 10px; padding: 12px; }
+.lookpv__card { background: var(--s-1); border: 1px solid var(--line); border-radius: var(--r); padding: 10px; display: grid; gap: 10px; }
+.lookpv__head { display: flex; gap: 8px; align-items: center; font-size: 11.5px; }
+.lookpv__head span:last-child { display: grid; }
+.lookpv__head small { color: var(--ink3); font-size: 10px; }
+.lookpv__bar { height: 6px; border-radius: 3px; background: var(--s-3); overflow: hidden; }
+.lookpv__bar span { display: block; height: 100%; background: var(--brand); border-radius: 3px; }
+.lookpv__row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.lookpv__chip { color: var(--brand); border-color: color-mix(in srgb, var(--brand) 45%, transparent); font-size: 9px; }
+.lookpv__row .btn { pointer-events: none; }
+.lookpv__msg { display: flex; justify-content: flex-end; }
+.lookpv__msg span { background: var(--brand); color: var(--on-brand); font-size: 11.5px; padding: 6px 10px; border-radius: 12px 12px 3px 12px; }
+html[dir="rtl"] .lookpv__msg span { border-radius: 12px 12px 12px 3px; }
 </style>
 </head>
 <body>

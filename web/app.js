@@ -15,6 +15,8 @@ import * as db from './db.js';
 import * as C from './controller.js';
 import * as N from './notify.js';
 import * as CH from './chat.js';
+import * as TH from './theme.js';
+import * as AP from './appearance.js';
 import { HSTR } from './hr.js';
 import { TSTR, canSeeTenders } from './tenders.js';
 import { ESTR, canSeeEtimad } from './etimad.js';
@@ -176,6 +178,7 @@ function currentRoute() {
   /* Before '#/leads', or the prefix match below swallows it. */
   if (h.startsWith('#/pipeline')) return { name: 'pipeline' };
   if (h.startsWith('#/performance')) return { name: 'performance' };
+  if (h.startsWith('#/appearance')) return { name: 'appearance' };
   if (h.startsWith('#/signin'))   return { name: 'signin' };
   if (h.startsWith('#/reset'))    return { name: 'signin' };   // recovery lands here
   if (h.startsWith('#/code'))     return { name: 'signin' };   // the link in an emailed code lands here
@@ -233,9 +236,11 @@ const APP_ROUTES = ['home', 'projects', 'project', 'new', 'leads', 'lead', 'docs
   'hrsec', 'hrrun', 'hrletter', 'me', 'tasks',
   'tenders', 'tenderlist', 'tendernew', 'tender', 'tenderedit', 'tenderset',
   'etimad', 'etimadlist', 'etimadours', 'etimadset', 'etimadt', 'etimadcomp', 'etimadc',
-  'factory', 'factoryproc', 'procurement'];
+  'factory', 'factoryproc', 'procurement', 'appearance'];
 
 function render() {
+  // The signed-in person's own colours, from their profile, once per sign-in.
+  try { TH.syncFromProfile(db.state.me); } catch (e) { console.error(e); }
   document.documentElement.lang = S.lang;
   document.documentElement.dir = S.lang === 'ar' ? 'rtl' : 'ltr';
   const r = currentRoute();
@@ -271,6 +276,7 @@ function render() {
     body =
       r.name === 'signin'   ? signInView(S.lang, C.ctx.authMode, C.ctx.authMsg, C.ctx.authErr, C.ctx.authAddr)
     : r.name === 'estimate' ? estimatorBody()
+    : r.name === 'appearance' ? AP.appearanceView(S.lang)
     : C.appBody(S.lang, r.name, r.id);
   } catch (e) {
     console.error(e);
@@ -289,6 +295,7 @@ function render() {
   wire();
   if (r.name === 'signin') C.wireAuth(S.lang);
   if (APP.includes(r.name)) C.wireApp(S.lang);
+  if (r.name === 'appearance') AP.wireAppearance(S.lang, render);
   // Assignment pop-ups: start for whoever is signed in, stop on sign-out.
   try { N.ensure(S.lang); } catch (e) { console.error(e); }
   // Quick chat: the launcher and any open conversation, outside #root.
@@ -336,6 +343,7 @@ function headTitle(r) {
   if (r.name === 'projects')   return { h1: d.projects, sub: '' };
   if (r.name === 'pipeline')   return { h1: d.pipeline, sub: d.pipelineSub };
   if (r.name === 'performance') return { h1: d.perf, sub: d.perfSub };
+  if (r.name === 'appearance') return { h1: AP.ASTR[S.lang].nav, sub: AP.ASTR[S.lang].sub };
   if (['tenders', 'tenderlist', 'tendernew', 'tender', 'tenderedit', 'tenderset'].includes(r.name))
     return { h1: TSTR[S.lang].title, sub: TSTR[S.lang].sub };
   if (['etimad', 'etimadlist', 'etimadours', 'etimadset', 'etimadt', 'etimadcomp', 'etimadc'].includes(r.name))
@@ -367,6 +375,7 @@ const ICON = {
   gavel:  'M14 13l-7.5 7.5a2.12 2.12 0 0 1-3-3L11 10M16 16l6-6M8 8l6-6M9 7l8 8M21 11l-8-8',
   sun:    'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4',
   moon:   'M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z',
+  palette: 'M12 3a9 9 0 1 0 0 18c.9 0 1.5-.7 1.5-1.5 0-.4-.2-.8-.4-1.1-.3-.3-.4-.7-.4-1.1 0-.8.7-1.5 1.5-1.5H16a5 5 0 0 0 5-5c0-4.3-4-7.8-9-7.8zM7.5 12.5h.01M9.5 8h.01M14.5 8h.01M17 11.5h.01',
 };
 
 /* ---------------------------------------------------------------- theme
@@ -378,8 +387,15 @@ function setTheme(t, save = true) {
   document.documentElement.setAttribute('data-theme', t);
   const m = document.querySelector('meta[name="theme-color"]');
   if (m) m.setAttribute('content', t === 'light' ? '#f5f4f9' : '#000000');
-  if (save) { try { localStorage.setItem(THEME_KEY, t); } catch { /* storage blocked: still switches for this visit */ } }
+  if (save) {
+    try { localStorage.setItem(THEME_KEY, t); } catch { /* storage blocked: still switches for this visit */ }
+    // The mode is part of the person's look (Appearance), saved with it.
+    TH.apply({ ...TH.getLook(), mode: t });
+    AP.saveSoon(S.lang);
+  } else TH.repaint();   // their colours, in the other mode
 }
+/* The colours this device last used — the head script painted them already. */
+TH.boot();
 /* Until somebody picks, follow the system as it changes (e.g. at sunset). */
 try {
   window.matchMedia?.('(prefers-color-scheme: light)').addEventListener('change', (e) => {
@@ -436,6 +452,7 @@ function appNav() {
   if (canSeeEtimad(me)) items.push({ group: 'insight', route: '#/etimad', icon: 'radar', label: () => ESTR[S.lang].nav });
   items.push({ group: 'workspace', route: '#/me', icon: 'me', label: () => HSTR[S.lang].myHr });
   items.push({ group: 'workspace', route: '#/performance', icon: 'chart', label: () => d.perf });
+  items.push({ group: 'workspace', route: '#/appearance', icon: 'palette', label: () => AP.ASTR[S.lang].nav });
   if (me.role === 'admin') items.push({ group: 'workspace', route: '#/admin', icon: 'team', label: () => d.people });
   /* People is for admins, HR for admins and the HR department — nobody else,
      managers included (their approvals stay on My HR). */
@@ -880,7 +897,10 @@ function wire() {
   const act = (name, fn) => { const el = document.querySelector(`[data-act="${name}"]`); if (el) el.onclick = fn; };
   act('lang', () => { S.lang = S.lang === 'en' ? 'ar' : 'en'; render(); });
   /* No re-render: switching colours must not throw away a half-filled form. */
-  act('theme', () => { setTheme(theme() === 'light' ? 'dark' : 'light'); syncThemeButton(); });
+  act('theme', () => {
+    setTheme(theme() === 'light' ? 'dark' : 'light'); syncThemeButton();
+    if (currentRoute().name === 'appearance') render();   // its Mode buttons show the change
+  });
   act('signout', async () => { db.leavePresence(); await db.signOut(); location.hash = '#/'; render(); });
   act('reset', () => { S.pipeline = []; S.result = null; S.whatIf = null; S.seq = 0; render(); });
   const sizeSel = $('#pSize');

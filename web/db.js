@@ -1001,3 +1001,11 @@ export const deleteFile = async (f) => {
 
 export const personLoad = async () => ok(await sb
   .from('v_person_load').select('*').order('committed_days', { ascending: false }));
+
+/* The signed-in person's colours (theme.js), saved with their profile.
+   null goes back to the default look. */
+export async function setMyTheme(theme) {
+  const { error } = await sb.rpc('set_my_theme', { p_theme: theme || null });
+  if (error) throw new Error(error.message);
+  if (state.me) state.me.theme = theme || null;
+}
