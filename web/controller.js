@@ -517,7 +517,7 @@ export function wireApp(lang) {
   // The whole request (suppliers, photos, needed-by) lives on Factory → Procurement.
   $$('[data-proc-full]').forEach(b => b.onclick = () => {
     ctx.fif = { show: 'all', project: b.dataset.procFull, q: '' };
-    location.hash = '#/factory/procurement';
+    location.hash = '#/procurement';
   });
 
   $$('[data-pi-status]').forEach(sel => sel.onchange = async () => {

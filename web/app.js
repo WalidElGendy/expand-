@@ -203,6 +203,7 @@ function currentRoute() {
   if (h.startsWith('#/etimad/c/'))       return { name: 'etimadc', id: (() => { try { return decodeURIComponent(h.slice(11)); } catch { return h.slice(11); } })() };
   if (h.startsWith('#/etimad'))          return { name: 'etimad' };
   if (h.startsWith('#/factory/procurement')) return { name: 'factoryproc' };
+  if (h.startsWith('#/procurement')) return { name: 'procurement' };
   if (h.startsWith('#/factory'))  return { name: 'factory' };
   if (h.startsWith('#/new'))      return { name: 'new' };
   if (h.startsWith('#/leads'))    return { name: 'leads' };
@@ -231,7 +232,7 @@ const APP_ROUTES = ['home', 'projects', 'project', 'new', 'leads', 'lead', 'docs
   'hrsec', 'hrrun', 'hrletter', 'me', 'tasks',
   'tenders', 'tenderlist', 'tendernew', 'tender', 'tenderedit', 'tenderset',
   'etimad', 'etimadlist', 'etimadours', 'etimadset', 'etimadt', 'etimadcomp', 'etimadc',
-  'factory', 'factoryproc'];
+  'factory', 'factoryproc', 'procurement'];
 
 function render() {
   document.documentElement.lang = S.lang;
@@ -336,6 +337,7 @@ function headTitle(r) {
   if (['etimad', 'etimadlist', 'etimadours', 'etimadset', 'etimadt', 'etimadcomp', 'etimadc'].includes(r.name))
     return { h1: ESTR[S.lang].title, sub: ESTR[S.lang].sub };
   if (r.name === 'factory' || r.name === 'factoryproc') return { h1: FSTR[S.lang].title, sub: FSTR[S.lang].sub };
+  if (r.name === 'procurement') return { h1: FSTR[S.lang].procNav, sub: FSTR[S.lang].procSub };
   return { h1: 'expand', sub: '' };
 }
 
@@ -357,6 +359,7 @@ const ICON = {
   me:     'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4.5 20a7.5 7.5 0 0 1 15 0',
   radar:  'M12 12l6-6M21 12a9 9 0 1 1-9-9M17 12a5 5 0 1 1-5-5M12 12h.01',
   factory: 'M3 21V11l5 3v-3l5 3v-3l5 3V4h3v17zM3 21h18M7 17h2M12 17h2M17 17h2',
+  cart:   'M3 4h2.5l2.2 10.5a1.5 1.5 0 0 0 1.5 1.2h8.6a1.5 1.5 0 0 0 1.5-1.1L21 8H6.3M9.5 20.5h.01M17.5 20.5h.01',
   gavel:  'M14 13l-7.5 7.5a2.12 2.12 0 0 1-3-3L11 10M16 16l6-6M8 8l6-6M9 7l8 8M21 11l-8-8',
   sun:    'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4',
   moon:   'M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z',
@@ -408,6 +411,9 @@ function appNav() {
   items.push({ group: 'work', route: '#/new', icon: 'plus', label: () => d.newProject });
   items.push({ group: 'work', route: '#/leads', icon: 'users', label: () => d.leads });
   if (canSeeTenders(me)) items.push({ group: 'work', route: '#/tenders', icon: 'gavel', label: () => TSTR[S.lang].nav });
+  /* Procurement: the purchase requests on their own, for the people who
+     raise and chase them. The same list stays under Factory production. */
+  items.push({ group: 'work', route: '#/procurement', icon: 'cart', label: () => FSTR[S.lang].procNav });
   items.push({ group: 'work', route: '#/docs',  icon: 'doc',   label: () => d.documents });
   /* Business highlights is a management screen — it names people and says how
      much each is carrying — so it is offered to the same people the database

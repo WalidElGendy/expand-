@@ -13,7 +13,7 @@ const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
-export const FC_ROUTES = ['factory', 'factoryproc'];
+export const FC_ROUTES = ['factory', 'factoryproc', 'procurement'];
 let escBound = false, escClose = null;
 
 const rows = (r) => { if (r.error) throw new Error(r.error.message); return r.data || []; };
@@ -30,7 +30,7 @@ export async function loadFactory(route, ctx) {
       .then(rows).catch(() => []),
     db.sb.from('production_info').select('project_id, schedule, site_delivery_on, updated_at')
       .limit(3000).then(rows).catch(() => []),
-    route === 'factoryproc' ? loadPhotos().catch(() => []) : Promise.resolve(ctx.fPhotos || []),
+    route === 'factoryproc' || route === 'procurement' ? loadPhotos().catch(() => []) : Promise.resolve(ctx.fPhotos || []),
     ctx.people?.length ? Promise.resolve(ctx.people) : db.listPeople().catch(() => []),
   ]);
   ctx.fProjects = projects; ctx.fItems = items; ctx.fProd = prod; ctx.fPhotos = photos; ctx.people = people;
@@ -55,6 +55,7 @@ async function loadPhotos() {
 }
 
 export function bodyFactory(lang, route, ctx) {
+  if (route === 'procurement') return V.factoryProcurementView(lang, ctx, { standalone: true });
   return route === 'factoryproc' ? V.factoryProcurementView(lang, ctx) : V.factoryProductionView(lang, ctx);
 }
 

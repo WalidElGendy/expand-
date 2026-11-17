@@ -19,6 +19,7 @@ import * as F from './factorylogic.js';
 export const FSTR = {
   en: {
     nav: 'Factory production', title: 'Factory production',
+    procNav: 'Procurement', procSub: 'Purchase requests: what to buy, for which project, by when and from whom.',
     sub: 'What the factory is building, when it delivers, and what is still to buy.',
     tabs: { prod: 'Production', proc: 'Procurement' },
     phase: { upcoming: 'Upcoming', procure: 'Procurement', making: 'Manufacturing', ready: 'Ready to deliver', delivered: 'Delivered' },
@@ -51,6 +52,7 @@ export const FSTR = {
   },
   ar: {
     nav: 'إنتاج المصنع', title: 'إنتاج المصنع',
+    procNav: 'المشتريات', procSub: 'طلبات الشراء: ماذا نشتري، ولأي مشروع، ومتى، ومن أي مورد.',
     sub: 'ما ينتجه المصنع، ومتى يسلّم، وما بقي شراؤه.',
     tabs: { prod: 'الإنتاج', proc: 'المشتريات' },
     phase: { upcoming: 'قادم', procure: 'المشتريات', making: 'التصنيع', ready: 'جاهز للتسليم', delivered: 'تم التسليم' },
@@ -328,7 +330,9 @@ export function supplierInputs(lang) {
   </div>`;
 }
 
-export function factoryProcurementView(lang, ctx) {
+/* Shown twice: as the Procurement tab of Factory production, and on its own
+   as Work → Procurement (standalone: no Factory tabs, Export in the header). */
+export function factoryProcurementView(lang, ctx, { standalone = false } = {}) {
   const t = FSTR[lang], d = DSTR[lang], r = t.req;
   const D = factoryState(ctx);
   const edit = canEditProduction();
@@ -401,7 +405,7 @@ export function factoryProcurementView(lang, ctx) {
     : '';
 
   return `
-${tabs(lang, 'proc')}
+${standalone ? '' : tabs(lang, 'proc')}
 <div class="kpis kpis--5">
   ${kpi(D.proc.total, t.pk.total, { colour: 'var(--brand)', sub: D.proc.pct === null ? '' : fill(t.pk.pct, { p: D.proc.pct }) })}
   ${kpi(D.proc.done, t.pk.done, { colour: 'var(--ok)' })}
@@ -416,6 +420,7 @@ ${tabs(lang, 'proc')}
       ${projects.map(p => `<option value="${esc(p.id)}"${p.id === f.project ? ' selected' : ''}>${esc(p.name)}</option>`).join('')}
     </select>
     <input class="cellinput" data-fi-q value="${esc(f.q)}" placeholder="${esc(t.searchItems)}" style="max-width:240px" />
+    ${standalone ? `<button type="button" class="btn btn--sm" data-fx-xlsx>${esc(t.export)}</button>` : ''}
     ${canAdd ? `<button type="button" class="btn btn--primary btn--sm" data-fi-new>${esc(r.newBtn)}</button>` : ''}</div>
   <div class="chipbar">${Object.keys(t.show).map(k =>
     `<button class="chip chip--btn${f.show === k ? ' is-on' : ''}${k === 'follow' && counts.follow ? ' chip--warn' : ''}" data-fi-show="${k}">${esc(t.show[k])} ${counts[k]}</button>`).join('')}</div>
