@@ -1370,6 +1370,16 @@ body:has(.fmodal) { overflow: hidden; }
 .fsupname { display: flex; align-items: center; gap: 6px; }
 .fsupname a { text-decoration: none; }
 
+/* Pricing: a cost or price that is a sum shows a small Σ; the hover lists
+   the parts. A sum that does not work out is outlined until fixed. */
+.prcell { position: relative; display: block; }
+.prcell.has-f::after { content: "Σ"; position: absolute; top: 2px; inset-inline-start: 5px; font-size: 9px; line-height: 1;
+  color: var(--brand); pointer-events: none; }
+span.prcell.has-f { cursor: help; text-decoration: underline dotted var(--ink4); text-underline-offset: 3px; }
+span.prcell.has-f::after { top: -6px; inset-inline-start: -8px; }
+.cellinput.is-bad { border-color: var(--critical) !important; box-shadow: 0 0 0 1px var(--critical); }
+.prdesc { max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: help; }
+
 /* Projects list: the customer column. */
 .fclient { max-width: 220px; overflow-wrap: anywhere; }
 

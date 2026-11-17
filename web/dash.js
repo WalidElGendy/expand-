@@ -13,6 +13,7 @@
 
 import * as db from './db.js';
 import { isSpreadsheet } from './pricingimport.js';
+import * as CALC from './calc.js';
 import { Scheduler, SIZES, DEFAULT_STAGES } from '../engine/scheduler.js';
 import { WorkCalendar, iso, parse } from '../engine/calendar.js';
 
@@ -451,6 +452,9 @@ export const DSTR = {
     prCostedOf: 'on {n} of {m} lines with a cost',
     prExport: 'Export to Excel', prExported: 'Exported',
     myPricing: 'Pricing to fill in', myPricingSub: 'Pricing lines assigned to you.',
+    prCalcHint: 'A number, or a sum of the parts: 500 + 250×2 + 300 (labels allowed: wood 500 + paint 250×2). Enter moves to the next cell.',
+    prCalcTotal: 'Total', prCalcQty: '× {q} = {t}', prCalcBad: 'This sum does not work out — use numbers with + − × ÷ and brackets, e.g. 500 + 250×2.',
+    prBreakdown: 'Breakdown',
     prSub: 'Subtotal', prVat: 'VAT 15%', prTotal: 'Total incl. VAT', prBadNumber: 'Quantity and price must be numbers of zero or more.',
     prSheet: 'Pricing sheet', prSheetHint: 'Excel, PDF or Word — the full priced breakdown. An Excel sheet fills the table above automatically.', prUpload: 'Upload', prSheets: 'Pricing sheets',
     prFill: 'Fill table from this sheet', prReading: 'Reading…',
@@ -798,6 +802,9 @@ export const DSTR = {
     prCostedOf: 'على {n} من {m} بنود لها تكلفة',
     prExport: 'تصدير إلى Excel', prExported: 'تاريخ التصدير',
     myPricing: 'تسعير مطلوب منك', myPricingSub: 'بنود التسعير المسندة إليك.',
+    prCalcHint: 'رقم، أو مجموع الأجزاء: 500 + 250×2 + 300 (يمكن كتابة أسماء: خشب 500 + دهان 250×2). Enter ينقل إلى الخانة التالية.',
+    prCalcTotal: 'الإجمالي', prCalcQty: '× {q} = {t}', prCalcBad: 'هذه العملية غير صحيحة — استخدم أرقاماً مع + − × ÷ والأقواس، مثل 500 + 250×2.',
+    prBreakdown: 'التفصيل',
     prSub: 'المجموع', prVat: 'ضريبة القيمة المضافة 15%', prTotal: 'الإجمالي شامل الضريبة', prBadNumber: 'الكمية والسعر يجب أن تكون أرقاماً صفراً أو أكثر.',
     prSheet: 'ملف التسعير', prSheetHint: 'Excel أو PDF أو Word — التفصيل الكامل للأسعار. ملف Excel يعبّئ الجدول أعلاه تلقائياً.', prUpload: 'رفع', prSheets: 'ملفات التسعير',
     prFill: 'تعبئة الجدول من هذا الملف', prReading: 'جارٍ القراءة…',
@@ -2639,13 +2646,28 @@ export function pricingSection(lang, ctx) {
       ${it.assignee_id && !people.some(p => p.id === it.assignee_id) ? `<option value="${esc(it.assignee_id)}" selected>${esc(who(it.assignee_id)?.full_name || '—')}</option>` : ''}
     </select>`;
 
+  /* Unit cost and unit price take a sum ("خشب 500 + دهان 250×2"): the cell
+     shows the result, the sum comes back when the cell is clicked, and the
+     hover lists every part (calc.js). */
+  const tipOf = (it, formula) => formula
+    ? CALC.breakdownText(formula, { totalLabel: t.prCalcTotal, qty: it.qty, qtyLabel: t.prCalcQty })
+    : '';
+  const calcCell = (it, field, ffield, ph) => {
+    const f = it[ffield] || '', tip = tipOf(it, f);
+    return `<span class="prcell${f ? ' has-f' : ''}"><input class="cellinput cellinput--num" type="text" inputmode="decimal" autocomplete="off" spellcheck="false"
+      data-pr="${esc(it.id)}" data-field="${field}" data-calc data-formula="${esc(f)}" value="${esc(num(it[field]))}" placeholder="${esc(ph)}"
+      title="${esc(tip || t.prCalcHint)}" /></span>`;
+  };
+  const calcView = (it, v, f) => f
+    ? `<span class="prcell has-f" title="${esc(tipOf(it, f))}">${esc(sarFmt(v))}</span>`
+    : esc(sarFmt(v));
   const editRow = (it) => `<tr data-pr-row${it.assignee_id && it.assignee_id === me?.id ? ' class="prmine"' : ''}>
-    <td><input class="cellinput" data-pr="${esc(it.id)}" data-field="name" value="${esc(it.name || '')}" placeholder="${esc(t.prItem)}" /></td>
-    <td><input class="cellinput" data-pr="${esc(it.id)}" data-field="description" value="${esc(it.description || '')}" placeholder="${esc(t.prDesc)}" /></td>
+    <td><input class="cellinput" dir="auto" data-pr="${esc(it.id)}" data-field="name" value="${esc(it.name || '')}" placeholder="${esc(t.prItem)}" title="${esc(it.name || '')}" /></td>
+    <td><input class="cellinput" dir="auto" data-pr="${esc(it.id)}" data-field="description" value="${esc(it.description || '')}" placeholder="${esc(t.prDesc)}" title="${esc(it.description || '')}" /></td>
     <td class="num"><input class="cellinput cellinput--num" type="number" min="0" step="any" inputmode="decimal" data-pr="${esc(it.id)}" data-field="qty" value="${esc(num(it.qty))}" /></td>
     <td><input class="cellinput cellinput--unit" data-pr="${esc(it.id)}" data-field="unit" value="${esc(it.unit || '')}" placeholder="m², pcs…" /></td>
-    <td class="num"><input class="cellinput cellinput--num" type="number" min="0" step="any" inputmode="decimal" data-pr="${esc(it.id)}" data-field="cost_sar" value="${esc(num(it.cost_sar))}" placeholder="—" /></td>
-    <td class="num"><input class="cellinput cellinput--num" type="number" min="0" step="any" inputmode="decimal" data-pr="${esc(it.id)}" data-field="unit_price_sar" value="${esc(num(it.unit_price_sar))}" /></td>
+    <td class="num">${calcCell(it, 'cost_sar', 'cost_formula', '—')}</td>
+    <td class="num">${calcCell(it, 'unit_price_sar', 'price_formula', '')}</td>
     <td class="num"><input class="cellinput cellinput--num cellinput--pct" type="number" step="any" max="99.9" inputmode="decimal" data-pr-margin="${esc(it.id)}" value="${esc(marginOf(it.cost_sar, it.unit_price_sar))}" placeholder="—" title="${esc(t.prMarginHint)}" /></td>
     <td class="num" data-pr-line>${esc(sarFmt(line(it)))}</td>
     <td>${whoSelect(it)}</td>
@@ -2653,10 +2675,10 @@ export function pricingSection(lang, ctx) {
   </tr>`;
   const viewRow = (it) => `<tr>
     <td>${esc(it.name || '—')}</td>
-    <td class="${it.description ? '' : 'muted'}">${esc(it.description || '—')}</td>
+    <td class="prdesc ${it.description ? '' : 'muted'}" dir="auto" title="${esc(it.description || '')}">${esc(it.description || '—')}</td>
     <td class="num">${esc(num(it.qty))}</td><td>${esc(it.unit || '')}</td>
-    <td class="num">${it.cost_sar != null ? esc(sarFmt(it.cost_sar)) : '<span class="muted">—</span>'}</td>
-    <td class="num">${it.unit_price_sar != null ? esc(sarFmt(it.unit_price_sar)) : '<span class="muted">—</span>'}</td>
+    <td class="num">${it.cost_sar != null ? calcView(it, it.cost_sar, it.cost_formula) : '<span class="muted">—</span>'}</td>
+    <td class="num">${it.unit_price_sar != null ? calcView(it, it.unit_price_sar, it.price_formula) : '<span class="muted">—</span>'}</td>
     <td class="num">${marginOf(it.cost_sar, it.unit_price_sar) !== '' ? `${esc(marginOf(it.cost_sar, it.unit_price_sar))}%` : '<span class="muted">—</span>'}</td>
     <td class="num">${esc(sarFmt(line(it)))}</td>
     <td class="${it.assignee_id ? '' : 'muted'}">${esc(who(it.assignee_id)?.full_name || '—')}</td>
@@ -2724,13 +2746,23 @@ export function pricingSheet(lang, ctx) {
   const who = (id) => (ctx.people || []).find(x => x.id === id)?.full_name || '';
   const n = (v) => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) ? null : Number(v));
   const first = 5, last = first + items.length - 1;
-  const merges = ['A1:J1', 'A2:J2'];
+  const anySum = items.some(it => it.cost_formula || it.price_formula);
+  const L = anySum ? 'K' : 'J';
+  const merges = [`A1:${L}1`, `A2:${L}2`];
+  /* A sum of plain numbers goes to Excel as a live formula; one with labels
+     as its result, with the parts in the Breakdown column. */
+  const xf = (formula) => {
+    if (!formula) return null;
+    const plain = String(formula).replace(/[\u0660-\u0669\u06F0-\u06F9]/g, d => String((d.charCodeAt(0) & 0xF) % 10))
+      .replace(/(\d),(?=\d{3}(\D|$))/g, '$1').replace(/[×xX✕]/g, '*').replace(/÷/g, '/').replace(/[−–—]/g, '-').replace(/\s+/g, '');
+    return /^[\d.+\-*/()%]+$/.test(plain) && CALC.evaluate(plain).error === null ? plain : null;
+  };
   const rows = [
     [{ v: `${t.prHead} — ${p.name || ''}`, s: 'title' }],
     [{ v: [p.client ? `${t.client}: ${p.client}` : '', `${t.prExported} ${fmt(new Date().toISOString().slice(0, 10), lang)}`,
            db.state.me?.full_name ? t.uploadedBy.replace('{who}', db.state.me.full_name) : ''].filter(Boolean).join(' · '), s: 'meta' }],
     [],
-    ['#', t.prItem, t.prDesc, t.prQty, t.prUnit, t.prCost, t.prUnitPrice, t.prMargin, t.prLine, t.prWho].map(v => ({ v, s: 'head' })),
+    ['#', t.prItem, t.prDesc, t.prQty, t.prUnit, t.prCost, t.prUnitPrice, t.prMargin, t.prLine, t.prWho, ...(anySum ? [t.prBreakdown] : [])].map(v => ({ v, s: 'head' })),
   ];
   items.forEach((it, i) => {
     const r = first + i, q = n(it.qty) ?? 0, c = n(it.cost_sar), u = n(it.unit_price_sar);
@@ -2738,11 +2770,13 @@ export function pricingSheet(lang, ctx) {
     rows.push([
       { v: i + 1, s: 'num' }, { v: it.name || '' }, { v: it.description || '' },
       { v: q, s: 'num' }, { v: it.unit || '' },
-      c === null ? { v: null, s: 'money' } : { v: c, s: 'money' },
-      u === null ? { v: null, s: 'money' } : { v: u, s: 'money' },
+      c === null ? { v: null, s: 'money' } : (xf(it.cost_formula) ? { f: xf(it.cost_formula), v: c, s: 'money' } : { v: c, s: 'money' }),
+      u === null ? { v: null, s: 'money' } : (xf(it.price_formula) ? { f: xf(it.price_formula), v: u, s: 'money' } : { v: u, s: 'money' }),
       { f: `IF(AND(F${r}<>"",G${r}>0),(G${r}-F${r})/G${r},"")`, v: m, s: 'pct' },
       { f: `D${r}*G${r}`, v: q * (u ?? 0), s: 'money' },
       { v: who(it.assignee_id) },
+      ...(anySum ? [{ v: [it.cost_formula ? `${t.prCost}: ${it.cost_formula}` : '', it.price_formula ? `${t.prUnitPrice}: ${it.price_formula}` : '']
+        .filter(Boolean).join('\n') }] : []),
     ]);
   });
   if (items.length) {
@@ -2767,7 +2801,7 @@ export function pricingSheet(lang, ctx) {
   }
   return {
     name: t.prHead, rtl: lang === 'ar', freezeRow: 4,
-    colWidths: [5, 26, 46, 8, 9, 15, 15, 11, 16, 22],
+    colWidths: [5, 26, 46, 8, 9, 15, 15, 11, 16, 22, ...(anySum ? [44] : [])],
     merges,
     rows,
   };

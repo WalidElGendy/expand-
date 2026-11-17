@@ -546,7 +546,7 @@ export const deleteProcurementItem = async (id) => ok(await sb
    can_price() (pricing department, planners, leads, managers, admins). */
 export const listPricingItems = async (project_id) => ok(await sb
   .from('pricing_items')
-  .select('id, project_id, name, description, qty, unit, unit_price_sar, cost_sar, assignee_id, sort, created_at')
+  .select('id, project_id, name, description, qty, unit, unit_price_sar, cost_sar, cost_formula, price_formula, assignee_id, sort, created_at')
   .eq('project_id', project_id)
   .order('sort', { ascending: true })
   .order('created_at', { ascending: true }));

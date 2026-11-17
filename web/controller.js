@@ -17,6 +17,7 @@ import * as MG from './mgmt.js';
 import * as XL from './xlsx.js';
 import * as LI from './leadintel.js';
 import * as PI from './pricingimport.js';
+import * as CALC from './calc.js';
 import { readSpreadsheet } from './xlsxread.js';
 
 
@@ -576,11 +577,14 @@ export function wireApp(lang) {
   /* --- one project: pricing lines + pricing sheet ---
      Cells save on change without a re-render; the line total and the totals
      under the table are recomputed in place so the numbers follow typing. */
+  /* A cost or price cell holds a number or a sum (calc.js); everything that
+     needs its value reads it through cv(). */
+  const calcVal = (el) => (el ? CALC.cellValue(el.value) : null);
   const prRecalc = () => {
     let sub = 0;
     $$('[data-pr-row]').forEach(tr => {
       const q = Number(tr.querySelector('[data-field="qty"]')?.value) || 0;
-      const u = Number(tr.querySelector('[data-field="unit_price_sar"]')?.value) || 0;
+      const u = calcVal(tr.querySelector('[data-field="unit_price_sar"]')) || 0;
       const line = q * u; sub += line;
       const cell = tr.querySelector('[data-pr-line]'); if (cell) cell.textContent = V.sarFmt(line);
     });
@@ -591,11 +595,11 @@ export function wireApp(lang) {
     all_.forEach(it => {
       const tr = $(`[data-pr="${it.id}"][data-field="cost_sar"]`)?.closest('tr');
       const q = Number(tr ? tr.querySelector('[data-field="qty"]').value : it.qty) || 0;
-      const p = Number(tr ? tr.querySelector('[data-field="unit_price_sar"]').value : it.unit_price_sar) || 0;
-      const raw = tr ? tr.querySelector('[data-field="cost_sar"]').value : (it.cost_sar ?? '');
-      if (raw === '' || raw === null) return;
+      const p = (tr ? calcVal(tr.querySelector('[data-field="unit_price_sar"]')) : Number(it.unit_price_sar)) || 0;
+      const c = tr ? calcVal(tr.querySelector('[data-field="cost_sar"]')) : (it.cost_sar ?? null);
+      if (c === null || c === '') return;
       costed = true; nCosted += 1;
-      cost += q * (Number(raw) || 0); costedSales += q * p;
+      cost += q * (Number(c) || 0); costedSales += q * p;
     });
     const set = (sel, v) => { const el = $(sel); if (el) el.textContent = v === null ? '—' : V.sarFmt(v); };
     set('[data-pr-sub]', sub); set('[data-pr-vat]', sub * V.VAT_RATE); set('[data-pr-total]', sub * (1 + V.VAT_RATE));
@@ -615,42 +619,99 @@ export function wireApp(lang) {
       const it = (ctx.pricingItems || []).find(x => x.id === id); if (it) Object.assign(it, patch);
     } catch (e) { fail(e); }
   };
+  const prTip = (el, formula) => {
+    const d = V.DSTR[lang];
+    const it = (ctx.pricingItems || []).find(x => x.id === el.dataset.pr);
+    el.dataset.formula = formula || '';
+    el.title = (formula && CALC.breakdownText(formula, { totalLabel: d.prCalcTotal, qty: it?.qty, qtyLabel: d.prCalcQty })) || d.prCalcHint;
+    el.parentElement?.classList.toggle('has-f', !!formula);
+  };
+  const marginSync = (tr) => {
+    const m = tr?.querySelector('[data-pr-margin]');
+    if (m) m.value = V.marginOf(calcVal(tr.querySelector('[data-field="cost_sar"]')) ?? '', calcVal(tr.querySelector('[data-field="unit_price_sar"]')) ?? '');
+  };
   $$('[data-pr-margin]').forEach(inp => {
     const tr = inp.closest('tr');
     const priceEl = tr.querySelector('[data-field="unit_price_sar"]'), costEl = tr.querySelector('[data-field="cost_sar"]');
     // Typing a margin sets the price from the cost: price = cost ÷ (1 − margin).
     inp.oninput = () => {
-      if (inp.value === '' || costEl.value === '') return;
-      const p = V.priceFor(costEl.value, inp.value);
-      if (p !== null && p >= 0) { priceEl.value = String(p); prRecalc(); }
+      const c = calcVal(costEl);
+      if (inp.value === '' || c === null) return;
+      const p = V.priceFor(c, inp.value);
+      if (p !== null && p >= 0) { priceEl.value = String(p); prTip(priceEl, ''); prRecalc(); }
     };
     inp.onchange = async () => {
-      if (inp.value === '' || costEl.value === '') return;
-      const p = V.priceFor(costEl.value, inp.value);
+      const c = calcVal(costEl);
+      if (inp.value === '' || c === null) return;
+      const p = V.priceFor(c, inp.value);
       if (p === null || p < 0) { fail(new Error(V.DSTR[lang].prBadNumber)); return; }
-      await prSave(inp.dataset.prMargin, { unit_price_sar: p });
+      await prSave(inp.dataset.prMargin, { unit_price_sar: p, price_formula: null });
     };
   });
   $$('[data-pr]').forEach(inp => {
-    if (inp.type === 'number') inp.oninput = () => {
+    const field = inp.dataset.field;
+    if (inp.type === 'number' || inp.dataset.calc !== undefined) inp.oninput = () => {
+      inp.classList.remove('is-bad');
       // Price or cost changed: the margin follows.
-      const tr = inp.closest('tr'), m = tr?.querySelector('[data-pr-margin]');
-      if (m && (inp.dataset.field === 'unit_price_sar' || inp.dataset.field === 'cost_sar')) {
-        m.value = V.marginOf(tr.querySelector('[data-field="cost_sar"]').value, tr.querySelector('[data-field="unit_price_sar"]').value);
-      }
+      if (field === 'unit_price_sar' || field === 'cost_sar') marginSync(inp.closest('tr'));
       prRecalc();
     };
+    if (field === 'name' || field === 'description') inp.addEventListener('input', () => { inp.title = inp.value; });
+    if (inp.dataset.calc !== undefined) {
+      // Clicked into: show the sum to edit. Left: show what it comes to.
+      inp.addEventListener('focus', () => {
+        if (inp.dataset.formula && !inp.classList.contains('is-bad')) inp.value = inp.dataset.formula;
+        try { inp.select(); } catch { /* ignore */ }
+      });
+      inp.addEventListener('blur', () => {
+        if (inp.classList.contains('is-bad')) return;
+        const v = calcVal(inp);
+        if (v !== null) inp.value = String(v);
+      });
+    }
     inp.onchange = async () => {
-      const field = inp.dataset.field;
       let value = inp.value.trim();
       if (field === 'assignee_id') { await prSave(inp.dataset.pr, { assignee_id: value || null }); return; }
-      if (field === 'qty' || field === 'unit_price_sar' || field === 'cost_sar') {
-        value = value === '' ? (field === 'qty' ? 0 : null) : Number(value);
-        if (value !== null && (!Number.isFinite(value) || value < 0)) { fail(new Error(V.DSTR[lang].prBadNumber)); return; }
+      if (inp.dataset.calc !== undefined) {
+        const ffield = field === 'cost_sar' ? 'cost_formula' : 'price_formula';
+        if (value === '') {
+          prTip(inp, ''); await prSave(inp.dataset.pr, { [field]: null, [ffield]: null }); return;
+        }
+        const r = CALC.evaluate(value);
+        if (r.error || r.value < 0) {
+          // Kept on screen, marked, not saved: a wrong sum is easier to fix than to retype.
+          inp.classList.add('is-bad'); inp.title = V.DSTR[lang].prCalcBad; return;
+        }
+        inp.classList.remove('is-bad');
+        const formula = CALC.isFormula(value) ? value : null;
+        prTip(inp, formula);
+        if (document.activeElement !== inp) inp.value = String(r.value);
+        await prSave(inp.dataset.pr, { [field]: r.value, [ffield]: formula });
+        prRecalc();
+        return;
+      }
+      if (field === 'qty') {
+        value = value === '' ? 0 : Number(value);
+        if (!Number.isFinite(value) || value < 0) { fail(new Error(V.DSTR[lang].prBadNumber)); return; }
+        // The hover's "× qty" lines follow the new quantity.
+        const tr = inp.closest('tr');
+        const it = (ctx.pricingItems || []).find(x => x.id === inp.dataset.pr); if (it) it.qty = value;
+        tr?.querySelectorAll('[data-calc]').forEach(el => prTip(el, el.dataset.formula));
       } else if (field !== 'name') value = value || null;
       await prSave(inp.dataset.pr, { [field]: value });
     };
   });
+  /* Enter moves to the next cell, as in a spreadsheet: along the line, then
+     to the first cell of the next line. Shift+Enter goes back. Leaving a
+     cell saves it, as a click elsewhere would. */
+  const prCells = () => $$('.tbl--pricing tbody [data-pr], .tbl--pricing tbody [data-pr-margin]').filter(el => !el.disabled);
+  prCells().forEach(el => el.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' || e.isComposing || e.altKey || e.ctrlKey || e.metaKey) return;
+    e.preventDefault();
+    const cells = prCells(), i = cells.indexOf(el);
+    const next = cells[i + (e.shiftKey ? -1 : 1)];
+    if (next) { next.focus(); } else el.blur();
+  }));
   /* Export the pricing table to Excel. Blur first so a cell still being typed
      in is saved (and in ctx) before the file is built. */
   const prX = $('[data-pr-xlsx]');
