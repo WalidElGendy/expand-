@@ -14,6 +14,7 @@ import { WorkCalendar, iso, parse } from '../engine/calendar.js';
 import * as db from './db.js';
 import * as C from './controller.js';
 import * as N from './notify.js';
+import * as CH from './chat.js';
 import { HSTR } from './hr.js';
 import { TSTR, canSeeTenders } from './tenders.js';
 import { ESTR, canSeeEtimad } from './etimad.js';
@@ -252,6 +253,7 @@ function render() {
     $('#root').innerHTML = shell({ name: 'signin' }, signInView(S.lang, C.ctx.authMode, C.ctx.authMsg, C.ctx.authErr, C.ctx.authAddr));
     C.wireAuth(S.lang); wire();
     try { N.ensure(S.lang); } catch { /* signed out: nothing to show */ }
+    try { CH.ensure(S.lang); } catch { /* signed out: nothing to show */ }
     return;
   }
 
@@ -289,6 +291,8 @@ function render() {
   if (APP.includes(r.name)) C.wireApp(S.lang);
   // Assignment pop-ups: start for whoever is signed in, stop on sign-out.
   try { N.ensure(S.lang); } catch (e) { console.error(e); }
+  // Quick chat: the launcher and any open conversation, outside #root.
+  try { CH.ensure(S.lang); } catch (e) { console.error(e); }
 }
 
 /* The calendar is the one block on this screen made of real rows rather than
@@ -508,7 +512,7 @@ function onlineBlock() {
   const rows = [...who].sort((a, b) => (b.id === meId) - (a.id === meId));
   return `<details class="online"${S.onlineOpen === false ? '' : ' open'}>
     <summary title="${esc(t.t)}"><span class="live"><i></i></span><span class="online__t">${esc(t.t)}</span><span class="online__n">${who.length}</span></summary>
-    <ul class="online__list">${rows.map(p => `<li>
+    <ul class="online__list">${rows.map(p => `<li${p.id === meId ? '' : ` data-chat-with="${esc(p.id)}" title="${esc(S.lang === 'ar' ? `محادثة سريعة مع ${p.name || ''}` : `Quick chat with ${p.name || ''}`)}"`}>
       ${avaHtml(p.name, p.id === meId ? db.state.me?.avatar_path : p.avatar, { cls: 'ava--xs', colour: db.dept(p.dept)?.colour || 'var(--ink4)' })}
       <span class="online__name">${esc(p.name || '—')}${p.id === meId ? ` <span class="muted">(${esc(t.you)})</span>` : ''}</span></li>`).join('')}</ul>
   </details>`;
