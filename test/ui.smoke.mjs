@@ -1057,6 +1057,29 @@ for (const lang of ['en', 'ar']) {
   check(prAs.includes('data-field="assignee_id" disabled') && !prAs.includes('data-pr-del'), 'an assignee can reassign or delete a pricing line');
   check(prAs.includes('SAR 60.00'), 'the profit total is missing');
 
+  /* Sums in the cost and price cells: the cell holds the result, the sum
+     waits in data-formula for editing, the hover lists the parts. */
+  {
+    dbmod.state.me = { id: 'u8', role: 'member', department_id: 'pricing', is_active: true };
+    const sumItems = [{ id: 'sm', name: 'Booth', description: 'A very long description '.repeat(8), qty: 2, unit_price_sar: 1950, cost_sar: 1300,
+      cost_formula: 'wood 500 + paint 250x2 + fitting 300', price_formula: null }];
+    const ed = D.pricingSection('en', { pricingItems: sumItems, people: prPeople, projectFiles: [] });
+    check(ed.includes('data-formula="wood 500 + paint 250x2 + fitting 300"') && ed.includes('value="1300"') && ed.includes('prcell has-f'),
+      'a cost typed as a sum: the cell shows the result and keeps the sum');
+    check(ed.includes('wood 500  =  500') && ed.includes('Total: 1,300') && ed.includes('× 2 = 2,600'), 'the hover lists the parts, the total and the total at the quantity');
+    check(ed.includes(`title="${'A very long description '.repeat(8)}"`), 'the full description is on hover');
+    check(ed.includes('type="text" inputmode="decimal"') && ed.includes(D.DSTR.en.prCalcHint.slice(0, 20)), 'cost and price accept typed sums, with a hint');
+    dbmod.state.me = { id: 'u9', role: 'member', department_id: '3d', is_active: true };
+    const vw = D.pricingSection('en', { pricingItems: sumItems, people: prPeople, projectFiles: [] });
+    check(!vw.includes('data-field="cost_sar"') && vw.includes('span class="prcell has-f" title="wood 500') && vw.includes('class="prdesc'),
+      'read-only: the project manager hovers the cost to see its parts, and the description');
+    const xs = D.pricingSheet('en', { project: { name: 'B' }, pricingItems: [...sumItems, { id: 'p2', name: 'Plain', qty: 1, cost_sar: 100, unit_price_sar: 150, cost_formula: '40+60' }], people: [] });
+    const cells = xs.rows.flat().filter(Boolean);
+    check(cells.some(c => c.f === '40+60' && c.v === 100) && cells.some(c => c.v === 1300 && !c.f) && cells.some(c => String(c.v).startsWith('Unit cost (SAR): wood 500')),
+      'export: a plain sum becomes a live Excel formula; a labelled one its result, with the parts in Breakdown');
+    dbmod.state.me = { id: 'u2', role: 'member', department_id: '3d', is_active: true };
+  }
+
   // Excel export: a real .xlsx (a ZIP) whose sheet keeps the live formulas.
   const XL = await import('../web/xlsx.js');
   const sh = D.pricingSheet('en', { project: { name: 'Booth' }, pricingItems: prItems, people: prPeople });
