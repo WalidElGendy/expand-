@@ -7,7 +7,7 @@ import * as db from './db.js';
 import * as D from './hrdb.js';
 import * as V from './hr.js';
 import * as H from './hrlogic.js';
-import { isHR, quarterOf, leaveSummary, DSTR } from './dash.js';
+import { isHR, quarterOf, leaveSummary, DSTR, deptName } from './dash.js';
 import * as IM from './hrimport.js';
 import { readSpreadsheet } from './xlsxread.js';
 import * as XL from './xlsx.js';
@@ -205,6 +205,43 @@ function getPosition() {
   });
 }
 
+/* ---------------------------------------------------------- request form */
+
+/** Everything the paper form shows, gathered for one request: the person,
+    their HR record and annual balance (fetched fresh, so the form is right
+    from any screen), who decided, and the day they are back at work. */
+async function requestForm(lang, ctx, r, S, holidays) {
+  const people = ctx.people || [];
+  const person = people.find(p => p.id === r.employee_id) || (db.state.me?.id === r.employee_id ? db.state.me : {});
+  const name = (id) => { const p = people.find(x => x.id === id); return p ? (p.full_name || p.email || '') : ''; };
+  const today = H.todayIn(S.timezone);
+  const known = [ctx.hrEmp, ...(ctx.hrEmployees || [])].find(e => e?.profile_id === r.employee_id) || null;
+  const [emp, leaves] = await Promise.all([
+    known ? known : D.getEmployee(r.employee_id).catch(() => null),
+    r.type === 'annual_leave' ? D.listLeavesSince(yearStart(today), r.employee_id).catch(() => null) : null,
+  ]);
+  let balance = null;
+  if (r.type === 'annual_leave' && emp && leaves) {
+    const ls = leaveSummary(emp, leaves, today);
+    if (ls.balance !== null) {
+      // Approved leave is already on the record and in "taken": add it back
+      // so the form shows the balance before this leave.
+      const filed = ['approved', 'completed'].includes(r.status) && String(r.start_date || '').slice(0, 4) === today.slice(0, 4);
+      balance = H.round2(ls.balance + (filed ? Number(r.days || 0) : 0));
+    }
+  }
+  let back = null;
+  if (r.end_date) { back = H.addDays(r.end_date, 1); for (let i = 0; i < 30 && !H.isWorkDay(back, S, holidays); i++) back = H.addDays(back, 1); }
+  const managerId = r.manager_id || person.supervisor_id || null;
+  return V.requestFormHtml(lang, r, {
+    person, emp: emp || {}, s: ctx.hrSettings || {},
+    managerName: name(managerId), hrName: name(r.hr_decided_by),
+    deptLabel: person.department_id ? deptName(person.department_id, lang) : '',
+    balance, back,
+    printedAt: new Date().toLocaleString(lang === 'ar' ? 'ar-SA-u-ca-gregory-nu-latn' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: S.timezone || 'Asia/Riyadh' }),
+  });
+}
+
 /* ------------------------------------------------------- payroll compute */
 
 async function computeRun(ctx, run) {
@@ -343,6 +380,22 @@ export function wireHR2(lang, { ctx, rerender, fail, reload }) {
     const file = $(`[data-req-result="${b.dataset.reqComplete}"]`)?.files?.[0] || null;
     await run(b, () => D.completeRequest(req, file))();
   });
+  /* --- the request on paper: print to sign, then file the signed copy --- */
+  const allReqs = () => [...(ctx.hrRequests || []), ...(ctx.empRequests || []), ...(ctx.meRequests || [])];
+  $$('[data-req-print]').forEach(b => b.onclick = async () => {
+    const r = allReqs().find(x => x.id === b.dataset.reqPrint);
+    if (!r) return;
+    const write = printWindow();   // opened inside the click, filled once the details are in
+    try { write(await requestForm(lang, ctx, r, S, holidays)); }
+    catch (err) { fail(err); }
+  });
+  $$('[data-req-signed]').forEach(inp => inp.onchange = async () => {
+    const r = allReqs().find(x => x.id === inp.dataset.reqSigned);
+    const file = inp.files?.[0];
+    if (!r || !file) return;
+    const label = inp.closest('label');
+    await run(label, () => D.signRequest(r, file))();
+  });
   $$('[data-req-letter]').forEach(b => b.onclick = () => {
     const all = [...(ctx.hrRequests || []), ...(ctx.empRequests || [])];
     const r = all.find(x => x.id === b.dataset.reqLetter);
@@ -427,7 +480,8 @@ export function wireHR2(lang, { ctx, rerender, fail, reload }) {
     if (type === 'payslip') row.details = `${val('#rqPeriod')}${row.details ? ` — ${row.details}` : ''}`;
     const file = $('#rqFile')?.files?.[0] || null;
     const btn = reqForm.querySelector('button[type=submit]');
-    await run(btn, () => D.createRequest(row, file))();
+    // Opened once saved, so the Print button for the signed paper copy is right there.
+    await run(btn, async () => { const r = await D.createRequest(row, file); ctx.openReq = r?.id || null; })();
   };
 
   /* --- employee file --- */

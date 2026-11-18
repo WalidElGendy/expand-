@@ -1361,6 +1361,10 @@ select.btn--sm { height: 28px; padding: 0 6px; background: var(--s-2); border: 1
 .alert--critical .alert__t { color: var(--bad-ink); }
 .reqdet > td { background: var(--s-2); padding: 10px 14px !important; }
 .reqpanel .factgrid { padding: 0 0 8px; }
+/* Print the request to sign it on paper, then file the signed scan. */
+.reqprint { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line2); }
+.reqprint__up { cursor: pointer; display: inline-flex; align-items: center; }
+.reqprint .muted { flex: 1; min-width: 180px; }
 .tbl tr.is-open > td { background: var(--s-2); }
 .tbl__total td { border-top: 1px solid var(--line2); }
 .good { color: var(--ok); }

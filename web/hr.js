@@ -81,7 +81,9 @@ export const HSTR = {
       st: { pending_manager: 'Manager review', pending_hr: 'HR review', approved: 'Approved', rejected: 'Rejected',
         cancelled: 'Cancelled', completed: 'Done' },
       flow: 'Leave, early leave and advances go to your manager, then HR. Letters and certificates go straight to HR.',
-      over: 'This is more than your current balance ({b} days).' },
+      over: 'This is more than your current balance ({b} days).',
+      print: 'Print / save PDF', printHint: 'Print the form, sign it, and upload the signed copy here.',
+      signed: 'Signed form', uploadSigned: 'Upload signed form', replaceSigned: 'Replace signed form', signedOn: 'signed copy filed {d}' },
     pay: { runs: 'Payroll runs', prepare: 'Prepare payroll', period: 'Month', status: 'Status', employees: 'Employees', total: 'Total net',
       rst: { draft: 'Draft', approved: 'Approved', paid: 'Paid' }, recalc: 'Recalculate from attendance', approve: 'Approve',
       paid: 'Mark as paid', toDraft: 'Back to draft', del: 'Delete draft', additions: 'Additions', otherDed: 'Other deductions',
@@ -206,7 +208,9 @@ export const HSTR = {
       st: { pending_manager: 'لدى المدير', pending_hr: 'لدى الموارد البشرية', approved: 'معتمد', rejected: 'مرفوض',
         cancelled: 'ملغى', completed: 'تم' },
       flow: 'الإجازات والانصراف المبكر والسلف تذهب لمديرك ثم للموارد البشرية. الخطابات والتعريفات تذهب مباشرة للموارد البشرية.',
-      over: 'هذا أكثر من رصيدك الحالي ({b} يوم).' },
+      over: 'هذا أكثر من رصيدك الحالي ({b} يوم).',
+      print: 'طباعة / حفظ PDF', printHint: 'اطبع النموذج ووقّعه، ثم ارفع النسخة الموقّعة هنا.',
+      signed: 'النموذج الموقّع', uploadSigned: 'رفع النموذج الموقّع', replaceSigned: 'استبدال النموذج الموقّع', signedOn: 'حُفظت النسخة الموقّعة {d}' },
     pay: { runs: 'مسيرات الرواتب', prepare: 'إعداد مسير', period: 'الشهر', status: 'الحالة', employees: 'الموظفون', total: 'إجمالي الصافي',
       rst: { draft: 'مسودة', approved: 'معتمد', paid: 'مدفوع' }, recalc: 'إعادة الاحتساب من الحضور', approve: 'اعتماد',
       paid: 'تم الصرف', toDraft: 'إعادة إلى مسودة', del: 'حذف المسودة', additions: 'إضافات', otherDed: 'خصومات أخرى',
@@ -541,8 +545,15 @@ function reqPanel(lang, ctx, r, { canDecide, mine }) {
     <div class="actions">
       ${r.attachment_path ? `<button class="btn btn--sm" data-hr-doc="${esc(r.attachment_path)}">${esc(t.req.attachment)}: ${esc(r.attachment_name || '')}</button>` : ''}
       ${r.result_path ? `<button class="btn btn--sm" data-hr-doc="${esc(r.result_path)}">${esc(t.req.resultFile)}: ${esc(r.result_name || '')}</button>` : ''}
+      ${r.signed_path ? `<button class="btn btn--sm" data-hr-doc="${esc(r.signed_path)}">✓ ${esc(t.req.signed)}: ${esc(r.signed_name || '')}</button>` : ''}
       ${mine && ['pending_manager', 'pending_hr'].includes(r.status) ? `<button class="btn btn--sm btn--danger" data-req-cancel="${esc(r.id)}">${esc(t.req.cancel)}</button>` : ''}
     </div>
+    ${r.status === 'cancelled' ? '' : `<div class="reqprint">
+      <button class="btn btn--primary btn--sm" data-req-print="${esc(r.id)}">${PRINT_ICON}${esc(t.req.print)}</button>
+      ${hr || r.employee_id === db.state.me?.id ? `<label class="btn btn--sm reqprint__up">${esc(r.signed_path ? t.req.replaceSigned : t.req.uploadSigned)}
+        <input type="file" data-req-signed="${esc(r.id)}" accept="image/*,.pdf" hidden /></label>` : ''}
+      <span class="muted small">${esc(r.signed_at ? t.req.signedOn.replace('{d}', fmt(r.signed_at.slice(0, 10), lang)) : t.req.printHint)}</span>
+    </div>`}
     ${canDecide ? `<div class="inlineform" style="border:0;padding:8px 0 0">
       <div class="fields">${fld(t.req.note, `<input data-req-note="${esc(r.id)}" maxlength="400" />`, true)}</div>
       <div class="actions"><button class="btn btn--primary btn--sm" data-req-decide="${esc(r.id)}" data-decision="1">${esc(t.req.approve)}</button>
@@ -1379,7 +1390,154 @@ ${(ctx.meGoals || []).length ? card(t.me.myGoals, tbl(`<th>${t.perf.title}</th><
 
 /* ================================================================ print */
 
-const printShell = (lang, title, body, { draft = false } = {}) => `<!doctype html>
+const PRINT_ICON = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-inline-end:6px;vertical-align:-2px"><path d="M7 9V3h10v6M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2M7 14h10v7H7z"/></svg>`;
+
+/* The request form on paper. Labels in both languages, side by side, as
+   forms in the Kingdom usually are — whoever files it, signs it or audits
+   it can read it — with the values in the language the app is in. The
+   decisions already taken in the app are printed; the signature boxes are
+   left for ink. */
+const FORM = {
+  title: { leave: ['Leave request form', 'نموذج طلب إجازة'], early_leave: ['Early leave permission', 'نموذج استئذان'],
+    advance: ['Salary advance request', 'نموذج طلب سلفة'], other: ['Employee request form', 'نموذج طلب موظف'] },
+  ref: ['Ref. no.', 'رقم الطلب'], submitted: ['Submitted', 'تاريخ التقديم'], status: ['Status', 'الحالة'],
+  emp: ['Employee details', 'بيانات الموظف'], req: ['Request details', 'تفاصيل الطلب'],
+  declare: ['Employee declaration', 'إقرار الموظف'], approvals: ['Approvals', 'الاعتمادات'],
+  name: ['Name', 'الاسم'], position: ['Job title', 'المسمى الوظيفي'], dept: ['Department', 'القسم'],
+  manager: ['Direct manager', 'المدير المباشر'], joined: ['Joining date', 'تاريخ المباشرة'], empNo: ['Employee no.', 'الرقم الوظيفي'],
+  type: ['Request type', 'نوع الطلب'], leaveType: ['Leave type', 'نوع الإجازة'],
+  from: ['From', 'من تاريخ'], to: ['To', 'إلى تاريخ'], days: ['Days', 'عدد الأيام'], back: ['Back to work on', 'تاريخ العودة للعمل'],
+  date: ['Date', 'التاريخ'], time: ['Leaving at', 'وقت الخروج'], amount: ['Amount (SAR)', 'المبلغ (ريال)'],
+  instalments: ['Monthly instalments', 'عدد الأقساط'], monthly: ['Monthly deduction (SAR)', 'القسط الشهري (ريال)'],
+  addressee: ['Addressed to', 'موجه إلى'], reason: ['Reason / details', 'السبب / التفاصيل'],
+  balBefore: ['Annual balance before', 'الرصيد قبل الإجازة'], balAfter: ['Annual balance after', 'الرصيد بعد الإجازة'],
+  delegate: ['Covering colleague', 'الموظف البديل'], contact: ['Contact during leave', 'رقم التواصل أثناء الإجازة'],
+  declLeave: ['I request the leave above, confirm the information is correct, and will be back at work on the date shown.',
+    'أتقدم بطلب الإجازة الموضحة أعلاه، وأقر بصحة البيانات، وألتزم بالعودة إلى العمل في التاريخ المحدد.'],
+  declOther: ['I request the above and confirm the information is correct.', 'أتقدم بالطلب الموضح أعلاه وأقر بصحة البيانات.'],
+  role: ['Role', 'الصفة'], decision: ['Decision', 'القرار'], signature: ['Signature', 'التوقيع'],
+  employee: ['Employee', 'الموظف'], hr: ['Human resources', 'الموارد البشرية'], gm: ['General manager', 'المدير العام'],
+  approved: ['Approved', 'موافق'], rejected: ['Rejected', 'مرفوض'],
+  hrUse: ['For HR use — received on: ____________  filed by: ____________', 'لاستخدام الموارد البشرية — تاريخ الاستلام: ____________  الحفظ بواسطة: ____________'],
+  printed: ['Printed from expand hub', 'طُبع من expand hub'],
+};
+const LEAVE_TYPES = ['annual_leave', 'sick_leave', 'unpaid_leave', 'other_leave'];
+const formKind = (type) => LEAVE_TYPES.includes(type) ? 'leave' : (FORM.title[type] ? type : 'other');
+export const requestRef = (r) => 'REQ-' + String(r.id || '').replace(/-/g, '').slice(0, 8).toUpperCase();
+
+/**
+ * The printable form for one request.
+ *   ctx: { person, emp, managerName, hrName, deptLabel, s (settings),
+ *          balance (annual, before this leave, or null), back (return date),
+ *          printedAt }
+ */
+export function requestFormHtml(lang, r, c = {}) {
+  const t = T(lang);
+  const both = (k) => FORM[k];
+  // A row: English label | value | Arabic label.
+  const row = (k, v, { blank = false, tall = false } = {}) => `<tr${tall ? ' class="tall"' : ''}><th class="en">${esc(both(k)[0])}</th>
+    <td class="v">${blank ? '' : (v === null || v === undefined || v === '' ? '—' : v)}</td><th class="ar">${esc(both(k)[1])}</th></tr>`;
+  // Both languages in one cell, each kept in its own direction.
+  const duo = (k) => `<bdi dir="ltr">${esc(both(k)[0])}</bdi> / <bdi dir="rtl">${esc(both(k)[1])}</bdi>`;
+  const head = (k) => `<div class="sec"><span>${esc(both(k)[0])}</span><span>${esc(both(k)[1])}</span></div>`;
+  const d = (iso) => iso ? esc(fmt(iso, lang)) : '';
+  const p = c.person || {}, e = c.emp || {};
+  const kind = formKind(r.type);
+  const isLeave = kind === 'leave';
+  const days = Number(r.days || 0);
+
+  let details = '';
+  if (isLeave) {
+    const boxes = LEAVE_TYPES.map(k => `<span class="box">${k === r.type ? '☒' : '☐'} ${esc(t.req.types[k])}</span>`).join('');
+    details += row('leaveType', boxes);
+    details += row('from', d(r.start_date)) + row('to', d(r.end_date)) + row('days', esc(num(days, 0)));
+    details += row('back', d(c.back));
+    if (r.type === 'annual_leave' && c.balance !== null && c.balance !== undefined) {
+      const n1 = (v) => `<bdi dir="ltr">${esc(num(v, 1))}</bdi>`;
+      details += row('balBefore', n1(c.balance)) + row('balAfter', n1(c.balance - days));
+    }
+    details += row('delegate', '', { blank: true }) + row('contact', esc(e.phone || ''), { blank: !e.phone });
+  } else if (r.type === 'early_leave') {
+    details += row('date', d(r.start_date)) + row('time', esc((r.leave_time || '').slice(0, 5)));
+  } else if (r.type === 'advance') {
+    const n = Number(r.instalments || 1);
+    details += row('amount', esc(num(r.amount))) + row('instalments', esc(String(n))) + row('monthly', esc(num(Number(r.amount || 0) / n)));
+  } else {
+    details += row('type', esc(t.req.types[r.type] || r.type));
+    if (r.addressee) details += row('addressee', esc(r.addressee));
+  }
+  details += row('reason', esc(r.details || ''), { tall: true });
+
+  const decision = (at, approved) => at ? duo(approved ? 'approved' : 'rejected') : '';
+  const rejected = r.status === 'rejected';
+  const mgrRejected = rejected && r.manager_decided_at && !r.hr_decided_at;
+  const sig = (role, name, dec, at) => `<tr><th>${esc(both(role)[0])}<br><span class="arl">${esc(both(role)[1])}</span></th>
+    <td>${esc(name || '')}</td><td>${dec}</td><td>${at ? d(at.slice(0, 10)) : ''}</td><td class="sig"></td></tr>`;
+
+  const title = both('title')[kind] || both('title').other;
+  return printShell(lang, `${requestRef(r)} — ${p.full_name || ''}`, `
+${letterhead(lang, c.s || {})}
+<div class="ftitle"><h1>${esc(title[0])}<br><span>${esc(title[1])}</span></h1>
+  <table class="refbox">
+    <tr><th>${duo('ref')}</th><td><b>${esc(requestRef(r))}</b></td></tr>
+    <tr><th>${duo('submitted')}</th><td>${d((r.created_at || '').slice(0, 10))}</td></tr>
+    <tr><th>${duo('status')}</th><td>${esc(t.req.st[r.status] || r.status)}</td></tr>
+  </table></div>
+${head('emp')}
+<table class="form">
+  ${row('name', esc(p.full_name || p.email || ''))}
+  ${row('position', esc(e.position || ''))}
+  ${row('dept', esc(c.deptLabel || ''))}
+  ${row('manager', esc(c.managerName || ''))}
+  ${row('joined', d(e.joining_date))}
+  ${e.contract_no ? row('empNo', esc(e.contract_no)) : ''}
+</table>
+${head('req')}
+<table class="form">${details}</table>
+${head('declare')}
+<div class="decl"><p dir="ltr" lang="en">${esc(both(isLeave ? 'declLeave' : 'declOther')[0])}</p><p dir="rtl" lang="ar">${esc(both(isLeave ? 'declLeave' : 'declOther')[1])}</p></div>
+${head('approvals')}
+<table class="sigs">
+  <tr><th>${duo('role')}</th><th>${duo('name')}</th><th>${duo('decision')}</th>
+    <th>${duo('date')}</th><th>${duo('signature')}</th></tr>
+  ${sig('employee', p.full_name || p.email, '', r.created_at)}
+  ${r.manager_id ? sig('manager', c.managerName, decision(r.manager_decided_at, !mgrRejected), r.manager_decided_at) : ''}
+  ${sig('hr', c.hrName, decision(r.hr_decided_at, !rejected), r.hr_decided_at)}
+  ${sig('gm', '', '', null)}
+</table>
+<p class="hruse"><span dir="ltr" lang="en" class="blk">${esc(both('hrUse')[0])}</span><span dir="rtl" lang="ar" class="blk">${esc(both('hrUse')[1])}</span></p>
+<div class="foot">${esc(both('printed')[lang === 'ar' ? 1 : 0])} · ${esc(requestRef(r))} · ${esc(c.printedAt || '')}${c.s?.letter_footer ? ` · ${esc(c.s.letter_footer)}` : ''}</div>`,
+  { css: FORM_CSS });
+}
+
+const FORM_CSS = `
+  @page { margin: 10mm 12mm 10mm; }
+  body { font-size: 11.5px; line-height: 1.45; }
+  td, th { padding: 4px 8px; }
+  .lh { margin-bottom: 10px; }
+  .ftitle { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 6px; }
+  .ftitle h1 { text-align: start; margin: 0; font-size: 18px; line-height: 1.35; }
+  .ftitle h1 span { font-size: 16px; }
+  table.refbox { width: auto; margin: 0; font-size: 11px; } .refbox th { background: #f3f3f3; font-weight: 600; white-space: nowrap; }
+  .sec { display: flex; justify-content: space-between; background: #111; color: #fff; padding: 3px 10px; margin: 9px 0 0; font-weight: 700; font-size: 12px;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  table.form { margin: 0; table-layout: fixed; } table.form th { width: 24%; background: #f6f6f6; font-weight: 600; font-size: 11.5px;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  table.form th.en { text-align: left; direction: ltr; } table.form th.ar { text-align: right; direction: rtl; }
+  table.form td.v { text-align: center; height: 22px; } table.form tr.tall td.v { height: 44px; vertical-align: top; text-align: start; white-space: pre-wrap; }
+  .box { display: inline-block; margin: 0 8px; white-space: nowrap; }
+  .decl { border: 1px solid #bbb; border-top: 0; padding: 6px 10px; } .decl p { margin: 2px 0; }
+  table.sigs { margin: 0; table-layout: fixed; } table.sigs th { background: #f6f6f6; font-size: 11px; font-weight: 600;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  table.sigs th:first-child { width: 20%; } table.sigs td.sig { width: 26%; height: 40px; }
+  table.sigs td { font-size: 11.5px; } .arl { font-weight: 400; }
+  .blk { display: block; } .decl p[dir="ltr"] { text-align: left; } .decl p[dir="rtl"] { text-align: right; }
+  .hruse span[dir="ltr"] { text-align: left; } .hruse span[dir="rtl"] { text-align: right; }
+  .hruse { margin-top: 10px; font-size: 10.5px; color: #444; border: 1px dashed #999; padding: 5px 10px; line-height: 1.8; }
+  .foot { position: static; margin-top: 8px; font-size: 9.5px; }
+`;
+
+const printShell = (lang, title, body, { draft = false, css = '' } = {}) => `<!doctype html>
 <html lang="${lang}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}"><head><meta charset="utf-8"><title>${esc(title)}</title>
 <style>
   @page { size: A4; margin: 18mm 16mm; }
@@ -1398,6 +1556,7 @@ const printShell = (lang, title, body, { draft = false } = {}) => `<!doctype htm
   td, th { border: 1px solid #bbb; padding: 6px 8px; text-align: start; } td.n, th.n { text-align: end; font-variant-numeric: tabular-nums; }
   .slip { page-break-after: always; } .slip:last-child { page-break-after: auto; }
   .tot td { font-weight: 700; background: #f2f2f2; }
+${css}
 </style></head><body>${draft ? `<div class="draft">${esc(T(lang).let.draftMark)}</div>` : ''}${body}
 <script>window.addEventListener('load',()=>setTimeout(()=>window.print(),250));</script></body></html>`;
 

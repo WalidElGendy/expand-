@@ -197,3 +197,9 @@ export async function imageData(path) {
   if (error || !data) return null;
   return new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => res(null); r.readAsDataURL(data); });
 }
+
+/** The signed paper copy of a request (scan or photo), kept on the request. */
+export async function signRequest(req, file) {
+  const up = await uploadHrDoc(file, `requests/${req.employee_id}`);
+  return rpc('hr_request_signed', { p_id: req.id, p_path: up.path, p_name: up.name });
+}
