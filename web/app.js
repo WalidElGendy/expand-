@@ -17,6 +17,7 @@ import * as N from './notify.js';
 import * as CH from './chat.js';
 import * as TH from './theme.js';
 import * as AP from './appearance.js';
+import * as NEO from './neo.js';
 import { HSTR } from './hr.js';
 import { TSTR, canSeeTenders } from './tenders.js';
 import { ESTR, canSeeEtimad } from './etimad.js';
@@ -179,6 +180,7 @@ function currentRoute() {
   if (h.startsWith('#/pipeline')) return { name: 'pipeline' };
   if (h.startsWith('#/performance')) return { name: 'performance' };
   if (h.startsWith('#/appearance')) return { name: 'appearance' };
+  if (h.startsWith('#/neo'))      return { name: 'neo' };
   if (h.startsWith('#/signin'))   return { name: 'signin' };
   if (h.startsWith('#/reset'))    return { name: 'signin' };   // recovery lands here
   if (h.startsWith('#/code'))     return { name: 'signin' };   // the link in an emailed code lands here
@@ -236,7 +238,7 @@ const APP_ROUTES = ['home', 'projects', 'project', 'new', 'leads', 'lead', 'docs
   'hrsec', 'hrrun', 'hrletter', 'me', 'tasks',
   'tenders', 'tenderlist', 'tendernew', 'tender', 'tenderedit', 'tenderset',
   'etimad', 'etimadlist', 'etimadours', 'etimadset', 'etimadt', 'etimadcomp', 'etimadc',
-  'factory', 'factoryproc', 'procurement', 'appearance'];
+  'factory', 'factoryproc', 'procurement', 'appearance', 'neo'];
 
 function render() {
   // The signed-in person's own colours, from their profile, once per sign-in.
@@ -277,6 +279,7 @@ function render() {
       r.name === 'signin'   ? signInView(S.lang, C.ctx.authMode, C.ctx.authMsg, C.ctx.authErr, C.ctx.authAddr)
     : r.name === 'estimate' ? estimatorBody()
     : r.name === 'appearance' ? AP.appearanceView(S.lang)
+    : r.name === 'neo' ? NEO.neoView(S.lang)
     : C.appBody(S.lang, r.name, r.id);
   } catch (e) {
     console.error(e);
@@ -296,6 +299,7 @@ function render() {
   if (r.name === 'signin') C.wireAuth(S.lang);
   if (APP.includes(r.name)) C.wireApp(S.lang);
   if (r.name === 'appearance') AP.wireAppearance(S.lang, render);
+  if (r.name === 'neo') NEO.wireNeo(S.lang);
   // Assignment pop-ups: start for whoever is signed in, stop on sign-out.
   try { N.ensure(S.lang); } catch (e) { console.error(e); }
   // Quick chat: the launcher and any open conversation, outside #root.
@@ -344,6 +348,7 @@ function headTitle(r) {
   if (r.name === 'pipeline')   return { h1: d.pipeline, sub: d.pipelineSub };
   if (r.name === 'performance') return { h1: d.perf, sub: d.perfSub };
   if (r.name === 'appearance') return { h1: AP.ASTR[S.lang].nav, sub: AP.ASTR[S.lang].sub };
+  if (r.name === 'neo')        return { h1: NEO.NSTR[S.lang].nav, sub: NEO.NSTR[S.lang].sub };
   if (['tenders', 'tenderlist', 'tendernew', 'tender', 'tenderedit', 'tenderset'].includes(r.name))
     return { h1: TSTR[S.lang].title, sub: TSTR[S.lang].sub };
   if (['etimad', 'etimadlist', 'etimadours', 'etimadset', 'etimadt', 'etimadcomp', 'etimadc'].includes(r.name))
@@ -375,6 +380,7 @@ const ICON = {
   gavel:  'M14 13l-7.5 7.5a2.12 2.12 0 0 1-3-3L11 10M16 16l6-6M8 8l6-6M9 7l8 8M21 11l-8-8',
   sun:    'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4',
   moon:   'M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z',
+  neo:    'M12 2.5l1.9 5.6 5.6 1.9-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.9zM18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z',
   palette: 'M12 3a9 9 0 1 0 0 18c.9 0 1.5-.7 1.5-1.5 0-.4-.2-.8-.4-1.1-.3-.3-.4-.7-.4-1.1 0-.8.7-1.5 1.5-1.5H16a5 5 0 0 0 5-5c0-4.3-4-7.8-9-7.8zM7.5 12.5h.01M9.5 8h.01M14.5 8h.01M17 11.5h.01',
 };
 
@@ -418,7 +424,8 @@ const PUBLIC_NAV = [];
 function appNav() {
   const me = db.state.me, d = DSTR[S.lang];
   if (!me) return [];
-  const items = [{ group: 'work', route: '#/home', icon: 'home', label: () => d.home }];
+  const items = [{ group: 'work', route: '#/neo', icon: 'neo', label: () => NEO.NSTR[S.lang].nav }];
+  items.push({ group: 'work', route: '#/home', icon: 'home', label: () => d.home });
   items.push({ group: 'work', route: '#/tasks', icon: 'check', label: () => d.myTasks });
   /* Everyone gets Projects. What the company is building is not privileged
      information here — the read policy already lets any active user see it,
